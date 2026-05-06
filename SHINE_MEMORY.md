@@ -37,6 +37,7 @@
 - [x] 移除 GitHub Action 中引起干扰的 Node 24 强制环境变量 (v1.1.3)。
 - [x] 在 Web UI 设置页面添加配置备份导出及恢复功能。
 - [x] 修复 `/api/github-push` 直接将带有 Markdown 和 Makefile 的完整对话推送进 `Tweak.xm`，导致 Theos 出现 `dangling %end` 甚至严重编译失败的问题 (v1.1.6)。
+- [x] 修改 GitHub Actions 产物上传的名称，使其以应用真实名称命名，而不是使用冗余的固定名称 (v1.1.6)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 
