@@ -88,7 +88,16 @@ async function startServer() {
 
   // API 路由：推送到 GitHub
   app.post("/api/github-push", async (req, res) => {
-    const { token, owner, repo, content, appName } = req.body;
+    let { token, owner, repo, content, appName } = req.body;
+
+    // 允许从环境变量读取 Token，如果前端没传
+    token = token || process.env.GITHUB_TOKEN;
+    owner = owner || "shine85";
+    repo = repo || "iosTweak";
+
+    if (!token) {
+      return res.status(400).json({ error: "GitHub Token 未设置，请在设置面板配置或检查服务器环境变量。" });
+    }
     
     // 清洗应用名称用于 Makefile 和 Package ID
     const safeName = appName.replace(/[^a-zA-Z0-9]/g, '') || 'Tweak';

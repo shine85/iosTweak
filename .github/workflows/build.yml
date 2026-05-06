@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build and Package Tweak
 
 on:
   push:
@@ -12,17 +12,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Use Node.js
+      - name: Install Theos
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl perl git libssl-dev
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+          echo "THEOS=~/theos" >> $GITHUB_ENV
+          echo "~/theos/bin" >> $GITHUB_PATH
+
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm install
 
-      - name: Build
+      - name: Build Web App
         run: npm run build
         env:
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -32,3 +42,16 @@ jobs:
           VITE_FIREBASE_FIRESTORE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_FIRESTORE_DATABASE_ID }}
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+
+      - name: Compile Tweak (DEB)
+        run: |
+          export THEOS=~/theos
+          make package FINALPACKAGE=1
+        continue-on-error: true # 防止没有 Makefile 时报错终止
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-tweak-packages
+          path: packages/*.deb
+          if-no-files-found: warn

@@ -9,7 +9,8 @@
 - **变动记录**:
   - 修正了 Dockerfile 仅部署静态资源导致 API 404 的问题。现在 Dockerfile 使用 Node 运行时同时托管前端和 API。
   - server.ts 端口改为支持环境变量 `PORT` (默认 3000)。
-  - docker-compose.yml 更新了端口映射 (8080:3000) 并添加了 AI 密钥的环境变量透传。
+  - docker-compose.yml 更新了端口映射 (8080:3000) 并添加了 AI 密钥和 GITHUB_TOKEN 的环境透传。
+  - GitHub 默认仓库设为 `shine85/iosTweak`。
 - **变量管理**: 采用 Vite 环境变量注入模式（构建时注入）以及服务端运行时环境变量。
 
 ## 2. 关键配置
