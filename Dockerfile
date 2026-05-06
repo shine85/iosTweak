@@ -1,21 +1,33 @@
-# 构建阶段
-FROM node:20-slim AS builder
+# Build stage
+FROM node:20-alpine AS build
 WORKDIR /app
-COPY package.json ./
+
+# 只有在构建时才需要的参数 (Vite 必须在构建阶段拿到这些变量)
+ARG VITE_FIREBASE_PROJECT_ID
+ARG VITE_FIREBASE_APP_ID
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_AUTH_DOMAIN
+ARG VITE_FIREBASE_FIRESTORE_DATABASE_ID
+ARG VITE_FIREBASE_STORAGE_BUCKET
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID
+
+# 将 ARG 转换为环境变量，供 npm run build 使用
+ENV VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID
+ENV VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
+ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY
+ENV VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN
+ENV VITE_FIREBASE_FIRESTORE_DATABASE_ID=$VITE_FIREBASE_FIRESTORE_DATABASE_ID
+ENV VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET
+ENV VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID
+
+COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
 
-# 运行阶段
-FROM node:20-slim
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/server.ts ./
-COPY --from=builder /app/Makefile ./
-COPY --from=builder /app/control ./
-COPY --from=builder /app/.github ./.github
-RUN npm install --production && npm install -g tsx
-EXPOSE 12300
-CMD ["tsx", "server.ts"]
+# Production stage
+FROM nginx:stable-alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

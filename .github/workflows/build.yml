@@ -1,73 +1,34 @@
-name: Build iOS Tweak
+name: Build and Test
 
 on:
   push:
-    paths:
-      - 'Tweak.xm'
-      - 'Makefile'
-      - 'control'
-  workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Theos
-        run: |
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-          echo "THEOS=~/theos" >> $GITHUB_ENV
-
-      - name: Build Rootless
-        run: |
-          export THEOS=~/theos
-          make clean
-          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
-          mkdir -p output/rootless
-          cp packages/*.deb output/rootless/
-
-      - name: Build Roothide
-        run: |
-          export THEOS=~/theos
-          make clean
-          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
-          mkdir -p output/roothide
-          cp packages/*.deb output/roothide/
-
-      - name: Extract Dylib
-        run: |
-          # 从 Rootless 的包中提取 dylib
-          DEB_FILE=$(ls output/rootless/*.deb | head -n 1)
-          mkdir -p dist_tmp
-          dpkg-deb -x "$DEB_FILE" dist_tmp/
-          mkdir -p output/dylib
-          # 寻找并移动 dylib
-          find dist_tmp/ -name "*.dylib" -exec cp {} output/dylib/ \;
-
-      - name: Prepare and Upload Artifacts
-        run: |
-          # 获取应用名称
-          PKG_NAME=$(grep "Name:" control | cut -d' ' -f2)
-          DATE=$(date +'%Y%m%d')
-          
-          # 重命名 Rootless
-          mv output/rootless/*.deb output/${PKG_NAME}_${DATE}_rootless.deb
-          
-          # 重命名 Roothide
-          mv output/roothide/*.deb output/${PKG_NAME}_${DATE}_roothide.deb
-          
-          # 重命名 Dylib
-          mv output/dylib/*.dylib output/${PKG_NAME}_${DATE}.dylib
-          
-          echo "artifact_prefix=${PKG_NAME}_${DATE}" >> $GITHUB_ENV
-
-      - name: Upload DEBs and Dylib
-        uses: actions/upload-artifact@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
         with:
-          name: ${{ env.artifact_prefix }}_Builds
-          path: output/*.*
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_FIRESTORE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_FIRESTORE_DATABASE_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
