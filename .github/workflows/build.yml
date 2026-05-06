@@ -9,10 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      # 强制 GitHub Actions 使用 Node.js 24 运行 JavaScript Actions
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      # 强制刷新标识：v1.0.2
 
     steps:
       - uses: actions/checkout@v4
@@ -22,10 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev xz-utils
-          # 手动安装 ldid
-          sudo curl -L https://github.com/procursus-team/ldid/releases/latest/download/ldid_linux_x86_64 -o /usr/local/bin/ldid
-          sudo chmod +x /usr/local/bin/ldid
+          sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev cctools-port
 
       - name: Set up Theos
         run: |
@@ -35,9 +28,8 @@ jobs:
 
       - name: Download iOS SDK
         run: |
-          # 直接克隆 SDK 仓库，彻底解决 curl 下载 LFS 指针文件导致解压失败的问题
-          # 仅克隆最近的历史以节省空间
-          git clone --depth 1 https://github.com/theos/sdks.git $GITHUB_WORKSPACE/theos/sdks
+          mkdir -p $GITHUB_WORKSPACE/theos/sdks
+          curl -L https://github.com/theos/sdks/raw/master/iPhoneOS14.5.sdk.tar.xz | tar -xJ -C $GITHUB_WORKSPACE/theos/sdks
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
