@@ -1,10 +1,7 @@
-#import <Foundation/Foundation.h>
 
-%hook SpringBoard
+运行 App，触发广告场景，观察日志确认具体类/方法（不同版本可能有 PAGxxx vs BUxxx）。
 
-- (void)applicationDidFinishLaunching:(id)application {
-    %orig;
-    NSLog(@"[MyTweak] Hello from Tweak Studio!");
-}
+---
 
-%end
+### 1. 完整的 Tweak.xm 代码
+
