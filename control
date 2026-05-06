@@ -1,5 +1,5 @@
-Package: com.yourcompany.mytweak
-Name: MyTweak
+Package: com.yourcompany.河马剧场
+Name: 河马剧场
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm
