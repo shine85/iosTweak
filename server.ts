@@ -46,10 +46,12 @@ async function startServer() {
       }
 
       if (aiProvider === 'gemini') {
-        const genAI = new GoogleGenAI({ apiKey });
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(prompt);
-        res.json({ result: result.response.text() });
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+           model: modelName,
+           contents: prompt
+        });
+        res.json({ result: response.text });
       } else {
         const response = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
