@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.10)
+name: iOS Tweak Build (FORCE_v1.1.8)
 
 on:
   push:
@@ -10,8 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # 强制刷新标识：v1.1.10 (按拼音包名精确输出不同架构产物)
-      FORCE_BUILD_ID: "v1.1.10"
+      # 强制刷新标识：v1.1.8 (支持拼音包名及自定义产物命名)
+      FORCE_BUILD_ID: "v1.1.8"
 
     steps:
       - name: "1. 检出代码"
@@ -109,13 +109,13 @@ jobs:
           make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
           ROOTLESS_DEB=$(find packages -name "*.deb" | head -n 1)
           if [ -n "$ROOTLESS_DEB" ]; then
-            mv "$ROOTLESS_DEB" "final_artifacts/${TWEAK_NAME}-arm64-rootless(无根).deb"
+            mv "$ROOTLESS_DEB" "final_artifacts/${APP_NAME}-arm64-rootless(无根).deb"
           fi
           
           # 提取 Dylib
           DYLIB_PATH=$(find .theos/obj -name "${TWEAK_NAME}.dylib" | head -n 1)
           if [ -n "$DYLIB_PATH" ]; then
-            cp "$DYLIB_PATH" "final_artifacts/ios-${TWEAK_NAME}-v1.1.9.dylib"
+            cp "$DYLIB_PATH" "final_artifacts/ios-${APP_NAME}-v1.1.7.dylib"
           fi
           
           rm -rf packages/*
@@ -126,7 +126,7 @@ jobs:
           make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1
           ROOTHIDE_DEB=$(find packages -name "*.deb" | head -n 1)
           if [ -n "$ROOTHIDE_DEB" ]; then
-            mv "$ROOTHIDE_DEB" "final_artifacts/${TWEAK_NAME}-arm64e-roothide(隐根).deb"
+            mv "$ROOTHIDE_DEB" "final_artifacts/${APP_NAME}-arm64e-roothide(隐根).deb"
           fi
           
           echo ">>> 可用产物列表 <<<"
