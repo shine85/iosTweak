@@ -30,8 +30,9 @@
 
 ## 4. 遗留问题 / 待办
 - [x] 全局 Node.js 版本已从 20 升级至 24 (Dockerfile & GitHub Actions)。
-- [x] 彻底移除 GitHub Action 中的 `cctools-port` 依赖，改用 `ldid` 手动安装版本 (v1.0.5 强制标识)。
-- [x] 移除 GitHub Action 中引起干扰的 Node 24 强制环境变量。
+- [x] 彻底移除 GitHub Action 中的 `cctools-port` 依赖，改用 `ldid` 手动安装版本 (v1.0.8 强制重置构建)。
+- [x] 添加 `rm -rf` 清理逻辑，解决 `git clone` 导致的目录冲突 (exit code 128)。
+- [x] 移除 GitHub Action 中引起干扰的 Node 24 强制环境变量 (v1.0.8)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 
