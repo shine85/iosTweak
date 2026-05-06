@@ -1,0 +1,6 @@
+{
+  "name": "iOS 插件工坊",
+  "description": "一个综合的 iOS 应用逆向工程工具包，支持生成 dylib 钩子和针对河马剧场等应用的去广告脚本。",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

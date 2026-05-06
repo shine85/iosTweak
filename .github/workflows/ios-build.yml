@@ -1,0 +1,38 @@
+name: iOS Tweak Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # 支持手动触发
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git ~/theos
+          echo "THEOS=~/theos" >> $GITHUB_ENV
+          echo "~/theos/bin" >> $GITHUB_PATH
+
+      - name: Install Toolchain (Xcode)
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Compile Tweak
+        run: |
+          # 假设你的源码叫 Tweak.xm
+          # 这里可以根据生成的代码动态调整，或者用户手动放入项目
+          make package FINALPACKAGE=1
+        continue-on-error: true
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: compiled-dylib
+          path: packages/*.deb
