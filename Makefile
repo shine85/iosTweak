@@ -6,10 +6,10 @@ TARGET = iphone:clang:latest:14.0
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = 河马剧场
+TWEAK_NAME = MyTweak
 
 # 源代码文件
-河马剧场_FILES = Tweak.xm
-河马剧场_CFLAGS = -fobjc-arc
+MyTweak_FILES = Tweak.xm
+MyTweak_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk

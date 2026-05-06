@@ -143,6 +143,16 @@ async function startServer() {
       const remoteWorkflow = await getFile(workflowPath);
       await updateFile(workflowPath, localWorkflow, "Sync Build Automation Workflow (v4)", remoteWorkflow?.sha);
 
+      // 同步清理脚本
+      const cleanupPath = '.github/workflows/cleanup.yml';
+      try {
+        const localCleanup = await fs.readFile(path.join(process.cwd(), cleanupPath), 'utf-8');
+        const remoteCleanup = await getFile(cleanupPath);
+        await updateFile(cleanupPath, localCleanup, "Sync Cleanup Workflow", remoteCleanup?.sha);
+      } catch (e) {
+        console.warn("Optional cleanup sync failed:", e);
+      }
+
       // 同步 Makefile 和 control
       const syncFile = async (filename: string, transform?: (c: string) => string) => {
         try {
