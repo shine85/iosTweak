@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.4)
+name: iOS Tweak Build (FORCE_v1.1.5)
 
 on:
   push:
@@ -10,8 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # 强制刷新标识：v1.1.4 (使用L1ghtmann toolchain)
-      FORCE_BUILD_ID: "v1.1.4"
+      # 强制刷新标识：v1.1.5 (修正 ProcursusTeam ldid 下载链接)
+      FORCE_BUILD_ID: "v1.1.5"
 
     steps:
       - name: "1. 检出代码"
@@ -19,14 +19,14 @@ jobs:
         with:
           submodules: recursive
 
-      - name: "2. 环境初始化 (v1.1.4)"
+      - name: "2. 环境初始化 (v1.1.5)"
         run: |
-          echo ">>> 正在执行 v1.1.4 逻辑 <<<"
+          echo ">>> 正在执行 v1.1.5 逻辑 <<<"
           sudo apt-get update
           # 安装必要的编译依赖
           sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev xz-utils bzip2 libfl-dev
           # 安装 ldid
-          sudo curl -L https://github.com/procursus-team/ldid/releases/latest/download/ldid_linux_x86_64 -o /usr/local/bin/ldid
+          sudo curl -L https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64 -o /usr/local/bin/ldid
           sudo chmod +x /usr/local/bin/ldid
 
       - name: "3. 配置 Theos"
