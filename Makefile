@@ -1,14 +1,13 @@
-DEBUG = 0
-FINALPACKAGE = 1
-ARCHS = arm64 arm64e
-TARGET = iphone:clang:latest:14.5
-
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = MyTweak
+TWEAK_NAME = hemajuchang
+HMJCNoAd_FILES = Tweak.xm
+HMJCNoAd_CFLAGS = -fobjc-arc
+HMJCNoAd_LDFLAGS = -framework UIKit -framework Foundation
 
-# 源代码文件
-MyTweak_FILES = Tweak.xm
-MyTweak_CFLAGS = -fobjc-arc
+INSTALL_TARGET_PROCESS = 河马剧场   # 或实际进程名 / bundle ID 对应进程
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+after-install::
+	install_name_tool -change /usr/lib/libsubstrate.dylib /usr/lib/libhooker.dylib $(THEOS_STAGING_DIR)/Library/MobileSubstrate/DynamicLibraries/HMJCNoAd.dylib || true
