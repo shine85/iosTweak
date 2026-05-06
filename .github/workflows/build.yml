@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.0.8)
+name: iOS Tweak Build (FORCE_v1.0.6)
 
 on:
   push:
@@ -10,35 +10,34 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # 强制刷新标识：v1.0.8 (解决目录冲突，强制重置克隆)
-      FORCE_CLEAN_BUILD: "v1.0.8"
+      # 强制刷新标识：v1.0.6 (彻底清理 cctools-port)
+      # 如果看到这个名称，说明同步成功了！
+      FORCE_刷新: "v1.0.6"
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: "环境初始化 (FORCE_v1.0.8)"
+      - name: 1. 环境初始化 (FORCE_v1.0.6)
         run: |
-          echo ">>> 执行 v1.0.8 强制清理构建 <<<"
+          echo "Starting build v1.0.6"
           sudo apt-get update
           sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev xz-utils
-          # 安装 ldid
+          # 手动安装 ldid
           sudo curl -L https://github.com/procursus-team/ldid/releases/latest/download/ldid_linux_x86_64 -o /usr/local/bin/ldid
           sudo chmod +x /usr/local/bin/ldid
 
       - name: Set up Theos
         run: |
-          # 强制清理已存在的 theos 目录，防止克隆失败
-          rm -rf $GITHUB_WORKSPACE/theos
           git clone --recursive https://github.com/theos/theos.git $GITHUB_WORKSPACE/theos
           echo "THEOS=$GITHUB_WORKSPACE/theos" >> $GITHUB_ENV
           echo "$GITHUB_WORKSPACE/theos/bin" >> $GITHUB_PATH
 
       - name: Download iOS SDK
         run: |
-          # 强制清理已存在的 sdks 目录
-          rm -rf $GITHUB_WORKSPACE/theos/sdks
+          # 直接克隆 SDK 仓库，彻底解决 curl 下载 LFS 指针文件导致解压失败的问题
+          # 仅克隆最近的历史以节省空间
           git clone --depth 1 https://github.com/theos/sdks.git $GITHUB_WORKSPACE/theos/sdks
 
       - name: Set up Node.js
