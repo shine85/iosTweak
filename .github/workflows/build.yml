@@ -18,10 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev xz-utils
-          # 手动安装 ldid
-          sudo curl -L https://github.com/procursus-team/ldid/releases/latest/download/ldid_linux_x86_64 -o /usr/local/bin/ldid
-          sudo chmod +x /usr/local/bin/ldid
+          sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev cctools-port
 
       - name: Set up Theos
         run: |
@@ -32,15 +29,7 @@ jobs:
       - name: Download iOS SDK
         run: |
           mkdir -p $GITHUB_WORKSPACE/theos/sdks
-          # 使用更可靠的 SDK 源或直链
-          curl -L "https://github.com/theos/sdks/raw/master/iPhoneOS14.5.sdk.tar.xz" -o sdk.tar.xz
-          # 检查文件大小，如果太小说明下载的是网页
-          if [ $(stat -c%s "sdk.tar.xz") -lt 100000 ]; then
-             echo "Download failed or link restricted, trying fallback..."
-             curl -L "https://github.com/theos/sdks/blob/master/iPhoneOS14.5.sdk.tar.xz?raw=true" -o sdk.tar.xz
-          fi
-          tar -xJ -f sdk.tar.xz -C $GITHUB_WORKSPACE/theos/sdks
-          rm sdk.tar.xz
+          curl -L https://github.com/theos/sdks/raw/master/iPhoneOS14.5.sdk.tar.xz | tar -xJ -C $GITHUB_WORKSPACE/theos/sdks
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
