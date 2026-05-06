@@ -238,7 +238,21 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KIS
 
       await syncFile('Makefile', (c) => {
         let updated = makefileContent || c;
-        return updated.replace(/TWEAK_NAME = .*$/m, `TWEAK_NAME = ${finalSafeName}`).replace(/MyTweak_FILES/g, `${finalSafeName}_FILES`).replace(/MyTweak_CFLAGS/g, `${finalSafeName}_CFLAGS`);
+        const currentNameMatch = updated.match(/^TWEAK_NAME\s*=\s*(.*?)\s*$/m);
+        const currentName = currentNameMatch ? currentNameMatch[1] : 'MyTweak';
+        
+        let newContent = updated.replace(/^TWEAK_NAME\s*=\s*.*$/m, `TWEAK_NAME = ${finalSafeName}`);
+        if (currentName !== finalSafeName) {
+            newContent = newContent
+                .replace(new RegExp(`${currentName}_FILES`, 'g'), `${finalSafeName}_FILES`)
+                .replace(new RegExp(`${currentName}_CFLAGS`, 'g'), `${finalSafeName}_CFLAGS`)
+                .replace(new RegExp(`${currentName}_CCFLAGS`, 'g'), `${finalSafeName}_CCFLAGS`)
+                .replace(new RegExp(`${currentName}_CXXFLAGS`, 'g'), `${finalSafeName}_CXXFLAGS`)
+                .replace(new RegExp(`${currentName}_LDFLAGS`, 'g'), `${finalSafeName}_LDFLAGS`)
+                .replace(new RegExp(`${currentName}_FRAMEWORKS`, 'g'), `${finalSafeName}_FRAMEWORKS`)
+                .replace(new RegExp(`${currentName}_LIBRARIES`, 'g'), `${finalSafeName}_LIBRARIES`);
+        }
+        return newContent;
       });
       await syncFile('control', (c) => c.replace(/^Name:.*$/m, `Name: ${appName}`).replace(/^Package:.*$/m, `Package: com.yourcompany.${finalSafePkg}`));
 

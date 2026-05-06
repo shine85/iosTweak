@@ -42,6 +42,8 @@
 - [x] 修复并严格规范打包产物的输出名称格式为：`ios-{APP英文拼音名}-v1.1.9.dylib`、`{APP英文拼音名}-arm64-rootless(无根).deb` 及 `{APP英文拼音名}-arm64e-roothide(隐根).deb`，其中 `{APP英文拼音名}` 取自转化后的安全包名标识，以符合多环境及文件标准需求 (v1.1.10)。
 - [x] 采用 `roothide/theos` 特供分支替换原主线 Theos 源，一次性原生解决 `roothide package scheme does not exist` 的错误，恢复对 Dopamine RootHide (隐根) 跨平台直接打包的支持及 `arm64_arm64e` 双架构构建能力 (v1.1.11)。
 - [x] 引入 `pinyin-pro` 处理由中文转换拼音包名标识问题，保证以全英文拼音及特定命名格式呈现内部包名避免 iOS 在注入或Theos打包时不支持中文字符而导致的验证错误 (v1.1.8)。
+- [x] 新增自动化 Release 发布环节，并将各种架构的打包产物作为标签上传至 Releases（包含 dylib、rootless、roothide），且能够保持只存储最新的 3 个标签以节约存储并维持整洁 (v1.1.12)。
+- [x] 修复 `server.ts` 在处理 AI 生成的 Makefile 变量时（如 `${TWEAK_NAME}_FILES` 等），由于过度依赖硬编码正则引发在后续编译阶段出现“No files to link”或“找不到文件”的问题。现已采用读取动态现有变量名前缀并全局替换新工程变量名的修复方案，彻底保障 Theos 包体编译及链接阶段读取不到源文件的问题 (v1.1.13)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 

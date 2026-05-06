@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.11)
+name: iOS Tweak Build (FORCE_v1.1.12)
 
 on:
   push:
@@ -9,9 +9,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
-      # 强制刷新标识：v1.1.11 (采用 roothide 团队的分支支持隐根打包)
-      FORCE_BUILD_ID: "v1.1.11"
+      # 强制刷新标识：v1.1.13 (修复动态替换 Makefile 变量名导致编译时找不到文件的问题)
+      FORCE_BUILD_ID: "v1.1.13"
 
     steps:
       - name: "1. 检出代码"
@@ -137,3 +139,36 @@ jobs:
         with:
           name: ${{ env.APP_NAME }}
           path: final_artifacts/*
+
+      - name: "11. 发布 Release (保留最新3份)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f final_artifacts/skip_build.txt ]; then
+            echo "无产物，跳过发布 Release"
+            exit 0
+          fi
+          
+          # 以时间作为 Tag，保证唯一性
+          TAG_NAME="v1.1.12-$(date +'%Y%m%d%H%M%S')"
+          RELEASE_TITLE="${APP_NAME} ${TAG_NAME}"
+          
+          # 创建 Release 并附加产物
+          echo ">>> 创建 Release $TAG_NAME <<<"
+          gh release create "$TAG_NAME" final_artifacts/* --title "$RELEASE_TITLE" --notes "自动发布的 iOS Tweak 多平台产物"
+          
+          # 清理旧版 Release（仅保留最新 3 个）
+          echo ">>> 正在清理旧版 Release <<<"
+          gh api "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name' > releases.txt
+          RELEASE_COUNT=$(wc -l < releases.txt)
+          
+          if [ "$RELEASE_COUNT" -gt 3 ]; then
+            tail -n +4 releases.txt | while read tag; do
+              if [ -n "$tag" ]; then
+                echo ">>> 删除旧版 Release: $tag <<<"
+                gh release delete "$tag" -y --cleanup-tag || true
+              fi
+            done
+          else
+            echo "当前 Release 数量 ($RELEASE_COUNT) 未超过 3 个，无需清理。"
+          fi
