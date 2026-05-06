@@ -14,54 +14,30 @@ env:
 jobs:
   build:
     runs-on: macos-latest
-    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Theos
         run: |
-          set -e
-          echo "INFO: Installing dependencies..."
-          export HOMEBREW_NO_AUTO_UPDATE=1
-          brew install ldid xz
-          
-          echo "INFO: Cloning Theos..."
-          # 显式克隆并初始化子模块，增加重试机制和深度限制
-          git clone --recursive --depth 1 https://github.com/theos/theos.git $HOME/theos
-          
-          echo "INFO: Downloading SDK 14.5..."
-          # 创建 SDK 目录
-          mkdir -p "$HOME/theos/sdks"
-          
-          # 增加重试机制，防止网络波动
-          curl --retry 5 --retry-delay 5 -L "https://github.com/theos/sdks/raw/master/iPhoneOS14.5.sdk.tar.xz" -o "$HOME/theos/sdks/iPhoneOS14.5.sdk.tar.xz"
-          
-          echo "INFO: Extracting SDK..."
-          tar -xf "$HOME/theos/sdks/iPhoneOS14.5.sdk.tar.xz" -C "$HOME/theos/sdks/"
-          rm "$HOME/theos/sdks/iPhoneOS14.5.sdk.tar.xz"
-          
-          # 显式指出 SDK 路径，防止识别失败
-          ls -d $HOME/theos/sdks/*.sdk
-          
-          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-          echo "INFO: Theos setup completed."
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+          echo "THEOS=~/theos" >> $GITHUB_ENV
 
       - name: Build Rootless
         run: |
-          export THEOS=$HOME/theos
+          export THEOS=~/theos
           make clean
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mkdir -p output/rootless
-          cp packages/*.deb output/rootless/ || (echo "FAILED TO BUILD ROOTLESS" && exit 1)
+          cp packages/*.deb output/rootless/
 
       - name: Build Roothide
         run: |
-          export THEOS=$HOME/theos
+          export THEOS=~/theos
           make clean
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
           mkdir -p output/roothide
-          cp packages/*.deb output/roothide/ || (echo "FAILED TO BUILD ROOTHIDE" && exit 1)
+          cp packages/*.deb output/roothide/
 
       - name: Extract Dylib
         run: |
