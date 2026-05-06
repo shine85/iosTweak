@@ -89,9 +89,14 @@ async function startServer() {
   // API 路由：推送到 GitHub
   app.post("/api/github-push", async (req, res) => {
     const { token, owner, repo, content, appName } = req.body;
+    
+    // 清洗应用名称用于 Makefile 和 Package ID
+    const safeName = appName.replace(/[^a-zA-Z0-9]/g, '');
+    const safePackageName = appName.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase();
+
     const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const timestamp = Math.floor(Date.now() / 1000);
-    const historyPath = `history/${appName}_${date}_${timestamp}.xm`;
+    const historyPath = `history/${safeName}_${date}_${timestamp}.xm`;
 
     try {
       const getFile = async (path: string) => {
@@ -165,8 +170,8 @@ async function startServer() {
         }
       };
 
-      await syncFile('Makefile', (c) => c.replace(/TWEAK_NAME = .*$/m, `TWEAK_NAME = ${appName}`).replace(/MyTweak_FILES/g, `${appName}_FILES`).replace(/MyTweak_CFLAGS/g, `${appName}_CFLAGS`));
-      await syncFile('control', (c) => c.replace(/^Name:.*$/m, `Name: ${appName}`).replace(/^Package:.*$/m, `Package: com.yourcompany.${appName.toLowerCase()}`));
+      await syncFile('Makefile', (c) => c.replace(/TWEAK_NAME = .*$/m, `TWEAK_NAME = ${safeName}`).replace(/MyTweak_FILES/g, `${safeName}_FILES`).replace(/MyTweak_CFLAGS/g, `${safeName}_CFLAGS`));
+      await syncFile('control', (c) => c.replace(/^Name:.*$/m, `Name: ${appName}`).replace(/^Package:.*$/m, `Package: com.yourcompany.${safePackageName}`));
 
       // 2. 更新主 Tweak.xm (这通常是触发点)
       const tweakFile = await getFile('Tweak.xm');
