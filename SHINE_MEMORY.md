@@ -40,6 +40,7 @@
 - [x] 修复 GitHub Actions 编译时因应用中文名被安全名过滤剥离（导致仅剩默认空包名）引起的名称冲刷和覆盖问题。优化 `server.ts` 强行保留后缀以解决包名一致的Bug (v1.1.7)。
 - [x] 优化 Action Workflow 步骤，实现多 Scheme 执行，产物分离并且严格按照 `ios-{appName}-v1.1.X.dylib`，`{appName}-arm64_arm64e-rootless(无根).deb`， 以及 `{appName}-arm64_arm64e-roothide(隐根).deb` 输出，明确标识出在 Dopamine 中兼容跨平台的 arm64 及 arm64e 双向架构特性 (v1.1.9)。
 - [x] 修复并严格规范打包产物的输出名称格式为：`ios-{APP英文拼音名}-v1.1.9.dylib`、`{APP英文拼音名}-arm64-rootless(无根).deb` 及 `{APP英文拼音名}-arm64e-roothide(隐根).deb`，其中 `{APP英文拼音名}` 取自转化后的安全包名标识，以符合多环境及文件标准需求 (v1.1.10)。
+- [x] 采用 `roothide/theos` 特供分支替换原主线 Theos 源，一次性原生解决 `roothide package scheme does not exist` 的错误，恢复对 Dopamine RootHide (隐根) 跨平台直接打包的支持及 `arm64_arm64e` 双架构构建能力 (v1.1.11)。
 - [x] 引入 `pinyin-pro` 处理由中文转换拼音包名标识问题，保证以全英文拼音及特定命名格式呈现内部包名避免 iOS 在注入或Theos打包时不支持中文字符而导致的验证错误 (v1.1.8)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
