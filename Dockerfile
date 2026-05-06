@@ -2,7 +2,7 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# 只有在构建时才需要的参数 (Vite 必须在构建阶段拿到这些变量)
+# 构建参数 (Vite 必须在构建阶段拿到这些变量)
 ARG VITE_FIREBASE_PROJECT_ID
 ARG VITE_FIREBASE_APP_ID
 ARG VITE_FIREBASE_API_KEY
@@ -26,8 +26,28 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM nginx:stable-alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+FROM node:20-alpine
+WORKDIR /app
+
+# 拷贝构建后的静态文件
+COPY --from=build /app/dist ./dist
+# 拷贝服务端代码和必要的配置文件
+COPY --from=build /app/server.ts ./
+COPY --from=build /app/package*.json ./
+COPY --from=build /app/Makefile ./
+COPY --from=build /app/control ./
+COPY --from=build /app/Filter.plist ./
+COPY --from=build /app/.github ./.github
+
+# 安装生产环境依赖
+RUN npm install --omit=dev
+# 安装 tsx 用于运行 ts 服务端
+RUN npm install -g tsx
+
+# 设置生产环境标识
+ENV NODE_ENV=production
+# 默认端口 3000
+ENV PORT=3000
+
+EXPOSE 3000
+CMD ["npm", "start"]

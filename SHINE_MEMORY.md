@@ -1,0 +1,33 @@
+# SHINE_MEMORY.md - 项目部署与环境管理记忆
+
+## 1. 架构概览
+- **前端框架**: React + Vite
+- **基础设施**: Firebase (Auth, Firestore, Storage)
+- **部署方案**: 
+  - **CI/CD**: GitHub Actions (验证编译)
+  - **生产环境**: 个人服务器 Docker Compose (使用 Node 镜像运行 Express 服务)
+- **变动记录**:
+  - 修正了 Dockerfile 仅部署静态资源导致 API 404 的问题。现在 Dockerfile 使用 Node 运行时同时托管前端和 API。
+  - server.ts 端口改为支持环境变量 `PORT` (默认 3000)。
+  - docker-compose.yml 更新了端口映射 (8080:3000) 并添加了 AI 密钥的环境变量透传。
+- **变量管理**: 采用 Vite 环境变量注入模式（构建时注入）以及服务端运行时环境变量。
+
+## 2. 关键配置
+### 环境变量 (Vite)
+- 变量名前缀必须为 `VITE_` 才能在客户端访问。
+- `import.meta.env.VITE_FIREBASE_*` 模式已在 `/src/lib/firebase.ts` 中实现。
+
+### 部署链条
+1. **GitHub Secrets**: 存储 Firebase 所有配置，用于 GitHub Actions 的 `npm run build` 测试。
+2. **服务器 .env**: 在生产服务器上手动存放，`docker-compose.yml` 通过 `args` 注入 `Dockerfile`。
+3. **Dockerfile**: 使用多阶段构建（Node.js 编译 -> Nginx 托管）。
+
+## 3. 安全与合规
+- `.gitignore` 已配置屏蔽所有 `.env*` 文件和 `firebase-applet-config.json`。
+- 本地 `.env` 已删除，严防密钥泄露至公共仓库。
+
+## 4. 遗留问题 / 待办
+- [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
+- [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
+
+-- *最后更新: 2026-05-06*
