@@ -146,7 +146,8 @@ async function startServer() {
       const workflowPath = '.github/workflows/build.yml';
       const localWorkflow = await fs.readFile(path.join(process.cwd(), workflowPath), 'utf-8');
       const remoteWorkflow = await getFile(workflowPath);
-      await updateFile(workflowPath, localWorkflow, "Sync Build Automation Workflow (v4)", remoteWorkflow?.sha);
+      console.log(`Syncing workflow to GitHub... (SHA: ${remoteWorkflow?.sha || 'new'})`);
+      await updateFile(workflowPath, localWorkflow, "Sync Build Automation Workflow (v5)", remoteWorkflow?.sha);
 
       // 同步清理脚本
       const cleanupPath = '.github/workflows/cleanup.yml';
