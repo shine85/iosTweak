@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.1)
+name: iOS Tweak Build (FORCE_v1.1.2)
 
 on:
   push:
@@ -10,8 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # 强制刷新标识：v1.1.1 (修复 Toolchain 下载与解压逻辑)
-      FORCE_BUILD_ID: "v1.1.1"
+      # 强制刷新标识：v1.1.2 (修正 Toolchain 下载链接及解压逻辑)
+      FORCE_BUILD_ID: "v1.1.2"
 
     steps:
       - name: "1. 检出代码"
@@ -19,12 +19,12 @@ jobs:
         with:
           submodules: recursive
 
-      - name: "2. 环境初始化 (v1.1.1)"
+      - name: "2. 环境初始化 (v1.1.2)"
         run: |
-          echo ">>> 正在执行 v1.1.1 逻辑 <<<"
+          echo ">>> 正在执行 v1.1.2 逻辑 <<<"
           sudo apt-get update
-          # 安装必要的编译依赖，确保包含 xz-utils 处理 lzma
-          sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev xz-utils libfl-dev
+          # 安装必要的编译依赖，确保包含 xz-utils (用于 .tar.xz) 和 bzip2 (用于 .tar.bz2)
+          sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev xz-utils bzip2 libfl-dev
           # 安装 ldid
           sudo curl -L https://github.com/procursus-team/ldid/releases/latest/download/ldid_linux_x86_64 -o /usr/local/bin/ldid
           sudo chmod +x /usr/local/bin/ldid
@@ -39,9 +39,16 @@ jobs:
       - name: "4. 安装 Toolchain (解决编译器缺失)"
         run: |
           mkdir -p $GITHUB_WORKSPACE/theos/toolchain/linux/iphone
-          # sbingner Toolchain 实际上是 .tar.lzma 格式，之前写错成了 .xml
-          # 使用 -xf 自动识别格式并解压
-          curl -L https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64-toolchain.tar.lzma | tar -C $GITHUB_WORKSPACE/theos/toolchain/linux/iphone --strip-components=1 -xf -
+          # sbingner Toolchain 的链接可能极其不稳定，此处使用最通用的 .bz2 格式并增加失败强制停止
+          # 备选链接: https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64-toolchain.tar.xz
+          curl -LO --fail https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64-toolchain.tar.bz2 || \
+          curl -LO --fail https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64-toolchain.tar.xz
+          
+          # 自动识别并解压到指定目录
+          FILE=$(ls linux-ios-arm64-toolchain.tar.*)
+          echo ">>> 正在解压工具链文件: $FILE <<<"
+          tar -C $GITHUB_WORKSPACE/theos/toolchain/linux/iphone --strip-components=1 -xf $FILE
+          
           echo ">>> 检查编译器路径 <<<"
           ls -l $GITHUB_WORKSPACE/theos/toolchain/linux/iphone/bin/clang
 
@@ -83,7 +90,7 @@ jobs:
       - name: "9. 上传产物"
         uses: actions/upload-artifact@v4
         with:
-          name: ios-tweak-v1.1.1
+          name: ios-tweak-v1.1.2
           path: |
             packages/*.deb
             packages/*.txt
