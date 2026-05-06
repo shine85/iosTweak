@@ -19,6 +19,7 @@ async function startServer() {
 
   // API 路由：生成 Hook 代码
   app.post("/api/generate", async (req, res) => {
+    console.log(`[API] /api/generate called for: ${req.body.appName}`);
     const { appName, config } = req.body;
     
     // 增加一个简单的安全判断，如果是 RESEARCH_QUERY 则是研究请求
