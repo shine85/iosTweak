@@ -14,26 +14,13 @@ env:
 jobs:
   build:
     runs-on: macos-latest
-    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Theos
         run: |
-          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
-          export HOMEBREW_NO_INSTALL_CLEANUP=1
-          brew list xz &>/dev/null || brew install xz
-          
-          # 手动克隆 Theos 避免 API 限制
-          git clone --recursive https://github.com/theos/theos.git ~/theos
-          
-          # 下载 SDK (手动下载特定版本避免 API 调用失败)
-          mkdir -p ~/theos/sdks
-          curl -L https://github.com/theos/sdks/raw/master/iPhoneOS14.5.sdk.tar.xz -o ~/theos/sdks/iPhoneOS14.5.sdk.tar.xz
-          tar -xf ~/theos/sdks/iPhoneOS14.5.sdk.tar.xz -C ~/theos/sdks/
-          rm ~/theos/sdks/iPhoneOS14.5.sdk.tar.xz
-          
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
           echo "THEOS=~/theos" >> $GITHUB_ENV
 
       - name: Build Rootless
@@ -42,7 +29,7 @@ jobs:
           make clean
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mkdir -p output/rootless
-          cp packages/*.deb output/rootless/ || (echo "FAILED TO BUILD ROOTLESS" && exit 1)
+          cp packages/*.deb output/rootless/
 
       - name: Build Roothide
         run: |
@@ -50,7 +37,7 @@ jobs:
           make clean
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
           mkdir -p output/roothide
-          cp packages/*.deb output/roothide/ || (echo "FAILED TO BUILD ROOTHIDE" && exit 1)
+          cp packages/*.deb output/roothide/
 
       - name: Extract Dylib
         run: |
