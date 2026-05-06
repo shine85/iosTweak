@@ -20,6 +20,11 @@ jobs:
 
       - name: Setup Theos
         run: |
+          # 快速安装依赖并减少输出干扰
+          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
+          export HOMEBREW_NO_INSTALL_CLEANUP=1
+          brew list xz &>/dev/null || brew install xz
+          
           bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
           echo "THEOS=~/theos" >> $GITHUB_ENV
 
@@ -29,7 +34,7 @@ jobs:
           make clean
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mkdir -p output/rootless
-          cp packages/*.deb output/rootless/
+          cp packages/*.deb output/rootless/ || (echo "FAILED TO BUILD ROOTLESS" && exit 1)
 
       - name: Build Roothide
         run: |
@@ -37,7 +42,7 @@ jobs:
           make clean
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
           mkdir -p output/roothide
-          cp packages/*.deb output/roothide/
+          cp packages/*.deb output/roothide/ || (echo "FAILED TO BUILD ROOTHIDE" && exit 1)
 
       - name: Extract Dylib
         run: |

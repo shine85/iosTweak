@@ -118,7 +118,24 @@ async function startServer() {
         return await res.json();
       };
 
-      // 1. 确保自动化编译流程文件存在且最新 (先同步环境再推送代码，防止触发旧版 Action)
+      const deleteFile = async (path: string, sha: string, message: string) => {
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, sha })
+        });
+        return res.ok;
+      };
+
+      // 1. 确保自动化编译流程文件存在且最新 (先清理旧脚本，防止 v3 打包错误)
+      // 检查并删除旧版 ios-build.yml
+      const legacyPath = '.github/workflows/ios-build.yml';
+      const legacyFile = await getFile(legacyPath);
+      if (legacyFile?.sha) {
+        console.log("Removing legacy workflow...");
+        await deleteFile(legacyPath, legacyFile.sha, "Remove legacy iOS build workflow (v3)");
+      }
+
       const workflowPath = '.github/workflows/build.yml';
       const localWorkflow = await fs.readFile(path.join(process.cwd(), workflowPath), 'utf-8');
       const remoteWorkflow = await getFile(workflowPath);
