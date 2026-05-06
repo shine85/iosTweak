@@ -38,13 +38,15 @@ import rehypeHighlight from 'rehype-highlight';
 import { cn } from './lib/utils';
 import { generateHookScript, researchMethod, type AIConfig } from './services/aiService';
 import { useAuth, logout } from './components/AuthProvider';
+import { useI18n } from './components/I18nProvider';
 
 type Tab = 'builder' | 'researcher' | 'guides' | 'settings';
 
 export default function App() {
+  const { t, locale, setLocale } = useI18n();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('builder');
-  const [appName, setAppName] = useState('河马剧场');
+  const [appName, setAppName] = useState('Hippo Cinema');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedResult, setGeneratedResult] = useState('');
   const [researchQuery, setResearchQuery] = useState('');
@@ -82,7 +84,7 @@ export default function App() {
 
   const handleGenerate = async () => {
     if (!aiConfig.apiKey) {
-      alert("请先在设置中配置 API Key");
+      alert(t('builder.noApiKey'));
       setActiveTab('settings');
       return;
     }
@@ -97,9 +99,9 @@ export default function App() {
     setIsPushing(true);
     try {
       await import('./services/aiService').then(m => m.pushToGithub(generatedResult, appName, aiConfig));
-      alert("推送成功！GitHub Actions 已触发编译。");
+      alert(t('builder.pushSuccess'));
     } catch (error: any) {
-      alert(`推送失败: ${error.message}`);
+      alert(`${t('builder.pushFailed')}${error.message}`);
     } finally {
       setIsPushing(false);
     }
@@ -107,7 +109,7 @@ export default function App() {
 
   const handleResearch = async () => {
     if (!aiConfig.apiKey) {
-      alert("请先在设置中配置 API Key");
+      alert(t('builder.noApiKey'));
       setActiveTab('settings');
       return;
     }
@@ -134,7 +136,7 @@ export default function App() {
       setTimeout(() => setCopying(null), 2000);
     } catch (err) {
       console.error('Failed to copy: ', err);
-      alert('复制失败，请尝试手动选择复制');
+      alert(t('builder.copyFailed'));
     }
   };
 
@@ -154,8 +156,8 @@ export default function App() {
             <Cpu className="text-[#E4E3E0] w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-bold text-xl leading-none">iOS 插件</h1>
-            <p className="text-[10px] font-mono opacity-50 uppercase tracking-widest mt-1">v1.2.0-稳定版</p>
+            <h1 className="font-bold text-xl leading-none">{t('common.appName')}</h1>
+            <p className="text-[10px] font-mono opacity-50 uppercase tracking-widest mt-1">{t('common.version')}</p>
           </div>
         </div>
 
@@ -164,25 +166,25 @@ export default function App() {
             active={activeTab === 'builder'} 
             onClick={() => setActiveTab('builder')}
             icon={<Code2 className="w-4 h-4" />}
-            label="DYLIB 源码生成"
+            label={t('nav.builder')}
           />
           <NavButton 
             active={activeTab === 'researcher'} 
             onClick={() => setActiveTab('researcher')}
             icon={<Search className="w-4 h-4" />}
-            label="类方法库搜索"
+            label={t('nav.researcher')}
           />
           <NavButton 
             active={activeTab === 'guides'} 
             onClick={() => setActiveTab('guides')}
             icon={<BookOpen className="w-4 h-4" />}
-            label="Dylib 注入指南"
+            label={t('nav.guides')}
           />
           <NavButton 
             active={activeTab === 'settings'} 
             onClick={() => setActiveTab('settings')}
             icon={<Settings className="w-4 h-4" />}
-            label="API 接口配置"
+            label={t('nav.settings')}
           />
         </div>
 
@@ -192,12 +194,12 @@ export default function App() {
                {user?.photoURL ? <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" /> : <UserIcon className="text-white w-4 h-4" />}
             </div>
             <div className="overflow-hidden">
-              <p className="text-[10px] font-bold truncate">{user?.displayName || '管理员'}</p>
+              <p className="text-[10px] font-bold truncate">{user?.displayName || t('common.admin')}</p>
               <p className="text-[8px] font-mono opacity-50 truncate">{user?.email}</p>
             </div>
             <button 
               onClick={logout}
-              title="登出系统"
+              title={t('common.logout')}
               className="ml-auto p-1 text-red-500 hover:bg-neutral-200 rounded-sm transition-colors"
             >
               <LogOut className="w-4 h-4" />
@@ -205,10 +207,10 @@ export default function App() {
           </div>
 
           <div className="bg-[#141414] text-[#E4E3E0] p-4 rounded-sm">
-            <p className="text-[10px] font-mono opacity-60 mb-2">系统状态</p>
+            <p className="text-[10px] font-mono opacity-60 mb-2">{t('common.status')}</p>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-xs font-mono uppercase">已认证/运行中</span>
+              <span className="text-xs font-mono uppercase">{t('common.running')}</span>
             </div>
           </div>
         </div>
@@ -226,23 +228,23 @@ export default function App() {
               className="p-12 max-w-5xl"
             >
               <header className="mb-12 border-b border-[#141414] pb-6">
-                <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">模块 01</span>
-                <h2 className="text-6xl font-bold tracking-tighter">源码生成器</h2>
+                <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">{t('builder.module')}</span>
+                <h2 className="text-6xl font-bold tracking-tighter">{t('builder.title')}</h2>
                 <p className="mt-4 text-lg opacity-70 max-w-2xl font-serif italic">
-                  基于 Logos (.xm) 语法，生成用于制作 Dylib 插件的 Hook 源码，强制绕过应用层广告。
+                  {t('builder.subtitle')}
                 </p>
               </header>
 
               <div className="grid grid-cols-12 gap-8">
                 <div className="col-span-12 lg:col-span-5 space-y-8">
                   <section className="space-y-4">
-                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">目标对象</label>
+                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('builder.target')}</label>
                     <div className="relative group">
                       <input 
                         type="text" 
                         value={appName}
                         onChange={(e) => setAppName(e.target.value)}
-                        placeholder="例如: 河马剧场"
+                        placeholder={t('builder.placeholder')}
                         className="w-full bg-transparent border-b-2 border-[#141414] py-3 px-1 text-2xl font-bold focus:outline-none focus:border-opacity-50 transition-all"
                       />
                       <Smartphone className="absolute right-2 top-4 w-5 h-5 opacity-20 group-focus-within:opacity-50 transition-opacity" />
@@ -250,7 +252,7 @@ export default function App() {
                   </section>
 
                   <section className="space-y-4 font-mono">
-                    <label className="text-[11px] opacity-50 uppercase tracking-widest block">快捷对象预设</label>
+                    <label className="text-[11px] opacity-50 uppercase tracking-widest block">{t('builder.presets')}</label>
                     <div className="flex flex-wrap gap-2">
                       {['河马剧场', '番茄小说', '抖音', 'B站', '小红书'].map(name => (
                         <button 
@@ -268,9 +270,8 @@ export default function App() {
                   </section>
 
                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-sm">
-                    <p className="text-[10px] font-mono leading-tight opacity-70">
-                      INFO: 生成的代码需要使用 Theos 进行编译。
-                      <br />编译目标：iPhoneOS ARM64
+                    <p className="text-[10px] font-mono leading-tight opacity-70 whitespace-pre-wrap">
+                      {t('builder.infoText')}
                     </p>
                   </div>
 
@@ -282,30 +283,30 @@ export default function App() {
                     {isGenerating ? (
                       <>
                         <RotateCcw className="w-5 h-5 animate-spin" />
-                        正在分析 SDK 符号...
+                        {t('builder.generating')}
                       </>
                     ) : (
                       <>
                         <Zap className="w-5 h-5" />
-                        生成 LOGOS 源码
+                        {t('builder.generate')}
                       </>
                     )}
                   </button>
                 </div>
 
                 <div className="col-span-12 lg:col-span-7">
-                  <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block mb-4">LOGOS (.XM) 源代码</label>
+                  <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block mb-4">{t('builder.sourceCode')}</label>
                   <div className="relative group overflow-hidden border border-[#141414] rounded-sm bg-[#141414]">
                     <div className="absolute right-4 top-4 flex gap-2 z-10">
                       {generatedResult && (
                         <button 
                           onClick={handlePushToGithub}
                           disabled={isPushing}
-                          title="推送到 GitHub 并自动编译"
+                          title={t('builder.pushGithub')}
                           className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white transition-colors rounded-sm text-xs font-bold disabled:opacity-50"
                         >
                           {isPushing ? <RotateCcw className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                          {isPushing ? '正在推送...' : '一键云编译'}
+                          {isPushing ? t('builder.pushing') : t('builder.pushGithub')}
                         </button>
                       )}
                       <button 
@@ -317,8 +318,7 @@ export default function App() {
                     </div>
                     <div className="h-[500px] overflow-auto p-6 font-mono text-xs leading-relaxed text-[#E4E3E0]">
                       <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
-                        {generatedResult ? `\`\`\`objectivec\n${generatedResult}\n\`\`\`` : `// 等待生成指令...
-// 目标对象: ${appName}`}
+                        {generatedResult ? `\`\`\`objectivec\n${generatedResult}\n\`\`\`` : t('builder.waitInstructions', { appName })}
                       </ReactMarkdown>
                     </div>
                   </div>
@@ -336,10 +336,10 @@ export default function App() {
               className="p-12 max-w-5xl"
             >
               <header className="mb-12 border-b border-[#141414] pb-6">
-                <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">模块 02</span>
-                <h2 className="text-6xl font-bold tracking-tighter">符号研究员</h2>
+                <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">{t('researcher.module')}</span>
+                <h2 className="text-6xl font-bold tracking-tighter">{t('researcher.title')}</h2>
                 <p className="mt-4 text-lg opacity-70 max-w-2xl font-serif italic">
-                  反编译常见的广告 SDK（如 BUAdSDK、GDTMobSDK）的类名和方法名，精准定位 Hook 点。
+                  {t('researcher.subtitle')}
                 </p>
               </header>
 
@@ -350,7 +350,7 @@ export default function App() {
                       type="text" 
                       value={researchQuery}
                       onChange={(e) => setResearchQuery(e.target.value)}
-                      placeholder="搜索类名 (例如: BUNativeAd, GDTMobAdView)..."
+                      placeholder={t('researcher.placeholder')}
                       className="w-full bg-transparent border-2 border-[#141414] h-16 pl-14 pr-4 font-mono focus:outline-none focus:bg-[#141414]/5 transition-all"
                     />
                     <Search className="absolute left-5 top-5 w-6 h-6 opacity-30" />
@@ -358,9 +358,10 @@ export default function App() {
                   <button 
                     onClick={handleResearch}
                     disabled={isGenerating}
-                    className="px-12 bg-[#141414] text-[#E4E3E0] font-bold hover:opacity-90 transition-all"
+                    className="px-12 bg-[#141414] text-[#E4E3E0] font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                   >
-                    开始研究
+                    {isGenerating && <RotateCcw className="w-4 h-4 animate-spin" />}
+                    {t('researcher.button')}
                   </button>
                 </div>
 
@@ -378,7 +379,7 @@ export default function App() {
                     {isGenerating ? (
                        <div className="flex flex-col items-center justify-center p-20 opacity-30 h-full">
                           <RotateCcw className="w-12 h-12 animate-spin mb-4" />
-                          <p className="animate-pulse">正在解析符号表...</p>
+                          <p className="animate-pulse">{t('researcher.analyzing')}</p>
                        </div>
                     ) : researchResult ? (
                       <div className="markdown-body">
@@ -389,7 +390,7 @@ export default function App() {
                     ) : (
                       <div className="flex flex-col items-center justify-center p-20 opacity-20 h-full">
                         <Terminal className="w-16 h-16 mb-4" />
-                        <p>输入类名或方法名开始分析</p>
+                        <p>{t('researcher.emptyState')}</p>
                       </div>
                     )}
                   </div>
@@ -407,24 +408,24 @@ export default function App() {
               className="p-12 max-w-5xl"
             >
               <header className="mb-12 border-b border-[#141414] pb-6">
-                <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">模块 03</span>
-                <h2 className="text-6xl font-bold tracking-tighter">注入指南</h2>
+                <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">{t('guides.module')}</span>
+                <h2 className="text-6xl font-bold tracking-tighter">{t('guides.title')}</h2>
               </header>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                 <section className="space-y-6">
                   <h3 className="text-2xl font-bold flex items-center gap-3">
                     <Smartphone className="w-6 h-6" />
-                    第一步：解密与获取
+                    {t('guides.step1.title')}
                   </h3>
                   <div className="space-y-4 font-serif italic text-lg leading-relaxed">
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">01.</span>
-                      使用 <b>DumpDecrypter</b> 或 <b>Frida-ios-dump</b> 从越狱手机上砸壳获取未加密的 IPA 文件。
+                      {t('guides.step1.p1')}
                     </p>
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">02.</span>
-                      使用解压工具查看 Payload 中的二进制主程序文件名。
+                      {t('guides.step1.p2')}
                     </p>
                   </div>
                 </section>
@@ -432,20 +433,20 @@ export default function App() {
                 <section className="space-y-6">
                   <h3 className="text-2xl font-bold flex items-center gap-3">
                     <Box className="w-6 h-6" />
-                    第二步：开发与编译
+                    {t('guides.step2.title')}
                   </h3>
                   <div className="space-y-4 font-serif italic text-lg leading-relaxed">
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">01.</span>
-                      配置 <b>Theos</b> 开发环境，创建 <b>tweak</b> 模板。
+                      {t('guides.step2.p1')}
                     </p>
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">02.</span>
-                      将本站生成的 <b>.xm</b> 代码复制到项目文件夹。
+                      {t('guides.step2.p2')}
                     </p>
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">03.</span>
-                      执行 <code className="bg-[#141414]/10 not-italic px-1 font-mono text-sm">make package</code> 编译生成 .dylib 文件。
+                      {t('guides.step2.p3')}
                     </p>
                   </div>
                 </section>
@@ -453,20 +454,20 @@ export default function App() {
                 <section className="space-y-6">
                   <h3 className="text-2xl font-bold flex items-center gap-3">
                     <Layers className="w-6 h-6" />
-                    第三步：注入与打包
+                    {t('guides.step3.title')}
                   </h3>
                   <div className="space-y-4 font-serif italic text-lg leading-relaxed">
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">01.</span>
-                      使用 <b>optool</b> 或 <b>yololib</b> 将生成的 dylib 路径添加至 Mach-O 的 Load Commands 中。
+                      {t('guides.step3.p1')}
                     </p>
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">02.</span>
-                      确保将生成的 dylib 文件一同放入 App 目录中。
+                      {t('guides.step3.p2')}
                     </p>
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">03.</span>
-                      如果有依赖项（如 CydiaSubstrate），需一并打包并修改 Dylib ID。
+                      {t('guides.step3.p3')}
                     </p>
                   </div>
                 </section>
@@ -474,16 +475,16 @@ export default function App() {
                 <section className="space-y-6">
                   <h3 className="text-2xl font-bold flex items-center gap-3">
                     <Zap className="w-6 h-6" />
-                    第四步：侧载与测试
+                    {t('guides.step4.title')}
                   </h3>
                   <div className="space-y-4 font-serif italic text-lg leading-relaxed">
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">01.</span>
-                      使用 <b>Sideloadly</b>、<b>AltStore</b> 或 <b>爱思助手</b> 重新签名并安装 IPA。
+                      {t('guides.step4.p1')}
                     </p>
                     <p className="flex gap-4">
                       <span className="font-mono text-sm not-italic opacity-40">02.</span>
-                      打开应用，验证 Hook 是否生效。
+                      {t('guides.step4.p2')}
                     </p>
                   </div>
                 </section>
@@ -491,20 +492,20 @@ export default function App() {
                 <section className="col-span-1 md:col-span-2 p-8 bg-[#141414] text-[#E4E3E0] rounded-sm">
                   <div className="flex items-center gap-4 mb-6">
                     <Settings className="w-8 h-8 text-blue-400" />
-                    <h3 className="text-2xl font-bold uppercase tracking-tight">GitHub Actions 自动化编译 (CI/CD)</h3>
+                    <h3 className="text-2xl font-bold uppercase tracking-tight">{t('guides.githubActions.title')}</h3>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="space-y-4 font-serif italic text-sm leading-relaxed">
                       <p>
-                        借用 GitHub 的云端服务器进行编译。在仓库创建 <code className="bg-white/10 px-1">.github/workflows/build.yml</code> 即可。
+                        {t('guides.githubActions.p1')}
                       </p>
                       <ul className="list-disc pl-6 space-y-2 text-xs not-italic font-sans opacity-80">
-                        <li><b>无需本地 Mac：</b>GitHub 虚拟环境自带 macOS，可直接安装 Theos。</li>
-                        <li><b>自动交付：</b>编译成功后自动发布 Release 包供下载。</li>
+                        <li><b>{t('guides.githubActions.noMac')}</b>{t('guides.githubActions.noMacDesc')}</li>
+                        <li><b>{t('guides.githubActions.delivery')}</b>{t('guides.githubActions.deliveryDesc')}</li>
                       </ul>
                     </div>
                     <div className="bg-white/5 p-4 rounded font-mono text-[9px] leading-tight overflow-x-auto whitespace-pre">
-{`# 简易 build.yml 示例
+{`${t('guides.githubActions.example')}
 jobs:
   build:
     runs-on: macos-latest
@@ -523,29 +524,29 @@ jobs:
               <div className="mt-16 p-8 border border-[#141414] bg-[#141414]/5 rounded-sm space-y-4">
                 <div className="flex items-center gap-4 text-[#141414]">
                   <ShieldAlert className="w-8 h-8" />
-                  <h4 className="text-xl font-bold uppercase tracking-tight">使用与本地化 FAQ</h4>
+                  <h4 className="text-xl font-bold uppercase tracking-tight">{t('guides.faq.title')}</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs font-mono leading-relaxed">
                   <div>
-                    <p className="font-bold border-b border-[#141414]/20 pb-1 mb-2 text-blue-600">Q: 生成的代码在什么位置？如何编译？</p>
+                    <p className="font-bold border-b border-[#141414]/20 pb-1 mb-2 text-blue-600">{t('guides.faq.q1')}</p>
                     <div className="opacity-70 space-y-2">
-                      <p>1. <b>位置：</b> 点击生成后，代码会显示在右侧框中。点击复制图标即可获取全部 <code className="bg-black/5 px-1">Tweak.xm</code> 源码。</p>
-                      <p>2. <b>GitHub 编译：</b> 导出项目并上传至 GitHub 后，将复制的代码保存为仓库根目录下的 <code className="bg-black/5 px-1">Tweak.xm</code>。项目已包含 <code className="bg-black/5 px-1">Makefile</code> 和 <code className="bg-black/5 px-1">control</code>，Push 后 Actions 会自动开始编译。</p>
-                      <p>3. <b>下载 DEB：</b> 编译完成后，在 GitHub Actions 任务详情页的 <b>Artifacts</b> 处下载编译好的 DEB 插件。</p>
+                       <p>{t('guides.faq.q1a1')}</p>
+                       <p>{t('guides.faq.q1a2')}</p>
+                       <p>{t('guides.faq.q1a3')}</p>
                     </div>
                   </div>
                   <div>
-                    <p className="font-bold border-b border-[#141414]/20 pb-1 mb-2 text-blue-600">Q: 如何使用宝塔部署？</p>
+                    <p className="font-bold border-b border-[#141414]/20 pb-1 mb-2 text-blue-600">{t('guides.faq.q2')}</p>
                     <p className="opacity-70">
-                      1. 在宝塔 docker 页面中点击 <b>添加项目</b>。<br />
-                      2. 选择项目目录，宝塔会自动识别 <code className="bg-black/5 px-1">docker-compose.yml</code>。<br />
-                      3. 在 <b>环境变量</b> 处点击“添加”，输入 <code className="bg-black/5 px-1">GEMINI_API_KEY</code> 或 <code className="bg-black/5 px-1">OPENAI_API_KEY</code>。<br />
-                      4. 点击确认启动，访问地址为：<code className="bg-black/5 px-1">http://服务器IP:12300</code>。
+                      {t('guides.faq.q2a1')}<br />
+                      {t('guides.faq.q2a2')}<br />
+                      {t('guides.faq.q2a3')}<br />
+                      {t('guides.faq.q2a4')}
                     </p>
                   </div>
                 </div>
                 <p className="text-[10px] opacity-40 pt-4 border-t border-[#141414]/10">
-                  声明：生成的代码仅供研究。生成的 Dylib 开发需要一定的 Mach-O 处理基础。
+                  {t('guides.disclaimer')}
                 </p>
               </div>
             </motion.div>
@@ -559,17 +560,17 @@ jobs:
               className="p-12 max-w-4xl"
             >
               <header className="mb-12 border-b border-[#141414] pb-6">
-                <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">系统配置</span>
-                <h2 className="text-6xl font-bold tracking-tighter">API 接口设置</h2>
+                <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">{t('settings.module')}</span>
+                <h2 className="text-6xl font-bold tracking-tighter">{t('settings.title')}</h2>
                 <p className="mt-4 text-lg opacity-70 font-serif italic">
-                  配置 AI 生成引擎。支持 Google Gemini 以及任意兼容 OpenAI 协议的接口（如 DeepSeek, GPT-4）。
+                  {t('settings.subtitle')}
                 </p>
               </header>
 
               <div className="space-y-8 bg-white p-8 border border-[#141414] rounded-sm">
                 <div className="grid grid-cols-2 gap-8">
                   <section className="space-y-4">
-                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">AI 服务商</label>
+                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.provider')}</label>
                     <select 
                       value={aiConfig.provider}
                       onChange={(e) => setAiConfig({...aiConfig, provider: e.target.value as any})}
@@ -580,7 +581,7 @@ jobs:
                     </select>
                   </section>
                   <section className="space-y-4">
-                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">模型名称 (Model Name)</label>
+                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.modelName')}</label>
                     <input 
                       type="text" 
                       value={aiConfig.modelName}
@@ -591,20 +592,33 @@ jobs:
                   </section>
                 </div>
 
-                <section className="space-y-4">
-                  <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">API KEY</label>
-                  <input 
-                    type="password" 
-                    value={aiConfig.apiKey}
-                    onChange={(e) => setAiConfig({...aiConfig, apiKey: e.target.value})}
-                    placeholder="输入您的 API 密钥"
-                    className="w-full bg-transparent border-2 border-[#141414] h-12 px-4 font-mono focus:outline-none"
-                  />
-                </section>
+                <div className="grid grid-cols-2 gap-8">
+                  <section className="space-y-4">
+                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.apiKey')}</label>
+                    <input 
+                      type="password" 
+                      value={aiConfig.apiKey}
+                      onChange={(e) => setAiConfig({...aiConfig, apiKey: e.target.value})}
+                      placeholder={t('settings.apiKeyPlaceholder')}
+                      className="w-full bg-transparent border-2 border-[#141414] h-12 px-4 font-mono focus:outline-none"
+                    />
+                  </section>
+                  <section className="space-y-4">
+                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.language')}</label>
+                    <select 
+                      value={locale}
+                      onChange={(e) => setLocale(e.target.value as any)}
+                      className="w-full bg-transparent border-2 border-[#141414] h-12 px-4 font-mono focus:outline-none"
+                    >
+                      <option value="zh">简体中文 (Chinese)</option>
+                      <option value="en">English</option>
+                    </select>
+                  </section>
+                </div>
 
                 {aiConfig.provider === 'openai' && (
                   <section className="space-y-4">
-                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">接口地址 (Base URL)</label>
+                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.baseUrl')}</label>
                     <input 
                       type="text" 
                       value={aiConfig.baseUrl}
@@ -612,31 +626,31 @@ jobs:
                       placeholder="https://api.openai.com/v1"
                       className="w-full bg-transparent border-2 border-[#141414] h-12 px-4 font-mono focus:outline-none"
                     />
-                    <p className="text-[10px] opacity-40 italic">支持 DeepSeek: https://api.deepseek.com</p>
+                    <p className="text-[10px] opacity-40 italic">{t('settings.baseUrlTip')}</p>
                   </section>
                 )}
 
                 <div className="pt-8 mt-8 border-t-2 border-[#141414] space-y-8">
                   <h3 className="text-xl font-bold flex items-center gap-2">
                     <Download className="w-5 h-5" />
-                    GitHub 自动化配置
+                    {t('settings.githubTitle')}
                   </h3>
                   
                   <div className="grid grid-cols-2 gap-8">
                     <section className="space-y-4">
-                      <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block underline decoration-blue-500 decoration-2">GitHub Token (必填)</label>
+                      <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block underline decoration-blue-500 decoration-2">{t('settings.githubToken')}</label>
                       <input 
                         type="password" 
                         value={aiConfig.githubToken || ''}
                         onChange={(e) => setAiConfig({...aiConfig, githubToken: e.target.value})}
-                        placeholder="ghp_xxxxxxxxxxxx"
+                        placeholder={t('settings.githubTokenPlaceholder')}
                         className="w-full bg-transparent border-2 border-[#141414] h-12 px-4 font-mono focus:outline-none"
                       />
-                      <p className="text-[9px] opacity-80 text-orange-400 font-bold">！重要：生成 Token 时必须勾选 'workflow' 权限，否则无法更新编译脚本。</p>
-                      <p className="text-[9px] opacity-50">需要 repo 权限。用于将代码推送到您的仓库。</p>
+                      <p className="text-[9px] opacity-80 text-orange-400 font-bold">{t('settings.githubTokenWarning')}</p>
+                      <p className="text-[9px] opacity-50">{t('settings.githubTokenDesc')}</p>
                     </section>
                     <section className="space-y-4">
-                      <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">仓库路径 (Owner/Repo)</label>
+                      <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.githubRepo')}</label>
                       <input 
                         type="text" 
                         value={aiConfig.githubRepo || ''}
@@ -649,7 +663,7 @@ jobs:
                 </div>
 
                 <div className="pt-6 border-t border-[#141414]/10">
-                   <p className="text-xs opacity-50 mb-4 font-serif">配置将保存在当前会话。生产环境下建议通过 Docker 环境变量或 .env 文件预设。</p>
+                   <p className="text-xs opacity-50 mb-4 font-serif">{t('settings.saveTip')}</p>
                 </div>
               </div>
             </motion.div>
@@ -665,14 +679,23 @@ function NavButton({ active, onClick, icon, label }: { active: boolean, onClick:
     <button 
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-3 text-[11px] font-mono tracking-widest transition-all rounded-sm",
+        "w-full flex items-center gap-3 px-4 py-3 text-[11px] font-mono tracking-widest transition-all rounded-sm relative group",
         active 
-          ? "bg-[#141414] text-[#E4E3E0] translate-x-2" 
+          ? "bg-[#141414] text-[#E4E3E0] translate-x-2 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]" 
           : "hover:bg-[#141414]/5 opacity-60 hover:opacity-100"
       )}
     >
       {icon}
       {label}
+      {active && (
+        <motion.div 
+          layoutId="active-indicator"
+          className="absolute right-0 top-0 bottom-0 w-1 bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+        />
+      )}
     </button>
   );
 }

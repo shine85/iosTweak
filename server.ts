@@ -91,8 +91,8 @@ async function startServer() {
     const { token, owner, repo, content, appName } = req.body;
     
     // 清洗应用名称用于 Makefile 和 Package ID
-    const safeName = appName.replace(/[^a-zA-Z0-9]/g, '');
-    const safePackageName = appName.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase();
+    const safeName = appName.replace(/[^a-zA-Z0-9]/g, '') || 'Tweak';
+    const safePackageName = appName.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase() || 'tweak';
 
     const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const timestamp = Math.floor(Date.now() / 1000);
@@ -172,6 +172,15 @@ async function startServer() {
 
       await syncFile('Makefile', (c) => c.replace(/TWEAK_NAME = .*$/m, `TWEAK_NAME = ${safeName}`).replace(/MyTweak_FILES/g, `${safeName}_FILES`).replace(/MyTweak_CFLAGS/g, `${safeName}_CFLAGS`));
       await syncFile('control', (c) => c.replace(/^Name:.*$/m, `Name: ${appName}`).replace(/^Package:.*$/m, `Package: com.yourcompany.${safePackageName}`));
+
+      // 1.5 同步 Plist 过滤器
+      try {
+        const plistContent = await fs.readFile(path.join(process.cwd(), 'Filter.plist'), 'utf-8');
+        const remotePlist = await getFile(`${safeName}.plist`);
+        await updateFile(`${safeName}.plist`, plistContent, `Sync ${safeName}.plist`, remotePlist?.sha);
+      } catch (e) {
+        console.warn("Plist sync failed:", e);
+      }
 
       // 2. 更新主 Tweak.xm (这通常是触发点)
       const tweakFile = await getFile('Tweak.xm');

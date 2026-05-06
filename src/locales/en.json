@@ -1,0 +1,135 @@
+{
+  "common": {
+    "appName": "iOS Tweak",
+    "version": "v1.2.0-Stable",
+    "admin": "Admin",
+    "logout": "Logout",
+    "status": "Status",
+    "running": "Authenticated/Running",
+    "copy": "Copy",
+    "copied": "Copied",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "info": "Info",
+    "or": "OR"
+  },
+  "nav": {
+    "builder": "DYLIB Generator",
+    "researcher": "Symbol Researcher",
+    "guides": "Injection Guide",
+    "settings": "Configurations"
+  },
+  "builder": {
+    "module": "MODULE 01",
+    "title": "Source Generator",
+    "subtitle": "Generate Logos (.xm) hook source code for Dylib tweaks, focused on bypassing application-level ads.",
+    "target": "Target App",
+    "placeholder": "e.g. Hippo Cinema",
+    "presets": "Presets",
+    "infoText": "INFO: Generated code needs to be compiled with Theos.\nTarget: iPhoneOS ARM64",
+    "generating": "Analyzing SDK Symbols...",
+    "generate": "Generate LOGOS Source",
+    "sourceCode": "LOGOS (.XM) Source Code",
+    "pushGithub": "Cloud Build",
+    "pushing": "Pushing...",
+    "pushSuccess": "Push Successful! GitHub Actions build triggered.",
+    "pushFailed": "Push Failed: ",
+    "waitInstructions": "// Waiting for generation...\n// Target App: {appName}",
+    "noApiKey": "Please configure API Key in settings first",
+    "copyFailed": "Copy failed, please try manual selection"
+  },
+  "researcher": {
+    "module": "MODULE 02",
+    "title": "Symbol Researcher",
+    "subtitle": "Analyze common Ad SDKs (like BUAdSDK, GDTMobSDK) to accurately locate hook points.",
+    "placeholder": "Search class names (e.g. BUNativeAd, GDTMobAdView)...",
+    "button": "Research",
+    "analyzing": "Analyzing symbol table...",
+    "emptyState": "Input class or method name to start analysis"
+  },
+  "guides": {
+    "module": "MODULE 03",
+    "title": "Injection Guide",
+    "step1": {
+      "title": "Step 1: Decryption",
+      "p1": "Use DumpDecrypter or Frida-ios-dump to obtain decrypted IPA from a jailbroken device.",
+      "p2": "Extract the IPA to find the main binary executable name."
+    },
+    "step2": {
+      "title": "Step 2: Development & Build",
+      "p1": "Setup Theos environment and create a tweak template.",
+      "p2": "Copy the generated .xm code to your project folder.",
+      "p3": "Run make package to build the .dylib file."
+    },
+    "step3": {
+      "title": "Step 3: Injection & Packaging",
+      "p1": "Use optool or yololib to add the dylib path to Mach-O Load Commands.",
+      "p2": "Ensure the dylib file is placed in the App directory.",
+      "p3": "Include dependencies (like CydiaSubstrate) and modify Dylib IDs if necessary."
+    },
+    "step4": {
+      "title": "Step 4: Sideload & Test",
+      "p1": "Use Sideloadly, AltStore, or 3uTools to re-sign and install the IPA.",
+      "p2": "Open the app and verify if the hook is effective."
+    },
+    "githubActions": {
+      "title": "GitHub Actions Automation (CI/CD)",
+      "p1": "Use GitHub's cloud servers for compilation. Create .github/workflows/build.yml.",
+      "noMac": "No local Mac required:",
+      "noMacDesc": "GitHub virtual environment includes macOS with Theos support.",
+      "delivery": "Auto Delivery:",
+      "deliveryDesc": "Automated Release package creation for download.",
+      "example": "# Simple build.yml Example"
+    },
+    "faq": {
+      "title": "FAQ",
+      "q1": "Q: Where is the code? How to build?",
+      "q1a1": "1. Location: Code appears in the right box. Click copy icon to get Tweak.xm source.",
+      "q1a2": "2. GitHub Build: Export project to GitHub, save code as Tweak.xm in root. Makefile and control are included.",
+      "q1a3": "3. Download DEB: Download the DEB from Artifacts in GitHub Actions job details.",
+      "q2": "Q: How to deploy with BT Panel?",
+      "q2a1": "1. Click 'Add Project' in BT Docker page.",
+      "q2a2": "2. Select project directory, docker-compose.yml will be detected.",
+      "q2a3": "3. Add environment variables: GEMINI_API_KEY or OPENAI_API_KEY.",
+      "q2a4": "4. Start and access via: http://ServerIP:12300"
+    },
+    "disclaimer": "Disclaimer: Generated code is for research only. Dylib development requires Mach-O knowledge."
+  },
+  "settings": {
+    "module": "System Config",
+    "title": "API Settings",
+    "subtitle": "Configure AI engine. Supports Google Gemini and OpenAI compatible APIs.",
+    "provider": "AI Provider",
+    "modelName": "Model Name",
+    "apiKey": "API KEY",
+    "apiKeyPlaceholder": "Enter your API Key",
+    "baseUrl": "Base URL",
+    "baseUrlTip": "DeepSeek: https://api.deepseek.com",
+    "githubTitle": "GitHub Configuration",
+    "githubToken": "GitHub Token (Required)",
+    "githubTokenPlaceholder": "ghp_xxxxxxxxxxxx",
+    "githubTokenWarning": "Important: Enable 'workflow' scope for the Token.",
+    "githubTokenDesc": "Repo access required to push code.",
+    "githubRepo": "Repo Path (Owner/Repo)",
+    "saveTip": "Settings are saved in current session.",
+    "language": "Language",
+    "selectLanguage": "Select Language"
+  },
+  "auth": {
+    "initializing": "Initializing System...",
+    "unauthorizedDomain": "Domain not authorized. Please add this domain in Firebase Console: ",
+    "insufficientPermissions": "Insufficient Permissions",
+    "whitelistWarning": "Your account ({email}) is not in the admin whitelist.",
+    "switchAccount": "Switch Account",
+    "popupBlocked": "Popup blocked by browser. Please allow popups or use redirect mode.",
+    "loginFailed": "Login failed, please try again later.",
+    "loginError": "Login Error",
+    "terminalDescription": "Restricted development terminal. Login with authorized Google account.",
+    "loginWithGoogle": "Login with Google",
+    "redirectMode": "Login with Redirect (More Stable)",
+    "footer": "Authorized Access Only. All transactions recorded."
+  }
+}

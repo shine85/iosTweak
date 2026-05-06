@@ -1,0 +1,135 @@
+{
+  "common": {
+    "appName": "iOS 插件",
+    "version": "v1.2.0-稳定版",
+    "admin": "管理员",
+    "logout": "登出系统",
+    "status": "系统状态",
+    "running": "已认证/运行中",
+    "copy": "复制",
+    "copied": "已复制",
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "cancel": "取消",
+    "save": "保存",
+    "info": "信息",
+    "or": "或者"
+  },
+  "nav": {
+    "builder": "DYLIB 源码生成",
+    "researcher": "类方法库搜索",
+    "guides": "Dylib 注入指南",
+    "settings": "API 接口配置"
+  },
+  "builder": {
+    "module": "模块 01",
+    "title": "源码生成器",
+    "subtitle": "基于 Logos (.xm) 语法，生成用于制作 Dylib 插件的 Hook 源码，强制绕过应用层广告。",
+    "target": "目标对象",
+    "placeholder": "例如: 河马剧场",
+    "presets": "快捷对象预设",
+    "infoText": "INFO: 生成的代码需要使用 Theos 进行编译。\n编译目标：iPhoneOS ARM64",
+    "generating": "正在分析 SDK 符号...",
+    "generate": "生成 LOGOS 源码",
+    "sourceCode": "LOGOS (.XM) 源代码",
+    "pushGithub": "一键云编译",
+    "pushing": "正在推送...",
+    "pushSuccess": "推送成功！GitHub Actions 已触发编译。",
+    "pushFailed": "推送失败: ",
+    "waitInstructions": "// 等待生成指令...\n// 目标对象: {appName}",
+    "noApiKey": "请先在设置中配置 API Key",
+    "copyFailed": "复制失败，请尝试手动选择复制"
+  },
+  "researcher": {
+    "module": "模块 02",
+    "title": "符号研究员",
+    "subtitle": "反编译常见的广告 SDK（如 BUAdSDK、GDTMobSDK）的类名和方法名，精准定位 Hook 点。",
+    "placeholder": "搜索类名 (例如: BUNativeAd, GDTMobAdView)...",
+    "button": "开始研究",
+    "analyzing": "正在解析符号表...",
+    "emptyState": "输入类名或方法名开始分析"
+  },
+  "guides": {
+    "module": "模块 03",
+    "title": "注入指南",
+    "step1": {
+      "title": "第一步：解密与获取",
+      "p1": "使用 DumpDecrypter 或 Frida-ios-dump 从越狱手机上砸壳获取未加密的 IPA 文件。",
+      "p2": "使用解压工具查看 Payload 中的二进制主程序文件名。"
+    },
+    "step2": {
+      "title": "第二步：开发与编译",
+      "p1": "配置 Theos 开发环境，创建 tweak 模板。",
+      "p2": "将本站生成的 .xm 代码复制到项目文件夹。",
+      "p3": "执行 make package 编译生成 .dylib 文件。"
+    },
+    "step3": {
+      "title": "第三步：注入与打包",
+      "p1": "使用 optool 或 yololib 将生成的 dylib 路径添加至 Mach-O 的 Load Commands 中。",
+      "p2": "确保将生成的 dylib 文件一同放入 App 目录中。",
+      "p3": "如果有依赖项（如 CydiaSubstrate），需一并打包并修改 Dylib ID。"
+    },
+    "step4": {
+      "title": "第四步：侧载与测试",
+      "p1": "使用 Sideloadly、AltStore 或 爱思助手 重新签名并安装 IPA。",
+      "p2": "打开应用，验证 Hook 是否生效。"
+    },
+    "githubActions": {
+      "title": "GitHub Actions 自动化编译 (CI/CD)",
+      "p1": "借用 GitHub 的云端服务器进行编译。在仓库创建 .github/workflows/build.yml 即可。",
+      "noMac": "无需本地 Mac：",
+      "noMacDesc": "GitHub 虚拟环境自带 macOS，可直接安装 Theos。",
+      "delivery": "自动交付：",
+      "deliveryDesc": "编译成功后自动发布 Release 包供下载。",
+      "example": "# 简易 build.yml 示例"
+    },
+    "faq": {
+      "title": "使用与本地化 FAQ",
+      "q1": "Q: 生成的代码在什么位置？如何编译？",
+      "q1a1": "1. 位置： 点击生成后，代码会显示在右侧框中。点击复制图标即可获取全部 Tweak.xm 源码。",
+      "q1a2": "2. GitHub 编译： 导出项目并上传至 GitHub 后，将复制的代码保存为仓库根目录下的 Tweak.xm。项目已包含 Makefile 和 control，Push 后 Actions 会自动开始编译。",
+      "q1a3": "3. 下载 DEB： 编译完成后，在 GitHub Actions 任务详情页的 Artifacts 处下载编译好的 DEB 插件。",
+      "q2": "Q: 如何使用宝塔部署？",
+      "q2a1": "1. 在宝塔 docker 页面中点击 添加项目。",
+      "q2a2": "2. 选择项目目录，宝塔会自动识别 docker-compose.yml。",
+      "q2a3": "3. 在 环境变量 处点击“添加”，输入 GEMINI_API_KEY 或 OPENAI_API_KEY。",
+      "q2a4": "4. 点击确认启动，访问地址为：http://服务器IP:12300"
+    },
+    "disclaimer": "声明：生成的代码仅供研究。生成的 Dylib 开发需要一定的 Mach-O 处理基础。"
+  },
+  "settings": {
+    "module": "系统配置",
+    "title": "API 接口设置",
+    "subtitle": "配置 AI 生成引擎。支持 Google Gemini 以及任意兼容 OpenAI 协议的接口（如 DeepSeek, GPT-4）。",
+    "provider": "AI 服务商",
+    "modelName": "模型名称 (Model Name)",
+    "apiKey": "API KEY",
+    "apiKeyPlaceholder": "输入您的 API 密钥",
+    "baseUrl": "接口地址 (Base URL)",
+    "baseUrlTip": "支持 DeepSeek: https://api.deepseek.com",
+    "githubTitle": "GitHub 自动化配置",
+    "githubToken": "GitHub Token (必填)",
+    "githubTokenPlaceholder": "ghp_xxxxxxxxxxxx",
+    "githubTokenWarning": "！重要：生成 Token 时必须勾选 'workflow' 权限，否则无法更新编译脚本。",
+    "githubTokenDesc": "需要 repo 权限。用于将代码推送到您的仓库。",
+    "githubRepo": "仓库路径 (Owner/Repo)",
+    "saveTip": "配置将保存在当前会话。生产环境下建议通过 Docker 环境变量或 .env 文件预设。",
+    "language": "语言设置",
+    "selectLanguage": "选择语言"
+  },
+  "auth": {
+    "initializing": "系统初始化中...",
+    "unauthorizedDomain": "域名未授权。请在 Firebase 控制台添加此域名：",
+    "insufficientPermissions": "权限不足",
+    "whitelistWarning": "您的账号 ({email}) 不在管理员白名单中。请联系管理员添加权限。",
+    "switchAccount": "切换账号",
+    "popupBlocked": "登录窗口被浏览器拦截，请允许弹出窗口或使用重定向模式。",
+    "loginFailed": "登录失败，请稍后重试。",
+    "loginError": "登录出错",
+    "terminalDescription": "这是一个受限制的开发终端。请使用授权的 Google 账号登录以访问云编译与 Tweak 管理平台。",
+    "loginWithGoogle": "使用 Google 账号登录",
+    "redirectMode": "使用重定向模式登录 (更稳定)",
+    "footer": "Authorized Access Only. All transactions recorded."
+  }
+}

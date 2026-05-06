@@ -5,3 +5,15 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
+
+/* HLJS Overrides */
+.hljs {
+  background: #141414 !important;
+  color: #E4E3E0 !important;
+  padding: 0 !important;
+}
+
+pre:has(.hljs) {
+  background: #141414 !important;
+  border-color: #141414 !important;
+}
