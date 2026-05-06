@@ -1,20 +1,14 @@
-# Makefile for 河马剧场去广告 Tweak
-
-TARGET := iphone:clang:latest:14.0
-ARCHS := arm64 arm64e
-INSTALL_TARGET_PROCESSES = 河马剧场  # 或实际进程名
+DEBUG = 0
+FINALPACKAGE = 1
+ARCHS = arm64 arm64e
+TARGET = iphone:clang:latest:14.5
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = hemajuchang
+TWEAK_NAME = MyTweak
 
-HemajuchangNoAd_FILES = Tweak.xm
-HemajuchangNoAd_CFLAGS = -fobjc-arc
-HemajuchangNoAd_FRAMEWORKS = UIKit Foundation
-# 如需额外链接
-# HemajuchangNoAd_PRIVATE_FRAMEWORKS = 
+# 源代码文件
+MyTweak_FILES = Tweak.xm
+MyTweak_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
-
-after-install::
-	install.exec "killall -9 河马剧场 || true"
