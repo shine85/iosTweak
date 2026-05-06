@@ -41,13 +41,12 @@ COPY --from=build /app/.github ./.github
 
 # 安装生产环境依赖
 RUN npm install --omit=dev
-# 安装 tsx 用于运行 ts 服务端
+# 额外安装 tsx 确保可以在没有 devDependencies 的情况下运行 server.ts
 RUN npm install -g tsx
 
 # 设置生产环境标识
 ENV NODE_ENV=production
-# 默认端口 3000
 ENV PORT=3000
 
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["tsx", "server.ts"]
