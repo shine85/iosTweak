@@ -31,7 +31,7 @@
 ## 4. 遗留问题 / 待办
 - [x] 全局 Node.js 版本已从 20 升级至 24 (Dockerfile & GitHub Actions)。
 - [x] 彻底移除 GitHub Action 中的 `cctools-port` 依赖，改用 `ldid` 手动安装版本 (v1.1.3)。
-- [x] 切换至 `theos/toolchain` v2.1 解决 sbingner 工具链下载 404 及文件格式不兼容问题 (v1.1.3)。
+- [x] 切换至 `theos/toolchain` 下载失败，现改用官方安装脚本使用的 `L1ghtmann/llvm-project` 预编译工具链 (v1.1.4)。
 - [x] 统一使用 `docker-compose.yaml` 后缀，并注释掉 `environment` 配置由 Web 端管理。
 - [x] 更新 GitHub Actions 插件 (checkout, setup-node) 版本以消除 Node 20 弃用警告 (v1.1.0)。
 - [x] 移除 GitHub Action 中引起干扰的 Node 24 强制环境变量 (v1.1.3)。
