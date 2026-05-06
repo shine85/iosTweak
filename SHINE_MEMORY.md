@@ -11,6 +11,7 @@
   - server.ts 端口改为支持环境变量 `PORT` (默认 3000)。
   - docker-compose.yml 更新了端口映射 (8080:3000) 并添加了 AI 密钥和 GITHUB_TOKEN 的环境透传。
   - GitHub 默认仓库设为 `shine85/iosTweak`。
+  - **更新了 AI 生成 Tweak 的系统提示词 (Prompt)**，使其更符合顶尖 iOS 逆向安全专家的角色定位。
 - **变量管理**: 采用 Vite 环境变量注入模式（构建时注入）以及服务端运行时环境变量。
 
 ## 2. 关键配置
@@ -28,6 +29,7 @@
 - 本地 `.env` 已删除，严防密钥泄露至公共仓库。
 
 ## 4. 遗留问题 / 待办
+- [x] 全局 Node.js 版本已从 20 升级至 24 (Dockerfile & GitHub Actions)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 

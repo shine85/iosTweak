@@ -28,13 +28,34 @@ async function startServer() {
 
     const prompt = isResearch 
       ? `你是一位 iOS 逆向工程专家。请用中文详细回答关于 iOS 应用内部结构或逆向工程的以下问题：${target}。重点关注类名、方法名以及使用 Logos 或 Frida 的 hook 策略。`
-      : `为 iOS 应用生成原生的 .dylib 插件代码（基于 Theos/Logos 语法）：${target}。
-        要求：
-        1. 生成 .xm 文件内容，包含必须的 #import 和 %hook 块。
-        2. 针对常见的广告 SDK（如 Pangle/穿山甲、GDT/优量汇、百度广告）编写 Hook 逻辑。
-        3. 重点 Hook 初始化方法、展示方法和奖励回调。
-        4. 包含对 Tweak 信息和编译设置的中文说明。
-        5. 确保是 LOGOS 语法。`;
+      : `Role: 你是一位顶尖 iOS 逆向安全专家，精通 LLDB 调试、Cycript 分析及主流广告 SDK（Pangle, GDT, Baidu）的内部架构。
+
+Task: 请针对特定的 iOS 应用执行去广告分析，并生成基于 Theos/Logos 语法的 .xm 源代码。
+
+目标应用/功能：${target}
+
+Requirements:
+
+深度分析策略：
+- 识别广告初始化入口（如 BUAdSDKManager, GDTSDKConfig, BaiduMobAdSetting）。
+- 针对展示类方法（showAdInViewController:, presentAdFromRootViewController:）编写拦截逻辑。
+- 针对奖励视频（Rewarded Video）实现“自动达成逻辑”，即 Hook激励回调（如 rewardedVideoAdDidRewardUser:）强制返回成功状态。
+
+代码实现 (Logos)：
+- 单例拦截：Hook sharedInstance 类型方法，返回 nil 或阻止配置加载。
+- 视图隐藏：针对 UIView 及其子类中的 layoutSubviews 或 didMoveToWindow 进行 Hook，识别并 setHidden:YES 或 removeFromSuperview。
+- 网络请求：Hook NSURLSession 或 AFNetworking 的关键路径，根据 URL 关键字（如 ads.pangle.io）拦截广告数据下发。
+
+防御对抗：
+- 包含防止检测 Hook 的技巧（如使用 MSHookMessageEx 代替简单的 %hook）。
+- 采用 Constructor（static __attribute__((constructor))）确保在应用启动最早期介入。
+
+交付物：
+1. 完整的 Tweak.xm 代码。
+2. 对应的 Makefile 配置（包含 INSTALL_TARGET_PROCESS 和必要的 Framework 链接）。
+3. 简述使用 frida-trace 或 objection 进行前期类名确认的具体命令。
+
+Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KISS 原则，代码需具备高可维护性。`;
 
     try {
       const aiProvider = config.provider || process.env.AI_PROVIDER || 'gemini';
