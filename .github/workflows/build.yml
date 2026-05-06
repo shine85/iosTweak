@@ -1,4 +1,4 @@
-name: Build and Package Tweak
+name: iOS Tweak Build (v1.0.5)
 
 on:
   push:
@@ -9,16 +9,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # 强制刷新标识：v1.0.5
+      # 如果你看到 cctools-port，说明 GitHub 还没同步到这一版！
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install dependencies
+      - name: Install dependencies (DEBUG_v1.0.5)
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev cctools-port
+          sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev xz-utils
+          # 手动安装 ldid
+          sudo curl -L https://github.com/procursus-team/ldid/releases/latest/download/ldid_linux_x86_64 -o /usr/local/bin/ldid
+          sudo chmod +x /usr/local/bin/ldid
 
       - name: Set up Theos
         run: |
@@ -28,8 +34,9 @@ jobs:
 
       - name: Download iOS SDK
         run: |
-          mkdir -p $GITHUB_WORKSPACE/theos/sdks
-          curl -L https://github.com/theos/sdks/raw/master/iPhoneOS14.5.sdk.tar.xz | tar -xJ -C $GITHUB_WORKSPACE/theos/sdks
+          # 直接克隆 SDK 仓库，彻底解决 curl 下载 LFS 指针文件导致解压失败的问题
+          # 仅克隆最近的历史以节省空间
+          git clone --depth 1 https://github.com/theos/sdks.git $GITHUB_WORKSPACE/theos/sdks
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
