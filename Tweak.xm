@@ -2,7 +2,7 @@
 // 河马剧场 (Hippopotamus Theater) 去广告 Tweak
 // 文件名: HippoAdKiller.xm
 // 基于 Theos + Logos 语法
-// 编译环境：Theos (iOS 12+ 推荐)  
+// 编译环境：Theos (iOS 12+ 推荐)
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
