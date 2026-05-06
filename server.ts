@@ -121,6 +121,31 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KIS
       return res.status(400).json({ error: "GitHub Token 未设置，请在设置面板配置或检查服务器环境变量。" });
     }
     
+    // 提取纯 Tweak.xm 代码
+    let tweakContent = content;
+    const objcMatch = content.match(/```(?:objective-c|objectivec|objc|c|cpp|c\+\+)?\n([\s\S]*?)```/im);
+    if (objcMatch) {
+      // 找到第一个看起来像 Tweak 的代码块
+      tweakContent = objcMatch[1];
+    } else {
+      // 如果没有特定的 objective-c 标记，尝试找包含 %hook 的代码块
+      const allBlocks = [...content.matchAll(/```[a-zA-Z]*\n([\s\S]*?)```/gim)];
+      const hookBlock = allBlocks.find(b => b[1].includes('%hook'));
+      if (hookBlock) {
+        tweakContent = hookBlock[1];
+      }
+    }
+    
+    // 如果提取出的 tweakContent 还是包含 markdown (极端情况保护)
+    tweakContent = tweakContent.replace(/^```[a-zA-Z]*\n/m, '').replace(/```$/m, '');
+
+    // 获取 Makefile (如果 AI 也生成了 Makefile 代码块)
+    let makefileContent = null;
+    const makefileMatch = content.match(/```makefile\n([\s\S]*?)```/im);
+    if (makefileMatch) {
+      makefileContent = makefileMatch[1];
+    }
+
     // 清洗应用名称用于 Makefile 和 Package ID
     const safeName = appName.replace(/[^a-zA-Z0-9]/g, '') || 'Tweak';
     const safePackageName = appName.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase() || 'tweak';
@@ -202,7 +227,10 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KIS
         }
       };
 
-      await syncFile('Makefile', (c) => c.replace(/TWEAK_NAME = .*$/m, `TWEAK_NAME = ${safeName}`).replace(/MyTweak_FILES/g, `${safeName}_FILES`).replace(/MyTweak_CFLAGS/g, `${safeName}_CFLAGS`));
+      await syncFile('Makefile', (c) => {
+        let updated = makefileContent || c;
+        return updated.replace(/TWEAK_NAME = .*$/m, `TWEAK_NAME = ${safeName}`).replace(/MyTweak_FILES/g, `${safeName}_FILES`).replace(/MyTweak_CFLAGS/g, `${safeName}_CFLAGS`);
+      });
       await syncFile('control', (c) => c.replace(/^Name:.*$/m, `Name: ${appName}`).replace(/^Package:.*$/m, `Package: com.yourcompany.${safePackageName}`));
 
       // 1.5 同步 Plist 过滤器
@@ -216,10 +244,10 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KIS
 
       // 2. 更新主 Tweak.xm (这通常是触发点)
       const tweakFile = await getFile('Tweak.xm');
-      await updateFile('Tweak.xm', content, `Update Tweak for ${appName}`, tweakFile?.sha);
+      await updateFile('Tweak.xm', tweakContent, `Update Tweak for ${appName}`, tweakFile?.sha);
 
       // 3. 写入历史记录文件
-      await updateFile(historyPath, content, `History: ${appName} build`);
+      await updateFile(historyPath, tweakContent, `History: ${appName} build`);
 
       res.json({ success: true, historyPath });
     } catch (error: any) {

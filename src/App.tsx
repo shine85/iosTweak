@@ -24,6 +24,7 @@ import {
   Terminal,
   ShieldAlert,
   Download,
+  Upload,
   Box,
   Wind,
   Bird,
@@ -117,6 +118,38 @@ export default function App() {
     const result = await researchMethod(researchQuery, aiConfig);
     setResearchResult(result || '');
     setIsGenerating(false);
+  };
+
+  const handleExportConfig = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(aiConfig, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href",     dataStr);
+    downloadAnchorNode.setAttribute("download", "ios_tweak_config.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const handleImportConfig = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const str = e.target?.result as string;
+        const newConfig = JSON.parse(str);
+        if (newConfig && typeof newConfig === 'object') {
+          setAiConfig(prev => ({ ...prev, ...newConfig }));
+          alert('配置导入成功 / Configuration imported successfully');
+        }
+      } catch (err) {
+        alert('配置解析失败，请检查文件格式 / Failed to parse configuration file');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    event.target.value = '';
   };
 
   const copyToClipboard = async (text: string, type: 'builder' | 'researcher') => {
@@ -662,8 +695,17 @@ jobs:
                   </div>
                 </div>
 
-                <div className="pt-6 border-t border-[#141414]/10">
-                   <p className="text-xs opacity-50 mb-4 font-serif">{t('settings.saveTip')}</p>
+                <div className="pt-6 border-t border-[#141414]/10 flex justify-between items-center">
+                   <p className="text-xs opacity-50 font-serif">{t('settings.saveTip')}</p>
+                   <div className="flex gap-4">
+                    <button onClick={handleExportConfig} className="text-xs px-4 py-2 border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors rounded-sm flex items-center gap-2">
+                      <Download className="w-4 h-4" /> 导出配置 (Export)
+                    </button>
+                    <label className="text-xs px-4 py-2 border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-colors rounded-sm flex items-center gap-2 cursor-pointer">
+                      <Upload className="w-4 h-4" /> 导入配置 (Import)
+                      <input type="file" accept=".json" className="hidden" onChange={handleImportConfig} />
+                    </label>
+                  </div>
                 </div>
               </div>
             </motion.div>
