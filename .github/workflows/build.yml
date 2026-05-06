@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.5)
+name: iOS Tweak Build (FORCE_v1.1.8)
 
 on:
   push:
@@ -10,8 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # 强制刷新标识：v1.1.5 (修正 ProcursusTeam ldid 下载链接)
-      FORCE_BUILD_ID: "v1.1.5"
+      # 强制刷新标识：v1.1.8 (支持拼音包名及自定义产物命名)
+      FORCE_BUILD_ID: "v1.1.8"
 
     steps:
       - name: "1. 检出代码"
@@ -19,9 +19,9 @@ jobs:
         with:
           submodules: recursive
 
-      - name: "2. 环境初始化 (v1.1.5)"
+      - name: "2. 环境初始化 (v1.1.6)"
         run: |
-          echo ">>> 正在执行 v1.1.5 逻辑 <<<"
+          echo ">>> 正在执行 v1.1.6 逻辑 <<<"
           sudo apt-get update
           # 安装必要的编译依赖
           sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev xz-utils bzip2 libfl-dev
@@ -78,21 +78,62 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
 
-      - name: "8. 编译 Tweak (DEB)"
+      - name: "8. 获取应用名称"
+        id: app_info
+        run: |
+          if [ -f control ]; then
+            APP_NAME=$(grep -i "^Name:" control | cut -d':' -f2 | sed -e 's/^[[:space:]]*//' | tr -d '\n\r')
+            if [ -z "$APP_NAME" ]; then APP_NAME="ios-tweak"; fi
+          else
+            APP_NAME="ios-tweak"
+          fi
+          echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
+
+      - name: "9. 编译多平台 Tweak 并重命名产物"
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          if [ -f Makefile ]; then
-            make package FINALPACKAGE=1
-          else
+          
+          mkdir -p final_artifacts
+          
+          if [ ! -f Makefile ]; then
             echo "Makefile 不存在，跳过编译"
-            mkdir -p packages
-            touch packages/skip_build.txt
+            touch final_artifacts/skip_build.txt
+            exit 0
           fi
 
-      - name: "9. 上传产物"
+          TWEAK_NAME=$(grep -i "^TWEAK_NAME" Makefile | cut -d'=' -f2 | sed -e 's/^[[:space:]]*//' | tr -d '\n\r')
+          
+          # 1. Rootless 编译
+          echo ">>> 编译 Rootless (无根) <<<"
+          make clean
+          make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
+          ROOTLESS_DEB=$(find packages -name "*.deb" | head -n 1)
+          if [ -n "$ROOTLESS_DEB" ]; then
+            mv "$ROOTLESS_DEB" "final_artifacts/${APP_NAME}-arm64-rootless(无根).deb"
+          fi
+          
+          # 提取 Dylib
+          DYLIB_PATH=$(find .theos/obj -name "${TWEAK_NAME}.dylib" | head -n 1)
+          if [ -n "$DYLIB_PATH" ]; then
+            cp "$DYLIB_PATH" "final_artifacts/ios-${APP_NAME}-v1.1.7.dylib"
+          fi
+          
+          rm -rf packages/*
+          
+          # 2. Roothide 编译
+          echo ">>> 编译 Roothide (隐根) <<<"
+          make clean
+          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1
+          ROOTHIDE_DEB=$(find packages -name "*.deb" | head -n 1)
+          if [ -n "$ROOTHIDE_DEB" ]; then
+            mv "$ROOTHIDE_DEB" "final_artifacts/${APP_NAME}-arm64e-roothide(隐根).deb"
+          fi
+          
+          echo ">>> 可用产物列表 <<<"
+          ls -R final_artifacts
+
+      - name: "10. 上传最终产物"
         uses: actions/upload-artifact@v4
         with:
-          name: ios-tweak-v1.1.2
-          path: |
-            packages/*.deb
-            packages/*.txt
+          name: ${{ env.APP_NAME }}
+          path: final_artifacts/*

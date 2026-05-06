@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
+import { pinyin } from "pinyin-pro";
 
 dotenv.config();
 
@@ -147,12 +148,20 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KIS
     }
 
     // 清洗应用名称用于 Makefile 和 Package ID
-    const safeName = appName.replace(/[^a-zA-Z0-9]/g, '') || 'Tweak';
-    const safePackageName = appName.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase() || 'tweak';
+    // 先将中文转换成不带声调的拼音
+    const pinyinName = pinyin(appName, { toneType: 'none', type: 'array' }).join('');
+    
+    // 生成安全的文件名和包名
+    const safeName = pinyinName.replace(/[^a-zA-Z0-9]/g, '');
+    const finalSafeName = safeName || 'Tweak' + Math.random().toString(36).substring(2, 6);
+    
+    // 生成合法的包名标识
+    const safePackageName = pinyinName.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase();
+    const finalSafePkg = safePackageName || 'tweak' + Math.random().toString(36).substring(2, 6);
 
     const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const timestamp = Math.floor(Date.now() / 1000);
-    const historyPath = `history/${safeName}_${date}_${timestamp}.xm`;
+    const historyPath = `history/${finalSafeName}_${date}_${timestamp}.xm`;
 
     try {
       const getFile = async (path: string) => {
@@ -229,15 +238,15 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KIS
 
       await syncFile('Makefile', (c) => {
         let updated = makefileContent || c;
-        return updated.replace(/TWEAK_NAME = .*$/m, `TWEAK_NAME = ${safeName}`).replace(/MyTweak_FILES/g, `${safeName}_FILES`).replace(/MyTweak_CFLAGS/g, `${safeName}_CFLAGS`);
+        return updated.replace(/TWEAK_NAME = .*$/m, `TWEAK_NAME = ${finalSafeName}`).replace(/MyTweak_FILES/g, `${finalSafeName}_FILES`).replace(/MyTweak_CFLAGS/g, `${finalSafeName}_CFLAGS`);
       });
-      await syncFile('control', (c) => c.replace(/^Name:.*$/m, `Name: ${appName}`).replace(/^Package:.*$/m, `Package: com.yourcompany.${safePackageName}`));
+      await syncFile('control', (c) => c.replace(/^Name:.*$/m, `Name: ${appName}`).replace(/^Package:.*$/m, `Package: com.yourcompany.${finalSafePkg}`));
 
       // 1.5 同步 Plist 过滤器
       try {
         const plistContent = await fs.readFile(path.join(process.cwd(), 'Filter.plist'), 'utf-8');
-        const remotePlist = await getFile(`${safeName}.plist`);
-        await updateFile(`${safeName}.plist`, plistContent, `Sync ${safeName}.plist`, remotePlist?.sha);
+        const remotePlist = await getFile(`${finalSafeName}.plist`);
+        await updateFile(`${finalSafeName}.plist`, plistContent, `Sync ${finalSafeName}.plist`, remotePlist?.sha);
       } catch (e) {
         console.warn("Plist sync failed:", e);
       }

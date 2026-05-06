@@ -37,7 +37,9 @@
 - [x] 移除 GitHub Action 中引起干扰的 Node 24 强制环境变量 (v1.1.3)。
 - [x] 在 Web UI 设置页面添加配置备份导出及恢复功能。
 - [x] 修复 `/api/github-push` 直接将带有 Markdown 和 Makefile 的完整对话推送进 `Tweak.xm`，导致 Theos 出现 `dangling %end` 甚至严重编译失败的问题 (v1.1.6)。
-- [x] 修改 GitHub Actions 产物上传的名称，使其以应用真实名称命名，而不是使用冗余的固定名称 (v1.1.6)。
+- [x] 修复 GitHub Actions 编译时因应用中文名被安全名过滤剥离（导致仅剩默认空包名）引起的名称冲刷和覆盖问题。优化 `server.ts` 强行保留后缀以解决包名一致的Bug (v1.1.7)。
+- [x] 优化 Action Workflow 步骤，实现多 Scheme 执行，产物分离并且严格按照 `ios-{appName}-v1.1.X.dylib`，`{appName}-arm64-rootless(无根).deb`， 以及 `{appName}-arm64e-roothide(隐根).deb` 输出。
+- [x] 引入 `pinyin-pro` 处理由中文转换拼音包名标识问题，保证以全英文拼音及特定命名格式呈现内部包名避免 iOS 在注入或Theos打包时不支持中文字符而导致的验证错误 (v1.1.8)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 
