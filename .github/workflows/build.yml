@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.0.9)
+name: iOS Tweak Build (FORCE_v1.1.1)
 
 on:
   push:
@@ -10,8 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # 强制刷新标识：v1.0.9 (安装 Toolchain & 彻底消除 cctools)
-      FORCE_BUILD_ID: "v1.0.9"
+      # 强制刷新标识：v1.1.1 (修复 Toolchain 下载与解压逻辑)
+      FORCE_BUILD_ID: "v1.1.1"
 
     steps:
       - name: "1. 检出代码"
@@ -19,11 +19,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: "2. 环境初始化 (v1.0.9)"
+      - name: "2. 环境初始化 (v1.1.1)"
         run: |
-          echo ">>> 正在执行 v1.0.9 逻辑 <<<"
+          echo ">>> 正在执行 v1.1.1 逻辑 <<<"
           sudo apt-get update
-          # 确保这里绝对没有 cctools-port
+          # 安装必要的编译依赖，确保包含 xz-utils 处理 lzma
           sudo apt-get install -y build-essential curl perl git libssl-dev clang libicu-dev xz-utils libfl-dev
           # 安装 ldid
           sudo curl -L https://github.com/procursus-team/ldid/releases/latest/download/ldid_linux_x86_64 -o /usr/local/bin/ldid
@@ -39,7 +39,9 @@ jobs:
       - name: "4. 安装 Toolchain (解决编译器缺失)"
         run: |
           mkdir -p $GITHUB_WORKSPACE/theos/toolchain/linux/iphone
-          curl -L https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64-toolchain.tar.xml | tar -C $GITHUB_WORKSPACE/theos/toolchain/linux/iphone --strip-components=1 -xpj
+          # sbingner Toolchain 实际上是 .tar.lzma 格式，之前写错成了 .xml
+          # 使用 -xf 自动识别格式并解压
+          curl -L https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64-toolchain.tar.lzma | tar -C $GITHUB_WORKSPACE/theos/toolchain/linux/iphone --strip-components=1 -xf -
           echo ">>> 检查编译器路径 <<<"
           ls -l $GITHUB_WORKSPACE/theos/toolchain/linux/iphone/bin/clang
 
@@ -81,7 +83,7 @@ jobs:
       - name: "9. 上传产物"
         uses: actions/upload-artifact@v4
         with:
-          name: ios-tweak-v1.0.9
+          name: ios-tweak-v1.1.1
           path: |
             packages/*.deb
             packages/*.txt
