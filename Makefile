@@ -1,16 +1,11 @@
-# Makefile for theos project
-TARGET = iphone:clang:latest:13.0
-ARCHS = arm64 arm64e
-THEOS_DEVICE_IP = localhost
-THEOS_DEVICE_PORT = 2222
-
+# Makefile
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = hemajuchang
-hemajuchang_FILES = Tweak.xm
-hemajuchang_FRAMEWORKS = UIKit Foundation
+TWEAK_NAME = zhongguoyidong
+zhongguoyidong_FILES = Tweak.xm
+zhongguoyidong_FRAMEWORKS = UIKit Foundation
 
-# 确保在目标进程启动时加载
-INSTALL_TARGET_PROCESS = RiverHorseApp
+# 指定目标进程的 bundle identifier
+INSTALL_TARGET_PROCESS = com.chinamobile.app
 
 include $(THEOS_MAKE_PATH)/tweak.mk
