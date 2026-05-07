@@ -40,6 +40,7 @@ import { cn } from './lib/utils';
 import { generateHookScript, researchMethod, type AIConfig } from './services/aiService';
 import { useAuth, logout } from './components/AuthProvider';
 import { useI18n } from './components/I18nProvider';
+import { ImportModal } from './components/ImportModal';
 
 type Tab = 'builder' | 'researcher' | 'guides' | 'settings';
 
@@ -56,6 +57,7 @@ export default function App() {
   
   const [modifyPrompt, setModifyPrompt] = useState('');
   const [isModifying, setIsModifying] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // AI Configuration State with Persistence
   const [aiConfig, setAiConfig] = useState<AIConfig>(() => {
@@ -129,6 +131,14 @@ export default function App() {
       alert(`${t('builder.pushFailed')}${error.message}`);
     } finally {
       setIsPushing(false);
+    }
+  };
+
+  const handleImportCode = (code: string) => {
+    setGeneratedResult(code);
+    // 导入后自动设置一个占位应用名，方便编译
+    if (!appName || appName === 'Hippo Cinema') {
+      setAppName('Imported_Tweak');
     }
   };
 
@@ -355,6 +365,14 @@ export default function App() {
                   <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block mb-4">{t('builder.sourceCode')}</label>
                   <div className="relative group overflow-hidden border border-[#141414] rounded-sm bg-[#141414]">
                     <div className="absolute right-4 top-4 flex gap-2 z-10">
+                      <button 
+                        onClick={() => setIsImportModalOpen(true)}
+                        title="导入外部源码 (Import Source)"
+                        className="flex items-center gap-2 px-3 py-2 bg-neutral-600 hover:bg-neutral-700 text-white transition-colors rounded-sm text-xs font-bold"
+                      >
+                        <Upload className="w-3 h-3" />
+                        导入
+                      </button>
                       {generatedResult && (
                         <button 
                           onClick={handlePushToGithub}
@@ -761,6 +779,12 @@ jobs:
             </motion.div>
           )}
         </AnimatePresence>
+
+        <ImportModal 
+          isOpen={isImportModalOpen} 
+          onClose={() => setIsImportModalOpen(false)} 
+          onImport={handleImportCode} 
+        />
       </main>
     </div>
   );

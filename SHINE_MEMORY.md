@@ -53,8 +53,10 @@
 - [x] 修复 `Tweak.xm` 编译时因 AI 输出 Markdown 标题（##）导致的语法错误：加固了 AI Prompt 的禁令，并在后端增加了自动剔除源码中无效 Markdown 标题行的清洗逻辑 (v1.1.17)。
 - [x] 解决推送后 GitHub 任务堆积问题：引入 `concurrency` 控制，自动取消旧的任务，只保留最后一次推送生成的构建任务 (v1.1.18)。
 - [x] 彻底解决 `Tweak.xm` 编译报错：加固后端清洗中心，不仅剔除 Markdown 标题，还增加了对 `---` 等分割线的拦截，并自动将全角括号纠偏为半角括号 (v1.1.19)。
-- [x] **彻底解决 Pangle SDK 编译冲突**：在 `server.ts` 指令集中强制加入了对 `PAGInterstitialRequest` 等不确定类型的防御性 `@interface` 定义要求，并要求所有 Hook 内的 `self` 调用 `respondsToSelector` 时必须强转为 `id` 类型，根治了前向声明导致的编译链路中断 (v1.1.30)。
-- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.30。
+- [x] **根治 NSClassFromString 重定义冲突**：在 `server.ts` 后端增加了正则表达式强制过滤逻辑，自动剔除代码中错误的前向声明；同时在 AI 指令中加入了对系统内置函数（如 `NSString`, `NSURL`）的声明禁令 (v1.1.32)。
+- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.32。
+- [x] **新增外部源码导入功能**：在 Builder 页面增加了“导入”入口，支持直接粘贴外部生成的 `.xm` 代码并一键推送到云端编译 (v1.1.31)。
+- [x] **彻底解决 Pangle SDK 编译冲突**：在 `server.ts` 指令集中强制加入了对 `PAGInterstitialRequest` 等不确定类型的防御性 `@interface` 定义要求，并要求所有 Hook 内的 `self` 调用 `respondsToSelector` 时必须强转为 `id` 类型 (v1.1.30)。
 - [x] 彻底解决 `server.ts` 服务端崩溃问题：通过变量拼接（String Concatenation）隔离 Prompt 模板中的反引号 (v1.1.29)。
 - [x] GitHub Action 任务排重：移除了 `pull_request` 触发器，并强化了全局并发锁定逻辑，确保同一个仓库内永远只有一个最新的构建任务 (v1.1.27)。
 - [x] 产物历史聚合功能：同一 App 的所有历史版本产物现在均自动聚合在对应中文名的唯一 Release 下，文件名采用纯拼音（如 `zhongguoyidong-v1.1.dylib`）防止乱码 (v1.1.26)。
