@@ -64,8 +64,36 @@ static void hook_rewardedVideoAdDidRewardUser(id self, SEL _cmd, id ad) {
 - (void)layoutSubviews {
     %orig;
     // 根据 tag 或 accessibilityIdentifier 判断是否为广告视图
-    if (self.tag == 9999 || (self.accessibilityIdentifier && [self.accessibilityIdentifier containsString:@"ad"])) {
+    if (self.tag == 9999 ||
+        (self.accessibilityIdentifier && [self.accessibilityIdentifier containsString:@"ad"])) {
         self.hidden = YES;
+    }
+}
+%end
+
+// ---------- 拦截 UIWindow 中可能的开屏广告 ----------
+%hook UIWindow
+- (void)addSubview:(UIView *)view {
+    NSString *className = NSStringFromClass([view class]);
+    // 检测类名关键字或特定 tag，判断为开屏广告
+    if ([className containsString:@"Splash"] ||
+        [className containsString:@"Launch"] ||
+        view.tag == 8888) {
+        view.hidden = YES;
+        return;
+    }
+    %orig;
+}
+%end
+
+// ---------- 拦截 UIViewController 中可能的开屏广告 ----------
+%hook UIViewController
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    NSString *className = NSStringFromClass([self class]);
+    if ([className containsString:@"Splash"] ||
+        [className containsString:@"Launch"]) {
+        self.view.hidden = YES;
     }
 }
 %end
@@ -74,10 +102,11 @@ static void hook_rewardedVideoAdDidRewardUser(id self, SEL _cmd, id ad) {
 %hook NSURLSession
 - (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request
                            completionHandler:(void (^)(NSData *, NSURLResponse *, NSError *))completionHandler {
-    NSString *urlStr = request.URL.absoluteString;
+    NSString *urlStr = request.URL.absoluteString.lowercaseString;
     if ([urlStr containsString:@"ads.pangle.io"] ||
         [urlStr containsString:@"gdt.qq.com"] ||
-        [urlStr containsString:@"baidu.com/ads"]) {
+        [urlStr containsString:@"baidu.com/ads"] ||
+        [urlStr containsString:@"splash"] ) {
         // 返回空响应，阻止广告数据下载
         NSData *empty = [NSData data];
         NSURLResponse *resp = [[NSURLResponse alloc] initWithURL:request.URL
