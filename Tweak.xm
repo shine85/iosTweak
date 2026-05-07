@@ -47,24 +47,20 @@
 + (void)loadAdWithRequest:(id)request completionHandler:(void (^)(id, NSError *))handler {
     if (handler) handler(nil, [NSError errorWithDomain:@"com.ads.block" code:404 userInfo:nil]);
 }
-%end
 
-%hook PAGRewardedAd
 - (BOOL)showAdFromRootViewController:(UIViewController *)viewController {
     return NO;
 }
-%end
 
-// 奖励视频自动达成
-%hook PAGRewardedAd
+// 修复奖励回调，使用 SDK 官方方法
 - (void)rewardedAdDidRewardUser:(id)rewardedAd {
-    if ([(id)self respondsToSelector:@selector(rewardedAdUserDidGainReward:)]) {
-        [(id)self rewardedAdUserDidGainReward:rewardedAd];
+    if ([(id)self respondsToSelector:@selector(rewardedAdUserDidEarnReward:)]) {
+        [(id)self rewardedAdUserDidEarnReward:rewardedAd];
     }
 }
 %end
 
-// 针对开屏广告的更精确拦截(全屏/启动页特征)
+// 针对开屏广告的精准拦截
 %hook UIView
 - (void)didMoveToWindow {
     %orig;
@@ -79,7 +75,6 @@
         [className containsString:@"Splash"] ||
         [className containsString:@"LaunchAd"]) {
         
-        // 避免误伤打车主模块：仅隐藏明显广告尺寸或全屏启动广告
         CGRect frame = self.frame;
         BOOL isFullScreenAd = (frame.size.width >= [UIScreen mainScreen].bounds.size.width * 0.9 && 
                               frame.size.height >= [UIScreen mainScreen].bounds.size.height * 0.8);
@@ -98,8 +93,7 @@
     NSString *className = NSStringFromClass([self class]);
     CGRect frame = self.frame;
     
-    // 严格尺寸判断 + 类名过滤，避免误挡打车模块内容视图
-    BOOL isSmallBanner = (frame.size.height <= 100 && frame.size.width > frame.size.height * 3);
+    BOOL isSmallBanner = (frame.height <= 100 && frame.width > frame.height * 3);
     BOOL isAdClass = ([className containsString:@"Ad"] || 
                      [className containsString:@"Banner"] || 
                      [className containsString:@"PAG"] ||
@@ -114,7 +108,7 @@
 }
 %end
 
-// 网络拦截 - 收窄范围，减少潜在副作用
+// 网络拦截
 %hook NSURLSession
 - (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request completionHandler:(void (^)(NSData *, NSURLResponse *, NSError *))handler {
     NSString *urlStr = request.URL.absoluteString.lowercaseString;
