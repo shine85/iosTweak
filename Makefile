@@ -1,12 +1,14 @@
+DEBUG = 0
+FINALPACKAGE = 1
+ARCHS = arm64 arm64e
+TARGET = iphone:clang:latest:14.5
+
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = hemajuchang
-hemajuchang_FILES = Tweak.xm
-hemajuchang_CFLAGS = -fobjc-arc
-HMAdBlock_INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries
-hemajuchang_FRAMEWORKS = UIKit Foundation
+TWEAK_NAME = MyTweak
+
+# 源代码文件
+MyTweak_FILES = Tweak.xm
+MyTweak_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
-
-after-install::
-	install_name_tool -change /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate /usr/lib/libsubstrate.dylib $(THEOS_STAGING_DIR)/Library/MobileSubstrate/DynamicLibraries/HMAdBlock.dylib

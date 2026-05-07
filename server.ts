@@ -53,6 +53,8 @@ Requirements:
 
 防御对抗：
 - 包含防止检测 Hook 的技巧（如使用 MSHookMessageEx 代替简单的 %hook）。
+- Tweak 代码必须包含完整的头文件结构，对于不确定的类（如 PAGInterstitialRequest, PAGRewardedRequest），优先使用 @interface 补全定义或使用 id 类型。
+- 解决前向声明报错：如果在 Hook 内部调用 [self respondsToSelector:]，必须先将 self 强转为 id 类型，例如：[(id)self respondsToSelector:...]。
 - 采用 Constructor（static __attribute__((constructor))）确保在应用启动最早期介入。
 
 交付物：

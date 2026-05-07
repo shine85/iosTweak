@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.29)
+name: iOS Tweak Build (FORCE_v1.1.30)
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       contents: write
     env:
       # 强制刷新标识
-      FORCE_BUILD_ID: "v1.1.29"
+      FORCE_BUILD_ID: "v1.1.30"
 
     steps:
       - name: "1. 检出代码"
