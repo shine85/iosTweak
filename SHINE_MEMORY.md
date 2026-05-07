@@ -46,7 +46,11 @@
 - [x] 修复 `server.ts` 在处理 AI 生成的 Makefile 变量时（如 `${TWEAK_NAME}_FILES` 等），由于过度依赖硬编码正则引发在后续编译阶段出现“No files to link”或“找不到文件”的问题。现已采用读取动态现有变量名前缀并全局替换新工程变量名的修复方案，彻底保障 Theos 包体编译及链接阶段读取不到源文件的问题 (v1.1.13)。
 - [x] 在 DYLIB源码生成器页面 下方增加上下文对话框和 `/api/modify` 接口，以便用户通过 AI 修改或追加现有由 AI 生成的 Dylib LOGOS 代码的更多需求。
 - [x] 修复 `Tweak.xm:2:1: error: unknown type name` 等在 Github Action 构建时的编译错误，通过增加对底层 AI Prompt 生成指令强制要求中文解说内容一定要被注释包裹，防止裸露中文对 Theos 的 Makefile 链接机制造成致命破坏 (v1.1.14)。
+- [x] 添加并详细编写了 `README.md`，并在其中增加了针对**符号研究员**使用方法的说明。
+- [x] 每次修改代码后都需要对应更新 `package.json` 中的版本号。
+- [x] 修复 GitHub Action 打包时 `Release.tag_name already exists` 的报错，给 TAG_NAME 追加了 `$RANDOM` 随机数以确保不同并发执行产生的 Tag 绝对唯一 (v1.1.15)。
+- [x] 优化 Release 逻辑：根据 APP_NAME 归类 Tag (latest-AppName)，确保同一个 App 的多次编译产物覆盖更新在同一个 Release 中，并实现全局只保留最近活跃的 3 个 Release 的自动清理策略 (v1.1.16)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 
--- *最后更新: 2026-05-06*
+-- *最后更新: 2026-05-07*
