@@ -52,15 +52,15 @@ Requirements:
 - 网络请求：Hook NSURLSession 或 AFNetworking 的关键路径，根据 URL 关键字（如 ads.pangle.io）拦截广告数据下发。
 
 去广告专项策略：
-- **开屏广告 (Splash)**：必须优先 Hook 广告请求类（如 `PAGSplashRequest`）的 `load` 方法或初始化方法，使其直接失败。严禁只 Hook `show` 方法，因为加载动作本身可能耗时并卡住 UI。
+- **开屏广告 (Splash)**：必须优先 Hook 广告请求类（如 \`PAGSplashRequest\`）的 \`load\` 方法或初始化方法，使其直接失败。严禁只 Hook \`show\` 方法，因为加载动作本身可能耗时并卡住 UI。
 - **SDK 爆头逻辑**：针对主流 SDK（穿山甲/PAG、优量汇/GDTSDK、百度/BaiduMob），强制 Hook 其单例初始化或核心配置类，直接返回已禁用状态。
-- **强制早期执行**：必须在 `%ctor` 中尽早设置拦截标志位。对于 UI 层的广告容器（如 `UIView`），如果包含 "Ad", "Splash", "Banner" 等字样的类名，强制将其 `setHidden:YES` 且 `setFrame:CGRectZero`。
-- **拦截代理回调**：如果无法拦截请求，则 Hook 代理回调（Delegate），模拟“加载失败” (`didFailWithErrorCode:`) 的信号，促使应用跳过广告。
+- **强制早期执行**：必须在 \`%ctor\` 中尽早设置拦截标志位。对于 UI 层的广告容器（如 \`UIView\`），如果包含 "Ad", "Splash", "Banner" 等字样的类名，强制将其 \`setHidden:YES\` 且 \`setFrame:CGRectZero\`。
+- **拦截代理回调**：如果无法拦截请求，则 Hook 代理回调（Delegate），模拟“加载失败” (\`didFailWithErrorCode:\`) 的信号，促使应用跳过广告。
 
 防御对抗：
 - 包含防止检测 Hook 的技巧（如使用 MSHookMessageEx 代替简单的 %hook）。
-- Tweak 代码必须包含完整的头文件结构，对于所有被 Hook 的类或调用的类，必须提供 `@interface` 声明（包含要调用的方法名），例如：`@interface PAGRewardedAd : NSObject - (void)rewardedAdUserDidGainReward:(id)ad; @end`。
-- **禁止在不声明的情况下调用方法**：即使使用了 `(id)` 强转，也必须在文件最上方通过 `@interface` 告诉编译器该方法的签名，防止 `no known instance method` 报错。
+- Tweak 代码必须包含完整的头文件结构，对于所有被 Hook 的类或调用的类，必须提供 \`@interface\` 声明（包含要调用的方法名），例如：\`@interface PAGRewardedAd : NSObject - (void)rewardedAdUserDidGainReward:(id)ad; @end\`。
+- **禁止在不声明的情况下调用方法**：即使使用了 \`(id)\` 强转，也必须在文件最上方通过 \`@interface\` 告诉编译器该方法的签名，防止 \`no known instance method\` 报错。
 - **严禁**：绝对禁止在 @class 声明中包含 NSClassFromString、NSString、NSURL 等系统内置函数或基本类型！
 - 解决前向声明报错：如果在 Hook 内部调用 [self respondsToSelector:]，必须先将 self 强转为 id 类型，例如：[(id)self respondsToSelector:...]。
 - 采用 Constructor（static __attribute__((constructor))）确保在应用启动最早期介入。
