@@ -1,5 +1,5 @@
-Package: com.yourcompany.mytweak
-Name: MyTweak
+Package: com.yourcompany.huaxiaozhu
+Name: 花小猪
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm
