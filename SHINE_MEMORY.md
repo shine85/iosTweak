@@ -51,6 +51,7 @@
 - [x] 修复 GitHub Action 打包时 `Release.tag_name already exists` 的报错，给 TAG_NAME 追加了 `$RANDOM` 随机数以确保不同并发执行产生的 Tag 绝对唯一 (v1.1.15)。
 - [x] 优化 Release 逻辑：根据 APP_NAME 归类 Tag (latest-AppName)，确保同一个 App 的多次编译产物覆盖更新在同一个 Release 中，并实现全局只保留最近活跃的 3 个 Release 的自动清理策略 (v1.1.16)。
 - [x] 修复 `Tweak.xm` 编译时因 AI 输出 Markdown 标题（##）导致的语法错误：加固了 AI Prompt 的禁令，并在后端增加了自动剔除源码中无效 Markdown 标题行的清洗逻辑 (v1.1.17)。
+- [x] 解决推送后 GitHub 任务堆积问题：引入 `concurrency` 控制，自动取消旧的任务，只保留最后一次推送生成的构建任务 (v1.1.18)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 
