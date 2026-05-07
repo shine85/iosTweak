@@ -1,5 +1,5 @@
-Package: com.yourcompany.hemajuchang
-Name: 河马剧场
+Package: com.yourcompany.zhongguoyidong
+Name: 中国移动
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm
