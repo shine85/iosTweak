@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.12)
+name: iOS Tweak Build (FORCE_v1.1.17)
 
 on:
   push:
@@ -12,8 +12,8 @@ jobs:
     permissions:
       contents: write
     env:
-      # 强制刷新标识：v1.1.13 (修复动态替换 Makefile 变量名导致编译时找不到文件的问题)
-      FORCE_BUILD_ID: "v1.1.13"
+      # 强制刷新标识
+      FORCE_BUILD_ID: "v1.1.17"
 
     steps:
       - name: "1. 检出代码"
@@ -117,7 +117,7 @@ jobs:
           # 提取 Dylib
           DYLIB_PATH=$(find .theos/obj -name "${TWEAK_NAME}.dylib" | head -n 1)
           if [ -n "$DYLIB_PATH" ]; then
-            cp "$DYLIB_PATH" "final_artifacts/ios-${TWEAK_NAME}-v1.1.11.dylib"
+            cp "$DYLIB_PATH" "final_artifacts/ios-${TWEAK_NAME}-v1.1.17.dylib"
           fi
           
           rm -rf packages/*
@@ -149,26 +149,23 @@ jobs:
             exit 0
           fi
           
-          # 以时间作为 Tag，保证唯一性
-          TAG_NAME="v1.1.12-$(date +'%Y%m%d%H%M%S')"
-          RELEASE_TITLE="${APP_NAME} ${TAG_NAME}"
+          # 以 APP_NAME 作为 Tag 基准 (latest-前缀保证 Tag 合法且直观)
+          TAG_NAME="latest-${APP_NAME}"
+          RELEASE_TITLE="${APP_NAME} 自动打包产物"
           
-          # 创建 Release 并附加产物
-          echo ">>> 创建 Release $TAG_NAME <<<"
-          gh release create "$TAG_NAME" final_artifacts/* --title "$RELEASE_TITLE" --notes "自动发布的 iOS Tweak 多平台产物"
+          # 检查并清理远程同名 Release (为了更新产物)
+          echo ">>> 检查并更新远程 Release: $TAG_NAME <<<"
+          gh release delete "$TAG_NAME" -y --cleanup-tag || true
           
-          # 清理旧版 Release（仅保留最新 3 个）
-          echo ">>> 正在清理旧版 Release <<<"
-          gh api "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name' > releases.txt
-          RELEASE_COUNT=$(wc -l < releases.txt)
+          # 创建新 Release 并上传产物
+          gh release create "$TAG_NAME" final_artifacts/* --title "$RELEASE_TITLE" --notes "编译时间: $(date +'%Y-%m-%d %H:%M:%S')\n该 Release 始终为 ${APP_NAME} 的最新构建产物。"
           
-          if [ "$RELEASE_COUNT" -gt 3 ]; then
-            tail -n +4 releases.txt | while read tag; do
-              if [ -n "$tag" ]; then
-                echo ">>> 删除旧版 Release: $tag <<<"
-                gh release delete "$tag" -y --cleanup-tag || true
-              fi
-            done
-          else
-            echo "当前 Release 数量 ($RELEASE_COUNT) 未超过 3 个，无需清理。"
-          fi
+          # 清理旧版 Release (按时间排序，全局仅保留最近活跃的前 3 个不同 App 或版本的 Release)
+          echo ">>> 正在执行全局清理 (保留最近活跃的 3 个 Release) <<<"
+          # gh api 默认按 created_at 降序排列
+          gh api "repos/$GITHUB_REPOSITORY/releases" --jq '.[3:].tag_name' | while read old_tag; do
+            if [ -n "$old_tag" ]; then
+              echo ">>> 删除冗余 Release: $old_tag <<<"
+              gh release delete "$old_tag" -y --cleanup-tag || true
+            fi
+          done
