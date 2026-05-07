@@ -1,14 +1,16 @@
-DEBUG = 0
-FINALPACKAGE = 1
-ARCHS = arm64 arm64e
-TARGET = iphone:clang:latest:14.5
+THEOS_DEVICE_IP = localhost
+ARCHS = arm64
+TARGET = iphone:latest:13.0
+THEOS_PACKAGE_SCHEME = rootless
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = huaxiaozhu
+TWEAK_NAME = Tweakvpol
 
-# 源代码文件
-huaxiaozhu_FILES = Tweak.xm
-huaxiaozhu_CFLAGS = -fobjc-arc
+Tweakvpol_FILES = Tweak.xm
+Tweakvpol_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+after-install::
+	install.exec "killall -9 HippoTheatre"
