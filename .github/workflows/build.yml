@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.12)
+name: iOS Tweak Build (FORCE_v1.1.23)
 
 on:
   push:
@@ -6,14 +6,19 @@ on:
   pull_request:
     branches: [ "*" ]
 
+# 并发控制：如果同一个分支有新的任务进来，直接取消掉老任务
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
-      # 强制刷新标识：v1.1.13 (修复动态替换 Makefile 变量名导致编译时找不到文件的问题)
-      FORCE_BUILD_ID: "v1.1.13"
+      # 强制刷新标识
+      FORCE_BUILD_ID: "v1.1.23"
 
     steps:
       - name: "1. 检出代码"
@@ -91,6 +96,13 @@ jobs:
           fi
           echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
 
+      - name: "8.5 转换应用名称为拼音 (强制 ASCII 兼容)"
+        run: |
+          python3 -m pip install pypinyin
+          # 将 APP_NAME 转换为拼音并去除非字母数字字符
+          SAFE_APP_NAME=$(python3 -c "import re; from pypinyin import lazy_pinyin; name=''.join(lazy_pinyin('${{ env.APP_NAME }}')); print(re.sub(r'[^a-zA-Z0-9-]', '', name).lower())")
+          echo "SAFE_APP_NAME=$SAFE_APP_NAME" >> $GITHUB_ENV
+
       - name: "9. 编译多平台 Tweak 并重命名产物"
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
@@ -104,6 +116,9 @@ jobs:
           fi
 
           TWEAK_NAME=$(grep -i "^TWEAK_NAME" Makefile | cut -d'=' -f2 | sed -e 's/^[[:space:]]*//' | tr -d '\n\r')
+          # 提取当前项目的版本号
+          TWEAK_VERSION=$(grep "^  \"version\":" package.json | awk -F": " '{print $2}' | sed 's/[",]//g' | xargs)
+          VER_SUFFIX="v${TWEAK_VERSION}"
           
           # 1. Rootless 编译
           echo ">>> 编译 Rootless (无根) <<<"
@@ -111,13 +126,13 @@ jobs:
           make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
           ROOTLESS_DEB=$(find packages -name "*.deb" | head -n 1)
           if [ -n "$ROOTLESS_DEB" ]; then
-            mv "$ROOTLESS_DEB" "final_artifacts/${TWEAK_NAME}-arm64-rootless(无根).deb"
+            cp "$ROOTLESS_DEB" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}-arm64-rootless.deb"
           fi
           
           # 提取 Dylib
           DYLIB_PATH=$(find .theos/obj -name "${TWEAK_NAME}.dylib" | head -n 1)
           if [ -n "$DYLIB_PATH" ]; then
-            cp "$DYLIB_PATH" "final_artifacts/ios-${TWEAK_NAME}-v1.1.11.dylib"
+            cp "$DYLIB_PATH" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}.dylib"
           fi
           
           rm -rf packages/*
@@ -128,7 +143,7 @@ jobs:
           make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1
           ROOTHIDE_DEB=$(find packages -name "*.deb" | head -n 1)
           if [ -n "$ROOTHIDE_DEB" ]; then
-            mv "$ROOTHIDE_DEB" "final_artifacts/${TWEAK_NAME}-arm64e-roothide(隐根).deb"
+            cp "$ROOTHIDE_DEB" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}-arm64e-roothide.deb"
           fi
           
           echo ">>> 可用产物列表 <<<"
@@ -140,7 +155,7 @@ jobs:
           name: ${{ env.APP_NAME }}
           path: final_artifacts/*
 
-      - name: "11. 发布 Release (保留最新3份)"
+      - name: "11. 发布 Release (历史共存模式)"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -149,26 +164,18 @@ jobs:
             exit 0
           fi
           
-          # 以时间作为 Tag，保证唯一性
-          TAG_NAME="v1.1.12-$(date +'%Y%m%d%H%M%S')"
-          RELEASE_TITLE="${APP_NAME} ${TAG_NAME}"
+          # 以 APP_NAME 作为 Tag 基准
+          TAG_NAME="latest-${APP_NAME}"
+          RELEASE_TITLE="${APP_NAME} 聚合发布页"
           
-          # 创建 Release 并附加产物
-          echo ">>> 创建 Release $TAG_NAME <<<"
-          gh release create "$TAG_NAME" final_artifacts/* --title "$RELEASE_TITLE" --notes "自动发布的 iOS Tweak 多平台产物"
-          
-          # 清理旧版 Release（仅保留最新 3 个）
-          echo ">>> 正在清理旧版 Release <<<"
-          gh api "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name' > releases.txt
-          RELEASE_COUNT=$(wc -l < releases.txt)
-          
-          if [ "$RELEASE_COUNT" -gt 3 ]; then
-            tail -n +4 releases.txt | while read tag; do
-              if [ -n "$tag" ]; then
-                echo ">>> 删除旧版 Release: $tag <<<"
-                gh release delete "$tag" -y --cleanup-tag || true
-              fi
-            done
+          # 检查 Release 是否已存在
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo ">>> Release 已存在，正在追加最新版本产物... <<<"
+            # 使用 --clobber 如果文件名撞了就覆盖，但由于带了版本号，通常不会撞
+            gh release upload "$TAG_NAME" final_artifacts/* --clobber
           else
-            echo "当前 Release 数量 ($RELEASE_COUNT) 未超过 3 个，无需清理。"
+            echo ">>> 首次创建 Release... <<<"
+            gh release create "$TAG_NAME" final_artifacts/* --title "$RELEASE_TITLE" --notes "该页面包含 ${APP_NAME} 的所有历史及最新构建产物列表。"
           fi
+          
+          echo ">>> App 专属 Release 更新完成！ <<<"

@@ -1,5 +1,5 @@
-Package: com.yourcompany.zhongguoyidong
-Name: 中国移动
+Package: com.yourcompany.mytweak
+Name: MyTweak
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm

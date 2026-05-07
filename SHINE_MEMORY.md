@@ -52,6 +52,12 @@
 - [x] 优化 Release 逻辑：根据 APP_NAME 归类 Tag (latest-AppName)，确保同一个 App 的多次编译产物覆盖更新在同一个 Release 中，并实现全局只保留最近活跃的 3 个 Release 的自动清理策略 (v1.1.16)。
 - [x] 修复 `Tweak.xm` 编译时因 AI 输出 Markdown 标题（##）导致的语法错误：加固了 AI Prompt 的禁令，并在后端增加了自动剔除源码中无效 Markdown 标题行的清洗逻辑 (v1.1.17)。
 - [x] 解决推送后 GitHub 任务堆积问题：引入 `concurrency` 控制，自动取消旧的任务，只保留最后一次推送生成的构建任务 (v1.1.18)。
+- [x] 彻底解决 `Tweak.xm` 编译报错：加固后端清洗中心，不仅剔除 Markdown 标题，还增加了对 `---` 等分割线的拦截，并自动将全角括号纠偏为半角括号 (v1.1.19)。
+- [x] 建立 UI 版本号同步规范：以后每次更新版本，都会同步修改 `src/locales/` 和登录页面的版本显示，当前已同步至 v1.1.22。
+- [x] 优化 Release 命名与存储逻辑：将 Tag 固定为 `latest-${APP_NAME}` 实现同一个 App 产物覆盖更新，并取消全局 Release 清理逻辑，确保不同 App 的 Release 互不干扰，持久共存 (v1.1.21)。
+- [x] 彻底解决 Release 历史记录需求：产物文件名现在强制带上版本后缀（如 `App-v1.2.dylib`），并在同一个 Release 页面中使用追加模式上传，实现单个 App 的全版本产物历史追溯 (v1.1.22)。
+- [x] 产物文件名拼音化：在 GitHub Action 中引入 `pypinyin` 自动将中文 App 名称转换为纯小写拼音（如 `zhongguoyidong`），排除文件名乱码及兼容性隐患 (v1.1.23)。
+- [x] 系统级版本号同步：建立了跨 `package.json`、语言包及登录 UI 的版本号联合更新机制 (v1.1.23)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 
