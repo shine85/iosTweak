@@ -9,6 +9,21 @@ export interface AIConfig {
   githubRepo?: string;
 }
 
+export async function modifyHookScript(appName: string, currentCode: string, userPrompt: string, config: AIConfig) {
+  try {
+    const response = await fetch('/api/modify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appName, currentCode, userPrompt, config })
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data.result;
+  } catch (error: any) {
+    return `生成错误: ${error.message}`;
+  }
+}
+
 export async function generateHookScript(appName: string, config: AIConfig) {
   try {
     const response = await fetch('/api/generate', {

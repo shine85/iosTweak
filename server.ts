@@ -58,6 +58,35 @@ Requirements:
 
 Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KISS 原则，代码需具备高可维护性。`;
 
+    await handleAIRequest(prompt, config, res);
+  });
+
+  // API 路由：对话式修改 Hook 代码
+  app.post("/api/modify", async (req, res) => {
+    console.log(`[API] /api/modify called for: ${req.body.appName}`);
+    const { appName, currentCode, userPrompt, config } = req.body;
+
+    const prompt = `Role: 你是一位顶尖 iOS 逆向安全专家，精通 LLDB 调试、Cycript 分析及主流广告 SDK 内部架构，并且遵循 Theos/Logos 语法。
+Task: 之前的会话中生成了用于 iOS 逆向的 Tweak.xm 源代码。现在用户要求对代码进行修改或添加新功能。请根据现有的代码和用户最新的要求，提供修改后完整的最新版本代码和对应 Makefile。
+
+目标应用：${appName}
+
+用户的修改要求：
+${userPrompt}
+
+目前现有的源码上下文：
+${currentCode}
+
+交付物：
+1. 完整的最新的 Tweak.xm 代码 (请保证语法无误，保留必要的 Hook 逻辑)。
+2. 对应的 Makefile 配置 (包含 INSTALL_TARGET_PROCESS 和必要的 Framework 等信息)。
+3. 简述所做修改。
+Language: 所有输出、代码注释及逻辑分析均使用中文。代码需具备高可维护性。`;
+
+    await handleAIRequest(prompt, config, res);
+  });
+
+  async function handleAIRequest(prompt: string, config: any, res: any) {
     try {
       const aiProvider = config.provider || process.env.AI_PROVIDER || 'gemini';
       const apiKey = config.apiKey || (aiProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GEMINI_API_KEY);
@@ -107,7 +136,7 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KIS
       console.error("Server API Error:", error);
       res.status(500).json({ error: error.message });
     }
-  });
+  }
 
   // API 路由：推送到 GitHub
   app.post("/api/github-push", async (req, res) => {

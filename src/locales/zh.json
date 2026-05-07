@@ -37,6 +37,8 @@
     "pushing": "正在推送...",
     "pushSuccess": "推送成功！GitHub Actions 已触发编译。",
     "pushFailed": "推送失败: ",
+    "modifyPlaceholder": "输入你需要追加修改的功能或需求...",
+    "modifyButton": "修改源码",
     "waitInstructions": "// 等待生成指令...\n// 目标对象: {appName}",
     "noApiKey": "请先在设置中配置 API Key",
     "copyFailed": "复制失败，请尝试手动选择复制"

@@ -44,6 +44,7 @@
 - [x] 引入 `pinyin-pro` 处理由中文转换拼音包名标识问题，保证以全英文拼音及特定命名格式呈现内部包名避免 iOS 在注入或Theos打包时不支持中文字符而导致的验证错误 (v1.1.8)。
 - [x] 新增自动化 Release 发布环节，并将各种架构的打包产物作为标签上传至 Releases（包含 dylib、rootless、roothide），且能够保持只存储最新的 3 个标签以节约存储并维持整洁 (v1.1.12)。
 - [x] 修复 `server.ts` 在处理 AI 生成的 Makefile 变量时（如 `${TWEAK_NAME}_FILES` 等），由于过度依赖硬编码正则引发在后续编译阶段出现“No files to link”或“找不到文件”的问题。现已采用读取动态现有变量名前缀并全局替换新工程变量名的修复方案，彻底保障 Theos 包体编译及链接阶段读取不到源文件的问题 (v1.1.13)。
+- [x] 在 DYLIB源码生成器页面 下方增加上下文对话框和 `/api/modify` 接口，以便用户通过 AI 修改或追加现有由 AI 生成的 Dylib LOGOS 代码的更多需求。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 

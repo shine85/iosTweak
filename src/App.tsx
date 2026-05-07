@@ -53,6 +53,9 @@ export default function App() {
   const [researchQuery, setResearchQuery] = useState('');
   const [researchResult, setResearchResult] = useState('');
   const [copying, setCopying] = useState<'builder' | 'researcher' | null>(null);
+  
+  const [modifyPrompt, setModifyPrompt] = useState('');
+  const [isModifying, setIsModifying] = useState(false);
 
   // AI Configuration State with Persistence
   const [aiConfig, setAiConfig] = useState<AIConfig>(() => {
@@ -93,6 +96,27 @@ export default function App() {
     const result = await generateHookScript(appName, aiConfig);
     setGeneratedResult(result || '');
     setIsGenerating(false);
+  };
+
+  const handleModify = async () => {
+    if (!aiConfig.apiKey) {
+      alert(t('builder.noApiKey'));
+      setActiveTab('settings');
+      return;
+    }
+    if (!modifyPrompt.trim() || !generatedResult) return;
+    setIsModifying(true);
+    try {
+      const { modifyHookScript } = await import('./services/aiService');
+      const result = await modifyHookScript(appName, generatedResult, modifyPrompt, aiConfig);
+      setGeneratedResult(result || '');
+      setModifyPrompt('');
+    } catch (err: any) {
+      console.error(err);
+      alert('Modify Failed: ' + err.message);
+    } finally {
+      setIsModifying(false);
+    }
   };
 
   const handlePushToGithub = async () => {
@@ -355,6 +379,32 @@ export default function App() {
                       </ReactMarkdown>
                     </div>
                   </div>
+
+                  {/* AI 修改对话区 */}
+                  {generatedResult && (
+                    <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                       <input 
+                         type="text" 
+                         value={modifyPrompt}
+                         onChange={(e) => setModifyPrompt(e.target.value)}
+                         placeholder={t('builder.modifyPlaceholder')}
+                         className="flex-grow bg-transparent border-2 border-[#141414] py-3 px-4 font-mono text-sm focus:outline-none focus:bg-[#141414]/5 transition-all"
+                         onKeyDown={(e) => {
+                           if (e.key === 'Enter') {
+                             handleModify();
+                           }
+                         }}
+                       />
+                       <button
+                         onClick={handleModify}
+                         disabled={isModifying || !modifyPrompt.trim()}
+                         className="px-6 py-3 bg-[#141414] text-[#E4E3E0] font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 h-full"
+                       >
+                         {isModifying ? <RotateCcw className="w-4 h-4 animate-spin" /> : <Terminal className="w-4 h-4" />}
+                         {t('builder.modifyButton')}
+                       </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

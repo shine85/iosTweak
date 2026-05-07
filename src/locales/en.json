@@ -37,6 +37,8 @@
     "pushing": "Pushing...",
     "pushSuccess": "Push Successful! GitHub Actions build triggered.",
     "pushFailed": "Push Failed: ",
+    "modifyPlaceholder": "Enter additional modifications or features you want to add...",
+    "modifyButton": "Modify Source",
     "waitInstructions": "// Waiting for generation...\n// Target App: {appName}",
     "noApiKey": "Please configure API Key in settings first",
     "copyFailed": "Copy failed, please try manual selection"
