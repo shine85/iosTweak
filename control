@@ -1,5 +1,5 @@
-Package: com.yourcompany.huaxiaozhu
-Name: 花小猪
+Package: com.yourcompany.zhongguoyidong
+Name: 中国移动
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm
