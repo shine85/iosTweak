@@ -1,10 +1,7 @@
-#import <Foundation/Foundation.h>
 
-%hook SpringBoard
+推荐使用 Cycript 或 LLDB 附加后 `po [BUAdSDKManager sharedInstance]` 等确认单例。
 
-- (void)applicationDidFinishLaunching:(id)application {
-    %orig;
-    NSLog(@"[MyTweak] Hello from Tweak Studio!");
-}
+---
 
-%end
+### 1. 完整的 Tweak.xm 代码
+
