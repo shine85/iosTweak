@@ -1,17 +1,12 @@
-TARGET = iphone:clang:latest:14.0
-INSTALL_TARGET_PROCESS = 河马剧场
-ARCHS = arm64
-THEOS_DEVICE_IP = 192.168.1.100  # 替换为实际测试设备 IP
-THEOS_DEVICE_PORT = 22
-
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = hemajuchang
 hemajuchang_FILES = Tweak.xm
-hemajuchang_CFLAGS = -fobjc-arc -fvisibility=hidden
-hemajuchang_LDFLAGS += -lobjc -ldl
+hemajuchang_CFLAGS = -fobjc-arc
+HeMaAdBlock_INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries
+HeMaAdBlock_LOGOS_DEFAULT_GENERATOR = MobileSubstrate
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
 after-install::
-	install.exec "killall -9 河马剧场"
+	@install_name_tool -change /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate /usr/lib/libsubstrate.dylib $(THEOS_STAGING_DIR)/Library/MobileSubstrate/DynamicLibraries/HeMaAdBlock.dylib
