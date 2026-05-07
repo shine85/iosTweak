@@ -53,11 +53,10 @@
 - [x] 修复 `Tweak.xm` 编译时因 AI 输出 Markdown 标题（##）导致的语法错误：加固了 AI Prompt 的禁令，并在后端增加了自动剔除源码中无效 Markdown 标题行的清洗逻辑 (v1.1.17)。
 - [x] 解决推送后 GitHub 任务堆积问题：引入 `concurrency` 控制，自动取消旧的任务，只保留最后一次推送生成的构建任务 (v1.1.18)。
 - [x] 彻底解决 `Tweak.xm` 编译报错：加固后端清洗中心，不仅剔除 Markdown 标题，还增加了对 `---` 等分割线的拦截，并自动将全角括号纠偏为半角括号 (v1.1.19)。
-- [x] 建立 UI 版本号同步规范：以后每次更新版本，都会同步修改 `src/locales/` 和登录页面的版本显示，当前已同步至 v1.1.27。
-- [x] **终极解决 Release 聚合需求**：将 Tag 直接锁定为应用中文名（如 `中国移动`），同一个 App 的不同版本产物现在会完整累积在同一个 Release 页面下 (v1.1.26)。
-- [x] **产物拼音化命名**：完美解决 `zhongguoyidong-v1.1.dylib` 样式的自动命名，且不再删除其他 App 的 Release，实现多 App 产物持久共存 (v1.1.26)。
-- [x] **GitHub Action 任务合并优化**：移除了 `pull_request` 冗余触发器，并强化了全局并发锁，确保无论连续点几次“云编译”，Actions 列表中永远只保留一个最新的主任务 (v1.1.27)。
-- [x] **系统级版本号同步**：建立了跨 `package.json`、语言包及登录 UI 的版本号联合更新机制 (v1.1.27)。
+- [x] 彻底解决 `server.ts` 服务端崩溃问题：修复了因 AI 请求模板（Prompt Template）中反引号转义不当导致的 `TransformError` 语法错误 (v1.1.28)。
+- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.28。
+- [x] GitHub Action 任务排重：移除了 `pull_request` 触发器，并强化了全局并发锁定逻辑，确保同一个仓库内永远只有一个最新的构建任务 (v1.1.27)。
+- [x] 产物历史聚合功能：同一 App 的所有历史版本产物现在均自动聚合在对应中文名的唯一 Release 下，文件名采用纯拼音（如 `zhongguoyidong-v1.1.dylib`）防止乱码 (v1.1.26)。
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 

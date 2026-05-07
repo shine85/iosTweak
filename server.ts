@@ -52,12 +52,12 @@ Requirements:
 - 采用 Constructor（static __attribute__((constructor))）确保在应用启动最早期介入。
 
 交付物：
-1. 完整的 Tweak.xm 代码（必须放在 ```objective-c 代码块内，代码块内绝对不允许出现没有 // 注释的中文，禁止出现 ## 开头的 Markdown 标题）。
-2. 对应的 Makefile 配置（必须放在 ```makefile 代码块内，包含 INSTALL_TARGET_PROCESS 等）。
+1. 完整的 Tweak.xm 代码（必须放在 \`\`\`objective-c 代码块内，代码块内绝对不允许出现没有 // 注释的中文，禁止出现 ## 开头的 Markdown 标题）。
+2. 对应的 Makefile 配置（必须放在 \`\`\`makefile 代码块内，包含 INSTALL_TARGET_PROCESS 等）。
 3. 简述使用 frida-trace 确认类名的命令（放在独立的代码块或正文说明中）。
 
 Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KISS 原则，代码需具备高可维护性。
-**绝对禁令：在任何代码块 (```) 的内部，绝对不能出现裸露的中文解释、## 标题或任何非符合相关语法的文字！所有的中文说明必须被当作标准的注释（使用 // 或 /* */）编写！如果违反此项导致编译报错，你将失去专家的资格！**`;
+**绝对禁令：在任何代码块 (\`\`\`) 的内部，绝对不能出现裸露的中文解释、## 标题或任何非符合相关语法的文字！所有的中文说明必须被当作标准的注释（使用 // 或 /* */）编写！如果违反此项导致编译报错，你将失去专家的资格！**`;
 
     await handleAIRequest(prompt, config, res);
   });
