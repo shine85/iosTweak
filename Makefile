@@ -1,16 +1,15 @@
+# Makefile
+ARCHS = arm64 arm64e
+TARGET = iphone:clang:latest:14.0
 THEOS_DEVICE_IP = localhost
-ARCHS = arm64
-TARGET = iphone:latest:13.0
-THEOS_PACKAGE_SCHEME = rootless
-
+INSTALL_TARGET_PROCESS = com.huaxiaozhu.app   # 花小猪 主包标识
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = Tweakvpol
+TWEAK_NAME = huaxiaozhu
 
-Tweakvpol_FILES = Tweak.xm
-Tweakvpol_CFLAGS = -fobjc-arc
+$(TWEAK_NAME)_FILES = Tweak.xm
+$(TWEAK_NAME)_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
-
 after-install::
-	install.exec "killall -9 HippoTheatre"
+	install.exec "killall -9 $(INSTALL_TARGET_PROCESS) && echo '已重启应用，去广告已生效'"
