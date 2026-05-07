@@ -10,18 +10,20 @@
 #import <GDTSDK/GDTSDKConfig.h>
 #import <BaiduMobAd/BaiduMobAdSetting.h>
 
-// 如果有其他系统类
+// 系统类
 #import <CoreGraphics/CoreGraphics.h>
 #import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIView.h>
 #import <Foundation/NSURLSession.h>
 
-%hook SomeViewController // 替换为你的目标类
+%hook SomeViewController  // 替换为你想 hook 的类
 
-// 假设你要监听 rewarded ad 的回调
-- (void)someMethodToHandleAd {
-    // 示例 rewardedAd 对象
-    PAGRewardedAd *rewardedAd = ...; // 这里换成实际获取 rewardedAd 的方式
+// Hook 示例方法
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;  // 保留原有实现
+
+    // 示例：获取 rewardedAd 对象
+    PAGRewardedAd *rewardedAd = [[PAGRewardedAd alloc] init];
     
     // 安全调用回调方法
     if ([self respondsToSelector:@selector(rewardedAdUserDidGainReward:)]) {
