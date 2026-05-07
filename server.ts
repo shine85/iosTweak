@@ -51,6 +51,12 @@ Requirements:
 - 视图隐藏：针对 UIView 及其子类中的 layoutSubviews 或 didMoveToWindow 进行 Hook，识别并 setHidden:YES 或 removeFromSuperview。
 - 网络请求：Hook NSURLSession 或 AFNetworking 的关键路径，根据 URL 关键字（如 ads.pangle.io）拦截广告数据下发。
 
+去广告专项策略：
+- **开屏广告 (Splash)**：必须优先 Hook 广告请求类（如 `PAGSplashRequest`）的 `load` 方法或初始化方法，使其直接失败。严禁只 Hook `show` 方法，因为加载动作本身可能耗时并卡住 UI。
+- **SDK 爆头逻辑**：针对主流 SDK（穿山甲/PAG、优量汇/GDTSDK、百度/BaiduMob），强制 Hook 其单例初始化或核心配置类，直接返回已禁用状态。
+- **强制早期执行**：必须在 `%ctor` 中尽早设置拦截标志位。对于 UI 层的广告容器（如 `UIView`），如果包含 "Ad", "Splash", "Banner" 等字样的类名，强制将其 `setHidden:YES` 且 `setFrame:CGRectZero`。
+- **拦截代理回调**：如果无法拦截请求，则 Hook 代理回调（Delegate），模拟“加载失败” (`didFailWithErrorCode:`) 的信号，促使应用跳过广告。
+
 防御对抗：
 - 包含防止检测 Hook 的技巧（如使用 MSHookMessageEx 代替简单的 %hook）。
 - Tweak 代码必须包含完整的头文件结构，对于所有被 Hook 的类或调用的类，必须提供 `@interface` 声明（包含要调用的方法名），例如：`@interface PAGRewardedAd : NSObject - (void)rewardedAdUserDidGainReward:(id)ad; @end`。

@@ -1,17 +1,14 @@
-# Makefile
-TARGET = iphone:clang:latest:14.0
-ARCHS = arm64
-THEOS_DEVICE_IP = localhost
+DEBUG = 0
+FINALPACKAGE = 1
+ARCHS = arm64 arm64e
+TARGET = iphone:clang:latest:14.5
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = zhongguoyidong
+TWEAK_NAME = MyTweak
 
-zhongguoyidong_FILES = Tweak.xm
-zhongguoyidong_FRAMEWORKS = UIKit Foundation
-ChinaMobileAdBlock_PRIVATE_FRAMEWORKS = AdSupport
-
-# 目标进程的 bundle identifier
-INSTALL_TARGET_PROCESS = com.chinamobile.app
+# 源代码文件
+MyTweak_FILES = Tweak.xm
+MyTweak_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
