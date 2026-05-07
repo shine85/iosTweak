@@ -1,11 +1,17 @@
-# Makefile for Theos project
+# Makefile
+TARGET = iphone:clang:latest:14.0
+ARCHS = arm64
+THEOS_DEVICE_IP = localhost
+
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = hemajuchang
-hemajuchang_FILES = Tweak.xm
-hemajuchang_FRAMEWORKS = UIKit Foundation
+TWEAK_NAME = zhongguoyidong
 
-# 目标进程的 bundle identifier（河马剧场）
-INSTALL_TARGET_PROCESS = com.cbn.hmjc
+zhongguoyidong_FILES = Tweak.xm
+zhongguoyidong_FRAMEWORKS = UIKit Foundation
+ChinaMobileAdBlock_PRIVATE_FRAMEWORKS = AdSupport
+
+# 目标进程的 bundle identifier
+INSTALL_TARGET_PROCESS = com.chinamobile.app
 
 include $(THEOS_MAKE_PATH)/tweak.mk
