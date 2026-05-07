@@ -44,7 +44,7 @@ static id hook_BaiduMobAdSetting_sharedInstance(Class cls) {
 
 // ---------- Hook 奖励视频回调 ----------
 static void hook_rewardedVideoAdDidRewardUser(id self, SEL _cmd, id ad) {
-    // 调用原实现(若需要保持业务流程)
+    // 保持原有业务流程
     if (orig_rewardedVideoAdDidRewardUser) {
         orig_rewardedVideoAdDidRewardUser(self, _cmd, ad);
     }
@@ -63,7 +63,8 @@ static void hook_rewardedVideoAdDidRewardUser(id self, SEL _cmd, id ad) {
         (self.accessibilityIdentifier && [self.accessibilityIdentifier containsString:@"ad"])) {
         self.hidden = YES;
     }
-    if ([clsName containsString:@"Ad"] || [clsName containsString:@"Banner"] ||
+    if ([clsName containsString:@"Ad"] ||
+        [clsName containsString:@"Banner"] ||
         [clsName containsString:@"Interstitial"]) {
         self.hidden = YES;
         if (self.window) {
@@ -77,9 +78,11 @@ static void hook_rewardedVideoAdDidRewardUser(id self, SEL _cmd, id ad) {
 %hook UIWindow
 - (void)addSubview:(UIView *)view {
     NSString *clsName = NSStringFromClass([view class]);
-    if ([clsName containsString:@"Splash"] || [clsName containsString:@"Launch"] || view.tag == 8888) {
+    if ([clsName containsString:@"Splash"] ||
+        [clsName containsString:@"Launch"] ||
+        view.tag == 8888) {
         view.hidden = YES;
-        return; // 直接拦截，不加入视图层级
+        return; // 拦截，不加入视图层级
     }
     %orig;
 }
@@ -87,12 +90,37 @@ static void hook_rewardedVideoAdDidRewardUser(id self, SEL _cmd, id ad) {
 
 // ---------- 拦截 UIViewController 中的开屏广告 ----------
 %hook UIViewController
+- (void)viewDidLoad {
+    %orig;
+    NSString *clsName = NSStringFromClass([self class]);
+    if ([clsName containsString:@"Splash"] ||
+        [clsName containsString:@"Launch"] ||
+        self.view.tag == 8888) {
+        self.view.hidden = YES;
+        [self.view removeFromSuperview];
+    }
+}
+
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     NSString *clsName = NSStringFromClass([self class]);
-    if ([clsName containsString:@"Splash"] || [clsName containsString:@"Launch"]) {
+    if ([clsName containsString:@"Splash"] ||
+        [clsName containsString:@"Launch"] ||
+        self.view.tag == 8888) {
         self.view.hidden = YES;
     }
+}
+
+// 拦截模态展示的开屏广告
+- (void)presentViewController:(UIViewController *)vc animated:(BOOL)animated completion:(void (^)(void))completion {
+    NSString *clsName = NSStringFromClass([vc class]);
+    if ([clsName containsString:@"Splash"] ||
+        [clsName containsString:@"Launch"] ||
+        vc.view.tag == 8888) {
+        // 直接丢弃，不进行展示
+        return;
+    }
+    %orig;
 }
 %end
 
