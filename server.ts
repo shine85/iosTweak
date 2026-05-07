@@ -52,11 +52,12 @@ Requirements:
 - 采用 Constructor（static __attribute__((constructor))）确保在应用启动最早期介入。
 
 交付物：
-1. 完整的 Tweak.xm 代码。
-2. 对应的 Makefile 配置（包含 INSTALL_TARGET_PROCESS 和必要的 Framework 链接）。
-3. 简述使用 frida-trace 或 objection 进行前期类名确认的具体命令。
+1. 完整的 Tweak.xm 代码（必须放在 \`\`\`objective-c 代码块内，代码块内绝对不允许出现没有 // 注释的中文）。
+2. 对应的 Makefile 配置（必须放在 \`\`\`makefile 代码块内，包含 INSTALL_TARGET_PROCESS 等）。
+3. 简述使用 frida-trace 确认类名的命令（放在独立的代码块或正文说明中）。
 
-Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KISS 原则，代码需具备高可维护性。`;
+Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KISS 原则，代码需具备高可维护性。
+**警告：在任何代码块 (\`\`\`) 的内部，绝对不能出现裸露的中文解释或任何非符合相关语法的文字，所有的中文说明必须被当作标准的注释（使用 // 等）编写！否则将导致编译系统彻底崩溃！**`;
 
     await handleAIRequest(prompt, config, res);
   });
@@ -78,10 +79,11 @@ ${userPrompt}
 ${currentCode}
 
 交付物：
-1. 完整的最新的 Tweak.xm 代码 (请保证语法无误，保留必要的 Hook 逻辑)。
-2. 对应的 Makefile 配置 (包含 INSTALL_TARGET_PROCESS 和必要的 Framework 等信息)。
+1. 完整的最新的 Tweak.xm 代码 (必须放在 \`\`\`objective-c 代码块内，代码块内绝对不允许出现没有 // 注释的中文)。
+2. 对应的 Makefile 配置 (必须放在 \`\`\`makefile 代码块内)。
 3. 简述所做修改。
-Language: 所有输出、代码注释及逻辑分析均使用中文。代码需具备高可维护性。`;
+Language: 所有输出、代码注释及逻辑分析均使用中文。代码需具备高可维护性。
+**警告：在任何代码块 (\`\`\`) 的内部，绝对不能出现裸露的中文解释或任何非符合相关语法的文字，所有的中文说明必须被当作标准的注释（使用 // 等）编写！否则将导致编译系统彻底崩溃！**`;
 
     await handleAIRequest(prompt, config, res);
   });
