@@ -1,10 +1,5 @@
-#import <Foundation/Foundation.h>
 
-%hook SpringBoard
+---
 
-- (void)applicationDidFinishLaunching:(id)application {
-    %orig;
-    NSLog(@"[MyTweak] Hello from Tweak Studio!");
-}
+## 2. 完整 Tweak.xm 代码
 
-%end
