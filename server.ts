@@ -27,6 +27,10 @@ async function startServer() {
     const isResearch = appName.startsWith('RESEARCH_QUERY: ');
     const target = isResearch ? appName.replace('RESEARCH_QUERY: ', '') : appName;
 
+    const codeBlockObjC = '```' + 'objective-c';
+    const codeBlockMakefile = '```' + 'makefile';
+    const codeBlockGeneric = '```';
+
     const prompt = isResearch 
       ? `你是一位 iOS 逆向工程专家。请用中文详细回答关于 iOS 应用内部结构或逆向工程的以下问题：${target}。重点关注类名、方法名以及使用 Logos 或 Frida 的 hook 策略。`
       : `Role: 你是一位顶尖 iOS 逆向安全专家，精通 LLDB 调试、Cycript 分析及主流广告 SDK（Pangle, GDT, Baidu）的内部架构。
@@ -52,12 +56,12 @@ Requirements:
 - 采用 Constructor（static __attribute__((constructor))）确保在应用启动最早期介入。
 
 交付物：
-1. 完整的 Tweak.xm 代码（必须放在 \`\`\`objective-c 代码块内，代码块内绝对不允许出现没有 // 注释的中文，禁止出现 ## 开头的 Markdown 标题）。
-2. 对应的 Makefile 配置（必须放在 \`\`\`makefile 代码块内，包含 INSTALL_TARGET_PROCESS 等）。
+1. 完整的 Tweak.xm 代码（必须放在 ${codeBlockObjC} 代码块内，代码块内绝对不允许出现没有 // 注释的中文，禁止出现 ## 开头的 Markdown 标题）。
+2. 对应的 Makefile 配置（必须放在 ${codeBlockMakefile} 代码块内，包含 INSTALL_TARGET_PROCESS 等）。
 3. 简述使用 frida-trace 确认类名的命令（放在独立的代码块或正文说明中）。
 
 Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KISS 原则，代码需具备高可维护性。
-**绝对禁令：在任何代码块 (\`\`\`) 的内部，绝对不能出现裸露的中文解释、## 标题或任何非符合相关语法的文字！所有的中文说明必须被当作标准的注释（使用 // 或 /* */）编写！如果违反此项导致编译报错，你将失去专家的资格！**`;
+**绝对禁令：在任何代码块 (${codeBlockGeneric}) 的内部，绝对不能出现裸露的中文解释、## 标题或任何非符合相关语法的文字！所有的中文说明必须被当作标准的注释（使用 // 或 /* */）编写！如果违反此项导致编译报错，你将失去专家的资格！**`;
 
     await handleAIRequest(prompt, config, res);
   });
@@ -66,6 +70,10 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KIS
   app.post("/api/modify", async (req, res) => {
     console.log(`[API] /api/modify called for: ${req.body.appName}`);
     const { appName, currentCode, userPrompt, config } = req.body;
+
+    const codeBlockObjC = '```' + 'objective-c';
+    const codeBlockMakefile = '```' + 'makefile';
+    const codeBlockGeneric = '```';
 
     const prompt = `Role: 你是一位顶尖 iOS 逆向安全专家，精通 LLDB 调试、Cycript 分析及主流广告 SDK 内部架构，并且遵循 Theos/Logos 语法。
 Task: 之前的会话中生成了用于 iOS 逆向的 Tweak.xm 源代码。现在用户要求对代码进行修改或添加新功能。请根据现有的代码和用户最新的要求，提供修改后完整的最新版本代码和对应 Makefile。
@@ -79,11 +87,11 @@ ${userPrompt}
 ${currentCode}
 
 交付物：
-1. 完整的最新的 Tweak.xm 代码 (必须放在 ```objective-c 代码块内，代码块内绝对不允许出现没有 // 注释的中文，禁止出现 ## 开头的 Markdown 标题)。
-2. 对应的 Makefile 配置 (必须放在 ```makefile 代码块内)。
+1. 完整的最新的 Tweak.xm 代码 (必须放在 ${codeBlockObjC} 代码块内，代码块内绝对不允许出现没有 // 注释的中文，禁止出现 ## 开头的 Markdown 标题）。
+2. 对应的 Makefile 配置 (必须放在 ${codeBlockMakefile} 代码块内)。
 3. 简述所做修改。
 Language: 所有输出、代码注释及逻辑分析均使用中文。代码需具备高可维护性。
-**绝对禁令：在任何代码块 (```) 的内部，绝对不能出现裸露的中文解释、## 标题或任何非符合相关语法的文字！所有的中文说明必须被当作标准的注释（使用 // 或 /* */）编写！如果违反此项导致编译报错，你将失去专家的资格！**`;
+**绝对禁令：在任何代码块 (${codeBlockGeneric}) 的内部，绝对不能出现裸露的中文解释、## 标题或任何非符合相关语法的文字！所有的中文说明必须被当作标准的注释（使用 // 或 /* */）编写！如果违反此项导致编译报错，你将失去专家的资格！**`;
 
     await handleAIRequest(prompt, config, res);
   });
