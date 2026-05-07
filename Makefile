@@ -1,14 +1,14 @@
-DEBUG = 0
-FINALPACKAGE = 1
-ARCHS = arm64 arm64e
-TARGET = iphone:clang:latest:14.5
-
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = MyTweak
+TWEAK_NAME = huaxiaozhu
 
-# 源代码文件
-MyTweak_FILES = Tweak.xm
-MyTweak_CFLAGS = -fobjc-arc
+huaxiaozhu_FILES = Tweak.xm
+huaxiaozhu_CFLAGS = -fobjc-arc
+huaxiaozhu_FRAMEWORKS = UIKit Foundation
+
+INSTALL_TARGET_PROCESS = HuaXiaoZhu
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+after-install::
+	install_name_tool -change /usr/lib/libsubstrate.dylib /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate $(THEOS_STAGING_DIR)/Library/MobileSubstrate/DynamicLibraries/HuaXiaoZhuNoAd.dylib || true
