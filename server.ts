@@ -37,30 +37,34 @@ async function startServer() {
     next();
   });
 
-  // 共享的 Tweak 生成需求指令集 (v1.1.42 强化版)
+  // 共享的 Tweak 生成需求指令集 (v1.1.51 强化版)
   const TWEAK_REQUIREMENTS = `
 目标实体规范（极度重要）：
-- 逻辑归一化：不论用户提供的目标是官方应用名（如“中国移动”）、AppStore副标题名称（如“中国移动(手机营业厅)”）、Bundle ID（如“com.greenpoint.android.mc10086.activity”或 iOS 相关 Bundle ID）还是 App Store ID（如“id583700738”），你必须首先在内部推理阶段将其归一化解析为同一对象的标准 Bundle ID 和包体特征。
-- 产物一致性：严禁因为输入名称格式不同而导致生成的 Hook 代码、类名猜测或 Makefile 配置不同。本质是同一款 APP，其最终的注入策略与生成产物必须 100% 完全一致。
+- 逻辑归一化：不论用户提供的目标是官方应用名（如“中国移动”）、AppStore副标题名称（如“中国移动(手机营业厅)”）、Bundle ID 还是 App Store ID，你必须首先在内部推理阶段将其归一化解析为同一对象的标准包体特征，并生成对应的、准确度高的去除广告逻辑。
+- 产物一致性：最终的注入策略与生成产物必须 100% 完全一致。
 
-深度分析策略：
-- 针对展示类方法 (showAd..., presentAd...) 实现拦截。
-- 自动化跳过：针对激励视频，强制将 \`isReady\` 返回 \`YES\`，并同步触发奖励回调。
+深度去广告与开屏拦截策略（极其关键）：
+- 开屏广告 (Splash Ads) 必须根除：中国区应用广泛使用穿山甲 (CSJ / BUAdSDK)、广点通 (GDT)、百度 (BaiduMobAd) 及快手 (KSAd) SDK。你必须强制生成通用的 Hook 逻辑，拦截这些基类的初始化和展示方法。
+  - 例如 Hook \`GDTSplashAd\`, \`CSJSplashAd\`, \`BUSplashAdView\`, \`BaiduMobAdSplash\`, \`KSAdSplashViewController\` 等类的 \`loadAdAndShowInWindow:\`, \`showAdInWindow:\`, \`loadAd\` 等方法，并直接阻断（无需调用 %orig）。
+- 视图层强杀：Hook \`UIViewController\` 或自定义的 \`SplashViewController\` 的 \`viewDidAppear:\`，若含有明显 ad / splash 标志属性，则直接将其隐藏或 skip。
+- 自动化跳过：针对激励视频或倒计时，强制修改倒计时为 0，将 \`isReady\` / \`isValid\` 强制返回 \`YES\`，并同步触发 delegate 的奖励回调。
+- 针对特有应用（如“中国移动”）：分析并猜想其内部自身的 Splash 管理器（如 \`CMSplashManager\`, \`CMAdManager\`），拦截其拉取或渲染方法。
 
 应用特定逻辑参考：
 - **TikTok/抖音**：Hook \`AWEFeedAdModel\`, \`BDASplashManager\`。
 - **WeChat/微信**：Hook \`WCBizMainViewController\`, \`MMUIViewController\` 的相关显示逻辑。
-- **Instagram/X (Twitter)/Snapchat 等国外热门应用**：生成明确的 .xm 代码段用于去除信息流广告、视频插入广告等，并预留 \`<#AppSpecificClassName#>\` 或类似占位符供用户填写（如果不确定具体类名）。
-- **通用**：识别并拦截 \`PAGSplashRequest\`, \`GDTSplashAd\`。
+- **Instagram/X (Twitter)/Snapchat 等国外热门应用**：生成明确的代码去除信息流及视频中插广告。
+- **通用防护**：识别 \`PAGSplashRequest\`。
 
 代码实现 (Logos)：
-- **强制早期执行**：必须在 \`%ctor\` 中尽早拦截。
+- **强制早期执行**：必须在 \`%ctor\` 中动态初始化敏感类（如 \`%init(GDTSplashAd=objc_getClass("GDTSplashAd"))\` 等容错写法），防止 App 中未编译该 SDK 导致白苹果或 Crash。
+- **安全拦截**：严禁直接调用可能不存在的方法引发崩溃，优先阻断广告拉取请求。
 - **架构支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。
-- **基石依赖**：使用 \`MSHookMessageEx\` 必须 \`#import <substrate.h>\`。
+- **基石依赖**：所有 Hook 必须确保引入相应的 Foundation 框架类型定义，使用 \`MSHookMessageEx\` 必须 \`#import <substrate.h>\`。
 
 防御对抗：
-- 必须为所有 Hook 或调用的类提供 \`@interface\` 签名，防止 \`no known instance method\`。
-- 严禁在 @class 中包含系统内置类型（如 NSString）。
+- 必须为所有可能用到的类提供声明 \`@interface\` 或 \`@class\`，防止编译器报 \`no known instance method\`。
+- 严禁在 @class 列表中包含系统内置类型（如 NSString）。
 `;
 
   // API 路由：搜索 App Store 信息

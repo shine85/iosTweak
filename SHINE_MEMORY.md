@@ -36,6 +36,7 @@
 - [x] 更新 GitHub Actions 插件 (checkout, setup-node) 版本以消除 Node 20 弃用警告 (v1.1.0)。
 - [x] 移除 GitHub Action 中引起干扰的 Node 24 强制环境变量 (v1.1.3)。
 - [x] 在 Web UI 设置页面添加配置备份导出及恢复功能。
+- [x] **TrollFools dylib签名兼容性彻底修复与通用去广告增强 (v1.1.51)**：1. 针对通过 TrollFools 注入时出现的 `ldid: Unsupported Mach-O type` 签名错误，此次通过在 Theos 构建后继而使用 llvm-project 的 `lipo` 工具强制提取出纯 `arm64` 架构切片作为最终 `.dylib` 产物，这彻底绕过部分注入工具中老旧 ldid 对新版 arm64e ABI（如 PAC 特性）在读取解析时的崩溃问题。2. 加固服务端 `server.ts` 中的 `TWEAK_REQUIREMENTS` 提示词，深度囊括诸如穿山甲 (BUAdSDK)、广点通 (GDTSplashAd)、百度 (BaiduMobAd) 乃至直接挂钩通用 `[UIViewController viewDidAppear:]` 等流氓开屏广告的彻底拦截与跳过技巧，强化无感去广告核心实力。
 - [x] **Filter.plist 动态作用域劫持修复 (v1.1.50)**：解决了用户安装编译的 `.deb` 包后设备注销进入以安全模式 (Safe Mode / SpringBoard Crash) 的致命缺陷。原因在于过去服务端在生成 `Filter.plist` 时，写死了 `com.apple.springboard` 的全局注入作用域，这导致不论是什么应用的 Tweak，在越狱环境下都会被强行注入到 SpringBoard 中并执行 `%ctor` 阶段，引起 `EXC_BAD_ACCESS` 崩溃。本次修改通过前台向服务端透传 App Store 抓取到的真实 `bundleId`（或者从 `appName` 正则推断的备用 BundleId），让服务端动态生成针对具体 App 的 `Filter.plist` 文件，从而彻底修复 `.deb` 包的越狱全局崩溃问题。
 - [x] 修复 `/api/github-push` 直接将带有 Markdown 和 Makefile 的完整对话推送进 `Tweak.xm`，导致 Theos 出现 `dangling %end` 甚至严重编译失败的问题 (v1.1.6)。
 - [x] 修复 GitHub Actions 编译时因应用中文名被安全名过滤剥离（导致仅剩默认空包名）引起的名称冲刷和覆盖问题。优化 `server.ts` 强行保留后缀以解决包名一致的Bug (v1.1.7)。
