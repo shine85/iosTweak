@@ -1,14 +1,15 @@
-DEBUG = 0
-FINALPACKAGE = 1
+TARGET = iphone:clang:latest:13.0
 ARCHS = arm64 arm64e
-TARGET = iphone:clang:latest:14.5
+THEOS_PACKAGE_DIR ?= ./packages
+INSTALL_TARGET_PROCESSES = cn.10086.app
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = MyTweak
-
-# 源代码文件
-MyTweak_FILES = Tweak.xm
-MyTweak_CFLAGS = -fobjc-arc
+TWEAK_NAME = id583700738
+id583700738_FILES = Tweak.xm
+id583700738_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+after-install::
+	install.exec "killall -9 cn.10086.app"
