@@ -66,22 +66,39 @@ async function startServer() {
   // API 路由：搜索 App Store 信息
   app.get("/api/search-appstore", async (req, res) => {
     try {
-      const { query } = req.query;
-      if (!query) {
+      let { query } = req.query;
+      if (!query || typeof query !== 'string') {
         return res.status(400).json({ error: "Missing query parameter" });
       }
 
-      // Check if it's an ID starting with 'id'
+      query = query.trim();
       let url = '';
-      if (typeof query === 'string' && query.startsWith('id')) {
-        const id = query.substring(2);
-        url = `https://itunes.apple.com/lookup?id=${id}`;
+      
+      // 解析可能包含的 App Store 链接
+      const urlMatch = query.match(/apps\.apple\.com\/([a-z]{2})\/app\/.*?id(\d+)/i);
+      const idMatch = query.match(/^id(\d+)$/i);
+
+      if (urlMatch) {
+        const country = urlMatch[1];
+        const id = urlMatch[2];
+        url = `https://itunes.apple.com/lookup?id=${id}&country=${country}`;
+      } else if (idMatch) {
+        const id = idMatch[1];
+        // 默认加上 country=cn，否则中国区特有应用会查不到或者查到错误的外区应用
+        url = `https://itunes.apple.com/lookup?id=${id}&country=cn`;
       } else {
-        url = `https://itunes.apple.com/search?term=${encodeURIComponent(String(query))}&entity=software&limit=1`;
+        url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=software&limit=1&country=cn`;
       }
 
-      const response = await fetch(url);
-      const data = await response.json();
+      let response = await fetch(url);
+      let data = await response.json();
+
+      // 如果国内没查到，并且是纯 ID 搜索，尝试一下美国区作为 fallback
+      if (idMatch && (!data.results || data.results.length === 0)) {
+        const fallbackUrl = `https://itunes.apple.com/lookup?id=${idMatch[1]}&country=us`;
+        response = await fetch(fallbackUrl);
+        data = await response.json();
+      }
 
       if (data.results && data.results.length > 0) {
         const appInfo = data.results[0];

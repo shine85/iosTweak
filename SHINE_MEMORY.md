@@ -53,6 +53,7 @@
 - [x] 修复 `Tweak.xm` 编译时因 AI 输出 Markdown 标题（##）导致的语法错误：加固了 AI Prompt 的禁令，并在后端增加了自动剔除源码中无效 Markdown 标题行的清洗逻辑 (v1.1.17)。
 - [x] 解决推送后 GitHub 任务堆积问题：引入 `concurrency` 控制，自动取消旧的任务，只保留最后一次推送生成的构建任务 (v1.1.18)。
 - [x] 彻底解决 `Tweak.xm` 编译报错：加固后端清洗中心，不仅剔除 Markdown 标题，还增加了对 `---` 等分割线的拦截，并自动将全角括号纠偏为半角括号 (v1.1.19)。
+- [x] **App Store 链接解析增强 (v1.1.44)**：修复了 `/api/search-appstore` 接口在解析国区包含具体 ID 链接时的 fallback 逻辑。新增对 `apps.apple.com/[country]/app/...` URL 格式的正则匹配，并强制默认使用 `country=cn` 作为 ID 纯检索时的缺省抓取区域，提高中国区应用识别准确率。
 - [x] **App Store 信息逆向增强部署 (v1.1.43)**：
   - 新增 `/api/search-appstore` 接口，支持通过应用名称、App Store ID (id...) 和 Bundle ID 主动爬取获取真实 iOS 市场应用元数据。
   - 前端 (`App.tsx`) 结合后端能力新增“解析 App Store 链接”入口，获取真实 Bundle ID 和链接地址，并在向 AI 提交生成任务时，自动附带解析出的 Bundle ID 与链接详情。
