@@ -1,63 +1,48 @@
 #import <UIKit/UIKit.h>
 #import <substrate.h>
-#import <Foundation/Foundation.h>
+#import <objc/message.h>
 
-/* Forward declarations */
-@class GDTSplashAd;
-@class CSJSplashAd;
-@class BUSplashAdView;
-@class BaiduMobAdSplash;
-@class KSAdSplashViewController;
-@class CMSplashManager;
-@class CMAdManager;
-@class PAGSplashRequest;
-@class RewardedVideoAd;
+@interface GDTSplashAd : NSObject @end
+@interface CSJSplashAd : NSObject @end
+@interface BUSplashAdView : NSObject @end
+@interface BaiduMobAdSplash : NSObject @end
+@interface KSAdSplashViewController : UIViewController @end
+@interface CMSplashManager : NSObject @end
+@interface CMAdManager : NSObject @end
 
-/* Helper: safe hook */
-static void safeHook(Class cls, SEL sel, IMP newImp) {
-    if (cls && sel) {
-        MSHookMessageEx(cls, sel, newImp, NULL);
-    }
-}
+// ---------- empty implementations ----------
+static void emptyVoid(id self, SEL _cmd, ...) { }
+static BOOL returnYES(id self, SEL _cmd, ...) { return YES; }
+static NSInteger returnThree(id self, SEL _cmd, ...) { return 3; }
+static NSInteger returnFour(id self, SEL _cmd, ...) { return 4; }
 
-/* Empty implementation for void methods */
-static void emptyVoid(id self, SEL _cmd, ...) {
-    /* No operation */
-}
-
-/* Forced countdown implementation */
-static NSInteger forcedCountdown(id self, SEL _cmd) {
-    NSString *selName = NSStringFromSelector(_cmd);
-    if ([selName containsString:@"Reward"]) {
-        return 3; /* Rewarded video countdown */
-    }
-    return 4;     /* General splash countdown */
-}
-
-/* Direct reward callback trigger */
-static void triggerReward(id self, SEL _cmd, id rewardInfo) {
+// ---------- reward handling ----------
+static void rewardTrigger(id self, SEL _cmd, ...) {
     id delegate = nil;
-    @try {
-        delegate = [self valueForKey:@"delegate"];
-    } @catch (NSException *e) {}
-    if (delegate && [delegate respondsToSelector:@selector(rewardedVideoDidRewardUser:)]) {
-        [delegate performSelector:@selector(rewardedVideoDidRewardUser:) withObject:rewardInfo];
+    if ([self respondsToSelector:@selector(delegate)]) {
+        delegate = ((id (*)(id, SEL))objc_msgSend)(self, @selector(delegate));
+    } else if ([self respondsToSelector:@selector(adDelegate)]) {
+        delegate = ((id (*)(id, SEL))objc_msgSend)(self, @selector(adDelegate));
+    }
+    if (delegate && [delegate respondsToSelector:@selector(adDidReward:)]) {
+        ((void (*)(id, SEL, id))objc_msgSend)(delegate, @selector(adDidReward:), self);
     }
 }
 
-/* UIViewController filtering */
+// ---------- UI filtering ----------
 %hook UIViewController
 - (void)viewDidAppear:(BOOL)animated {
     NSString *clsName = NSStringFromClass([self class]);
     if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"]) {
-        self.view.hidden = YES;
+        if (self.view) {
+            self.view.hidden = YES;
+        }
         return;
     }
     %orig;
 }
 %end
 
-/* UIView filtering */
 %hook UIView
 - (void)didMoveToWindow {
     NSString *clsName = NSStringFromClass([self class]);
@@ -69,45 +54,55 @@ static void triggerReward(id self, SEL _cmd, id rewardInfo) {
 %end
 
 %ctor {
-    %init(
-        GDTSplashAd=objc_getClass("GDTSplashAd"),
-        CSJSplashAd=objc_getClass("CSJSplashAd"),
-        BUSplashAdView=objc_getClass("BUSplashAdView"),
-        BaiduMobAdSplash=objc_getClass("BaiduMobAdSplash"),
-        KSAdSplashViewController=objc_getClass("KSAdSplashViewController"),
-        CMSplashManager=objc_getClass("CMSplashManager"),
-        CMAdManager=objc_getClass("CMAdManager"),
-        PAGSplashRequest=objc_getClass("PAGSplashRequest"),
-        RewardedVideoAd=objc_getClass("RewardedVideoAd")
-    );
+    // ---------- single %init ----------
+    %init(GDTSplashAd=objc_getClass("GDTSplashAd"),
+          CSJSplashAd=objc_getClass("CSJSplashAd"),
+          BUSplashAdView=objc_getClass("BUSplashAdView"),
+          BaiduMobAdSplash=objc_getClass("BaiduMobAdSplash"),
+          KSAdSplashViewController=objc_getClass("KSAdSplashViewController"),
+          CMSplashManager=objc_getClass("CMSplashManager"),
+          CMAdManager=objc_getClass("CMAdManager"));
 
-    /* Splash ad methods to neutralize */
-    struct HookInfo {
-        Class cls;
-        SEL sel;
-    } splashHooks[] = {
-        {GDTSplashAd, @selector(loadAdAndShowInWindow:)},
-        {GDTSplashAd, @selector(showAdInWindow:)},
-        {CSJSplashAd, @selector(loadAdAndShowInWindow:)},
-        {CSJSplashAd, @selector(showAdInWindow:)},
-        {BUSplashAdView, @selector(loadAd)},
-        {BUSplashAdView, @selector(showAd)},
-        {BaiduMobAdSplash, @selector(loadAndShow)},
-        {BaiduMobAdSplash, @selector(showAd)},
-        {KSAdSplashViewController, @selector(loadAd)},
-        {KSAdSplashViewController, @selector(showAd)},
-        {CMSplashManager, @selector(requestSplashAd)},
-        {CMAdManager, @selector(fetchSplash)},
-        {PAGSplashRequest, @selector(loadRequest)}
-    };
-
-    for (size_t i = 0; i < sizeof(splashHooks)/sizeof(splashHooks[0]); i++) {
-        safeHook(splashHooks[i].cls, splashHooks[i].sel, (IMP)emptyVoid);
+    // ---------- safe hook helper ----------
+    static inline void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *origPtr) {
+        Class cls = objc_getClass(clsName);
+        if (cls && sel) {
+            MSHookMessageEx(cls, sel, newImp, (IMP *)origPtr);
+        }
     }
 
-    /* Rewarded video related hooks */
-    if (RewardedVideoAd) {
-        safeHook(RewardedVideoAd, @selector(countdownDuration), (IMP)forcedCountdown);
-        safeHook(RewardedVideoAd, @selector(rewardUserWithInfo:), (IMP)triggerReward);
+    // ---------- hook list ----------
+    struct {
+        const char *cls;
+        const char *sel;
+        IMP imp;
+        IMP *orig;
+    } hookList[] = {
+        {"GDTSplashAd",            "loadAdAndShowInWindow:",   (IMP)emptyVoid,   NULL},
+        {"GDTSplashAd",            "showAdInWindow:",          (IMP)emptyVoid,   NULL},
+        {"CSJSplashAd",            "loadAdAndShowInWindow:",   (IMP)emptyVoid,   NULL},
+        {"CSJSplashAd",            "showAdInWindow:",          (IMP)emptyVoid,   NULL},
+        {"BUSplashAdView",         "loadAdAndShowInWindow:",   (IMP)emptyVoid,   NULL},
+        {"BUSplashAdView",         "showAdInWindow:",          (IMP)emptyVoid,   NULL},
+        {"BaiduMobAdSplash",      "loadAndShowInWindow:",     (IMP)emptyVoid,   NULL},
+        {"BaiduMobAdSplash",      "showInWindow:",            (IMP)emptyVoid,   NULL},
+        {"KSAdSplashViewController","loadAd",                 (IMP)emptyVoid,   NULL},
+        {"KSAdSplashViewController","showAdInWindow:",        (IMP)emptyVoid,   NULL},
+        {"CMSplashManager",        "loadSplashAd",             (IMP)emptyVoid,   NULL},
+        {"CMSplashManager",        "showSplashAdInWindow:",   (IMP)emptyVoid,   NULL},
+        {"CMAdManager",           "requestAd",                (IMP)emptyVoid,   NULL},
+        {"CMAdManager",           "isAdReady",                (IMP)returnYES,   NULL},
+        // reward video and countdown
+        {"RewardVideoAd",          "remainingTime",            (IMP)returnThree, NULL},
+        {"SplashCountdownManager","remainingTime",            (IMP)returnFour,  NULL},
+        {"RewardVideoAd",          "didEarnReward",            (IMP)rewardTrigger, NULL},
+    };
+
+    // ---------- apply hooks ----------
+    for (unsigned i = 0; i < sizeof(hookList)/sizeof(hookList[0]); ++i) {
+        hookIfExists(hookList[i].cls,
+                     sel_registerName(hookList[i].sel),
+                     hookList[i].imp,
+                     hookList[i].orig);
     }
 }
