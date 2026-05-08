@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.51)
+name: iOS Tweak Build (FORCE_v1.1.52)
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       contents: write
     env:
       # 强制刷新标识
-      FORCE_BUILD_ID: "1.1.51"
+      FORCE_BUILD_ID: "1.1.52"
 
     steps:
       - name: "1. 检出代码"
@@ -117,6 +117,10 @@ jobs:
           # 提取当前项目的版本号
           TWEAK_VERSION=$(grep "^  \"version\":" package.json | awk -F": " '{print $2}' | sed 's/[",]//g' | xargs)
           VER_SUFFIX="v${TWEAK_VERSION}"
+          
+          if [ -f control ]; then
+            sed -i "s/^Version:.*/Version: ${TWEAK_VERSION}/" control
+          fi
           
           # 1. Rootless 编译
           echo ">>> 编译 Rootless (无根) <<<"
