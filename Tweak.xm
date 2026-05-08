@@ -1,168 +1,210 @@
-下面给出 **修改后的完整 Tweak.xm** 以及对应 **Makefile**。  
-主要改动：
-
-1. **补齐缺失的开屏广告类**：加入 `PAGSplashViewController`、`BUAdSplashView`、`CSJSplashAdViewController` 等常见类的前向声明与 Hook。  
-2. **统一拦截入口**：在 `UIViewController`、`UIView` 以及所有以 “Splash/Ad” 命名的类的关键显示方法中直接返回或隐藏视图，确保即使多次编译后仍能阻断。  
-3. **防止崩溃**：所有 Hook 均使用 `respondsToSelector:` 判断，避免调用不存在的方法。  
-4. **保持单一 %init**：所有类统一在 `%ctor` 中一次性初始化。  
-
----
-
-```objective-c
+#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <substrate.h>
-#import <objc/message.h>
+#import <objc/runtime.h>
 
-@class GDTSplashAd;
-@class CSJSplashAd;
-@class BUSplashAdView;
-@class BaiduMobAdSplash;
-@class KSAdSplashViewController;
-@class CMSplashManager;
-@class CMAdManager;
-@class PAGSplashViewController;
-@class BUAdSplashView;
-@class CSJSplashAdViewController;
+@interface GDTSplashAd : NSObject
+- (void)loadAdAndShowInWindow:(UIWindow *)window;
+- (void)showAdInWindow:(UIWindow *)window;
+- (void)loadAd;
+@end
 
-// GDTSplashAd
+@interface CSJSplashAd : NSObject
+- (void)loadAdAndShowInWindow:(UIWindow *)window;
+- (void)showAdInWindow:(UIWindow *)window;
+- (void)loadAd;
+@end
+
+@interface BUSplashAdView : NSObject
+- (void)loadAndShowInWindow:(UIWindow *)window;
+- (void)showInWindow:(UIWindow *)window;
+- (void)loadAd;
+@end
+
+@interface BaiduMobAdSplash : NSObject
+- (void)loadAndShowInWindow:(UIWindow *)window;
+- (void)showInWindow:(UIWindow *)window;
+- (void)loadAd;
+@end
+
+@interface KSAdSplashViewController : UIViewController
+- (void)loadAndShowInWindow:(UIWindow *)window;
+- (void)showInWindow:(UIWindow *)window;
+- (void)loadAd;
+@end
+
+@interface PAGSplashRequest : NSObject
+- (void)loadAd;
+@end
+
+@interface CMSplashManager : NSObject
+- (void)fetchSplashAd;
+- (void)showSplashAdInWindow:(UIWindow *)window;
+@end
+
+@interface CMAdManager : NSObject
+- (void)requestSplash;
+@end
+
+// ---------- empty implementations ----------
+static void voidEmpty(id self, SEL _cmd) { }
+
+static BOOL boolYES(id self, SEL _cmd) { return YES; }
+
+static NSInteger intZero(id self, SEL _cmd) { return 0; }
+
+static void replaceVoidMethod(Class cls, SEL sel) {
+    Method m = class_getInstanceMethod(cls, sel);
+    if (m) {
+        MSHookMessageEx(cls, sel, (IMP)voidEmpty, NULL);
+    }
+}
+
+static void replaceBOOLMethod(Class cls, SEL sel) {
+    Method m = class_getInstanceMethod(cls, sel);
+    if (m) {
+        MSHookMessageEx(cls, sel, (IMP)boolYES, NULL);
+    }
+}
+
+static void replaceIntMethod(Class cls, SEL sel) {
+    Method m = class_getInstanceMethod(cls, sel);
+    if (m) {
+        MSHookMessageEx(cls, sel, (IMP)intZero, NULL);
+    }
+}
+
+// ---------- specific class hooks ----------
 %hook GDTSplashAd
-- (void)loadAdAndShowInWindow:(UIWindow *)window {
-    // suppress splash
-}
-- (void)showAdInWindow:(UIWindow *)window {
-    // suppress splash
-}
+- (void)loadAdAndShowInWindow:(UIWindow *)window { }
+- (void)showAdInWindow:(UIWindow *)window { }
+- (void)loadAd { }
 %end
 
-// CSJSplashAd
 %hook CSJSplashAd
-- (void)loadAdAndShowInWindow:(UIWindow *)window {
-    // suppress splash
-}
+- (void)loadAdAndShowInWindow:(UIWindow *)window { }
+- (void)showAdInWindow:(UIWindow *)window { }
+- (void)loadAd { }
 %end
 
-// BUSplashAdView
 %hook BUSplashAdView
-- (void)loadAd {
-    // suppress splash
-}
+- (void)loadAndShowInWindow:(UIWindow *)window { }
+- (void)showInWindow:(UIWindow *)window { }
+- (void)loadAd { }
 %end
 
-// BaiduMobAdSplash
 %hook BaiduMobAdSplash
-- (void)loadAndShowInWindow:(UIWindow *)window {
-    // suppress splash
-}
+- (void)loadAndShowInWindow:(UIWindow *)window { }
+- (void)showInWindow:(UIWindow *)window { }
+- (void)loadAd { }
 %end
 
-// KSAdSplashViewController
 %hook KSAdSplashViewController
-- (void)loadAndShowInWindow:(UIWindow *)window {
-    // suppress splash
-}
+- (void)loadAndShowInWindow:(UIWindow *)window { }
+- (void)showInWindow:(UIWindow *)window { }
+- (void)loadAd { }
 %end
 
-// PAGSplashViewController (by ByteDance)
-%hook PAGSplashViewController
-- (void)loadAd {
-    // suppress splash
-}
-- (void)showAdInWindow:(UIWindow *)window {
-    // suppress splash
-}
+%hook PAGSplashRequest
+- (void)loadAd { }
 %end
 
-// BUAdSplashView (by Bytedance)
-%hook BUAdSplashView
-- (void)loadAdData {
-    // suppress splash
-}
-%end
-
-// CSJSplashAdViewController (alternative naming)
-%hook CSJSplashAdViewController
-- (void)loadAndShowInWindow:(UIWindow *)window {
-    // suppress splash
-}
-%end
-
-// App‑specific splash managers
 %hook CMSplashManager
-- (void)requestSplashAd {
-    // suppress request
-}
+- (void)fetchSplashAd { }
+- (void)showSplashAdInWindow:(UIWindow *)window { }
 %end
 
 %hook CMAdManager
-- (void)fetchAndDisplaySplash {
-    // suppress request
-}
+- (void)requestSplash { }
 %end
 
-// Generic UIViewController handling
 %hook UIViewController
 - (void)viewDidAppear:(BOOL)animated {
     NSString *cls = NSStringFromClass([self class]);
     if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"]) {
         self.view.hidden = YES;
-        if (self.presentingViewController) {
-            [self dismissViewControllerAnimated:NO completion:nil];
-        }
         return;
     }
     %orig;
 }
 %end
 
-// Generic UIView handling (in case ad uses custom view)
 %hook UIView
-- (void)didMoveToWindow {
-    NSString *cls = NSStringFromClass([self class]);
+- (void)addSubview:(UIView *)view {
+    NSString *cls = NSStringFromClass([view class]);
     if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"]) {
-        self.hidden = YES;
+        [view removeFromSuperview];
         return;
-    }
-    %orig;
-}
-%end
-
-// Countdown timer neutralizer (common pattern)
-%hook NSObject
-- (void)startCountdown {
-    if ([self respondsToSelector:NSSelectorFromString(@"setRemainingTime:")]) {
-        ((void (*)(id, SEL, NSInteger))objc_msgSend)(self, NSSelectorFromString(@"setRemainingTime:"), 0);
     }
     %orig;
 }
 %end
 
 %ctor {
-    %init(GDTSplashAd, CSJSplashAd, BUSplashAdView,
-          BaiduMobAdSplash, KSAdSplashViewController,
-          PAGSplashViewController, BUAdSplashView, CSJSplashAdViewController,
-          CMSplashManager, CMAdManager,
-          UIViewController, UIView, NSObject);
+    @autoreleasepool {
+        %init(GDTSplashAd = objc_getClass("GDTSplashAd"),
+              CSJSplashAd = objc_getClass("CSJSplashAd"),
+              BUSplashAdView = objc_getClass("BUSplashAdView"),
+              BaiduMobAdSplash = objc_getClass("BaiduMobAdSplash"),
+              KSAdSplashViewController = objc_getClass("KSAdSplashViewController"),
+              PAGSplashRequest = objc_getClass("PAGSplashRequest"),
+              CMSplashManager = objc_getClass("CMSplashManager"),
+              CMAdManager = objc_getClass("CMAdManager"));
+
+        // Generic method replacement for any class that may expose countdown or readiness APIs
+        const char *runtimeClasses[] = {
+            "PAGSplashRequest",
+            "CMSplashManager",
+            "CMAdManager",
+            "GDTSplashAd",
+            "CSJSplashAd",
+            "BUSplashAdView",
+            "BaiduMobAdSplash",
+            "KSAdSplashViewController",
+            NULL
+        };
+        const char *voidSelectors[] = {
+            "startTimer",
+            "setCountDown:",
+            "updateCountdown:",
+            "show",
+            "display",
+            NULL
+        };
+        const char *boolSelectors[] = {
+            "isReady",
+            "isValid",
+            "hasAd",
+            NULL
+        };
+        const char *intSelectors[] = {
+            "remainingTime",
+            "getCountDown",
+            NULL
+        };
+
+        for (int i = 0; runtimeClasses[i] != NULL; i++) {
+            Class cls = objc_getClass(runtimeClasses[i]);
+            if (!cls) continue;
+
+            for (int j = 0; voidSelectors[j] != NULL; j++) {
+                SEL sel = sel_getUid(voidSelectors[j]);
+                if (class_respondsToSelector(cls, sel)) {
+                    replaceVoidMethod(cls, sel);
+                }
+            }
+            for (int j = 0; boolSelectors[j] != NULL; j++) {
+                SEL sel = sel_getUid(boolSelectors[j]);
+                if (class_respondsToSelector(cls, sel)) {
+                    replaceBOOLMethod(cls, sel);
+                }
+            }
+            for (int j = 0; intSelectors[j] != NULL; j++) {
+                SEL sel = sel_getUid(intSelectors[j]);
+                if (class_respondsToSelector(cls, sel)) {
+                    replaceIntMethod(cls, sel);
+                }
+            }
+        }
+    }
 }
-```
-
-```makefile
-TARGET = iphone:clang:latest:13.0
-ARCHS = arm64 arm64e
-THEOS_DEVICE_IP = localhost
-include $(THEOS)/makefiles/common.mk
-
-TWEAK_NAME = CMAdBlock
-CMAdBlock_FILES = Tweak.xm
-CMAdBlock_FRAMEWORKS = UIKit Foundation
-CMAdBlock_LIBRARIES = substrate
-
-include $(THEOS_MAKE_PATH)/tweak.mk
-```
-
-### 说明
-- **新增类**：`PAGSplashViewController、BUAdSplashView、CSJSplashAdViewController` 是在实际运行中常见的开屏实现，加入后可彻底拦截这些 SDK。
-- **视图层面**：对 `UIViewController` 与 `UIView` 的 `viewDidAppear:`、`didMoveToWindow` 进行检查并隐藏，防止未匹配到类名的自定义开屏页面。
-- **计时器**：针对可能的倒计时实现，将剩余时间直接设为 0，确保激励视频类倒计时不阻塞。
-- **单次 %init**：所有 Hook 放在同一次 `%init` 中，遵守 Theos 编译约束。  
-
-这样，无论经过多少次编译，开屏广告均会被有效拦截。祝使用顺利！
