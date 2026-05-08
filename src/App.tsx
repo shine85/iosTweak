@@ -42,6 +42,7 @@ import { generateHookScript, researchMethod, type AIConfig } from './services/ai
 import { useAuth, logout } from './components/AuthProvider';
 import { useI18n } from './components/I18nProvider';
 import { ImportModal } from './components/ImportModal';
+import 'highlight.js/styles/atom-one-dark.css';
 
 type Tab = 'builder' | 'researcher' | 'guides' | 'settings';
 
@@ -193,7 +194,21 @@ export default function App() {
     if (!generatedResult) return;
     setIsPushing(true);
     try {
-      await import('./services/aiService').then(m => m.pushToGithub(generatedResult, appName, aiConfig));
+      let commitAppName = appStoreDetails?.trackName || appName;
+      if (!appStoreDetails && (/^id\d+$/i.test(appName.trim()) || appName.includes('apps.apple.com') || /^[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+$/i.test(appName.trim()))) {
+          try {
+              const response = await fetch(`/api/search-appstore?query=${encodeURIComponent(appName.trim())}`);
+              if (response.ok) {
+                 const data = await response.json();
+                 if (data.trackName) {
+                   commitAppName = data.trackName;
+                   setAppStoreDetails(data);
+                 }
+              }
+          } catch(e) {}
+      }
+
+      await import('./services/aiService').then(m => m.pushToGithub(generatedResult, commitAppName, aiConfig));
       alert(t('builder.pushSuccess'));
     } catch (error: any) {
       alert(`${t('builder.pushFailed')}${error.message}`);
@@ -360,7 +375,7 @@ export default function App() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="p-12 max-w-5xl"
+              className="p-12 max-w-7xl w-full mx-auto"
             >
               <header className="mb-12 border-b border-[#141414] pb-6">
                 <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">{t('builder.module')}</span>
@@ -371,7 +386,7 @@ export default function App() {
               </header>
 
               <div className="grid grid-cols-12 gap-8">
-                <div className="col-span-12 lg:col-span-5 space-y-8">
+                <div className="col-span-12 lg:col-span-4 space-y-8">
                   <section className="space-y-4">
                     <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('builder.target')}</label>
                     <div className="relative group">
@@ -458,10 +473,10 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="col-span-12 lg:col-span-7">
-                  <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block mb-4">{t('builder.sourceCode')}</label>
-                  <div className="relative group overflow-hidden border border-[#141414] rounded-sm bg-[#141414]">
-                    <div className="absolute right-4 top-4 flex gap-2 z-10">
+                <div className="col-span-12 lg:col-span-8 flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('builder.sourceCode')}</label>
+                    <div className="flex gap-2 z-10">
                       <button 
                         onClick={() => setIsImportModalOpen(true)}
                         title="导入外部源码 (Import Source)"
@@ -483,12 +498,14 @@ export default function App() {
                       )}
                       <button 
                         onClick={() => copyToClipboard(generatedResult, 'builder')}
-                        className="p-2 bg-[#E4E3E0]/10 hover:bg-[#E4E3E0]/20 text-[#E4E3E0] transition-colors rounded-sm"
+                        className="p-2 bg-[#E4E3E0] hover:bg-white text-[#141414] transition-colors rounded-sm ml-2 border border-[#141414]"
                       >
                         {copying === 'builder' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       </button>
                     </div>
-                    <div className="h-[500px] overflow-auto p-6 font-mono text-xs leading-relaxed text-[#E4E3E0]">
+                  </div>
+                  <div className="relative group overflow-hidden border border-[#141414] rounded-sm bg-[#141414] flex-grow">
+                    <div className="h-[70vh] min-h-[600px] overflow-auto p-6 font-mono text-xs leading-relaxed text-[#E4E3E0]">
                       <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
                         {generatedResult ? `\`\`\`objectivec\n${generatedResult}\n\`\`\`` : t('builder.waitInstructions', { appName })}
                       </ReactMarkdown>

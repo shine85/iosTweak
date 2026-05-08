@@ -77,6 +77,7 @@ async function startServer() {
       // 解析可能包含的 App Store 链接
       const urlMatch = query.match(/apps\.apple\.com\/([a-z]{2})\/app\/.*?id(\d+)/i);
       const idMatch = query.match(/^id(\d+)$/i);
+      const bundleIdMatch = query.match(/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+$/i) || query.match(/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+$/i);
 
       if (urlMatch) {
         const country = urlMatch[1];
@@ -86,6 +87,8 @@ async function startServer() {
         const id = idMatch[1];
         // 默认加上 country=cn，否则中国区特有应用会查不到或者查到错误的外区应用
         url = `https://itunes.apple.com/lookup?id=${id}&country=cn`;
+      } else if (bundleIdMatch && !query.includes(' ')) {
+        url = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(query)}&country=cn`;
       } else {
         url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=software&limit=1&country=cn`;
       }
@@ -93,9 +96,11 @@ async function startServer() {
       let response = await fetch(url);
       let data = await response.json();
 
-      // 如果国内没查到，并且是纯 ID 搜索，尝试一下美国区作为 fallback
-      if (idMatch && (!data.results || data.results.length === 0)) {
-        const fallbackUrl = `https://itunes.apple.com/lookup?id=${idMatch[1]}&country=us`;
+      // 如果国内没查到，并且是纯 ID 或 bundleId 搜索，尝试一下美国区作为 fallback
+      if ((idMatch || bundleIdMatch) && (!data.results || data.results.length === 0)) {
+        const fallbackUrl = idMatch 
+          ? `https://itunes.apple.com/lookup?id=${idMatch[1]}&country=us`
+          : `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(query)}&country=us`;
         response = await fetch(fallbackUrl);
         data = await response.json();
       }
@@ -141,7 +146,9 @@ ${TWEAK_REQUIREMENTS}
 3. 简述使用 frida-trace 确认类名的命令。
 
 Language: 所有输出、代码注释及逻辑分析均使用中文。
-**绝对禁令：代码块 (${codeBlockGeneric}) 内部严禁出现裸露中文说明或 ## 标题！**`;
+**绝对禁令：**
+1. 代码块 (${codeBlockGeneric}) 内部严禁出现裸露中文说明或 ## 标题！
+2. 生成的 .xm 代码必须符合 Theos 语法，%hook 与 %end 必须严格成对！严禁出现多余的 %end（dangling %end）。如果是 @interface ... @end，也必须严格成对。`;
 
     try {
       await handleAIRequest(prompt, config, res);
@@ -174,7 +181,9 @@ ${TWEAK_REQUIREMENTS}
 2. 对应的 Makefile 配置 (必须放在 ${codeBlockMakefile} 代码块内，必须包含 \`ARCHS = arm64 arm64e\`)。
 3. 简述所做修改。
 Language: 所有输出、代码注释及逻辑分析均使用中文。
-**绝对禁令：代码块 (${codeBlockGeneric}) 内部严禁出现裸露中文说明或 ## 标题！**`;
+**绝对禁令：**
+1. 代码块 (${codeBlockGeneric}) 内部严禁出现裸露中文说明或 ## 标题！
+2. 修改后的 .xm 代码必须也是完整的，并且 %hook 与 %end 必须严格闭造成对，切忌出现悬空或多余的 %end。`;
 
     try {
       await handleAIRequest(prompt, config, res);
