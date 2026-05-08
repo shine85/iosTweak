@@ -3,7 +3,7 @@
 #import <substrate.h>
 #import <objc/runtime.h>
 
-/* ---------- 前向声明 ---------- */
+/* Forward declarations */
 @class GDTSplashAd;
 @class CSJSplashAd;
 @class BUSplashAdView;
@@ -12,16 +12,15 @@
 @class CMSplashManager;
 @class CMAdManager;
 
-/* ---------- 空实现函数 ---------- */
+/* Empty implementations */
 static void emptyVoid(id self, SEL _cmd) { }
 static void emptyWindow(id self, SEL _cmd, UIWindow *window) { }
 
-/* ---------- 奖励视频安全 Hook ---------- */
+/* Rewarded video hooks */
 static NSInteger (*origRemainingTime)(id, SEL);
 static NSInteger remainingTimeHook(id self, SEL _cmd) {
     return 3;
 }
-
 static void (*origRewardUser)(id, SEL);
 static void rewardUserHook(id self, SEL _cmd) {
     if (origRewardUser) origRewardUser(self, _cmd);
@@ -35,7 +34,7 @@ static void rewardUserHook(id self, SEL _cmd) {
     }
 }
 
-/* ---------- UIViewController 过滤 ---------- */
+/* UIViewController filter */
 %hook UIViewController
 - (void)viewWillAppear:(BOOL)animated {
     NSString *clsName = NSStringFromClass([self class]);
@@ -69,7 +68,7 @@ static void rewardUserHook(id self, SEL _cmd) {
 }
 %end
 
-/* ---------- UIView 过滤 ---------- */
+/* UIView filter */
 %hook UIView
 - (void)didMoveToWindow {
     NSString *clsName = NSStringFromClass([self class]);
@@ -87,9 +86,8 @@ static void rewardUserHook(id self, SEL _cmd) {
 }
 %end
 
-/* ---------- 构造函数 ---------- */
+/* Constructor */
 %ctor {
-    /* ---------- 类初始化 ---------- */
     %init(GDTSplashAd = objc_getClass("GDTSplashAd"),
           CSJSplashAd = objc_getClass("CSJSplashAd"),
           BUSplashAdView = objc_getClass("BUSplashAdView"),
@@ -98,7 +96,6 @@ static void rewardUserHook(id self, SEL _cmd) {
           CMSplashManager = objc_getClass("CMSplashManager"),
           CMAdManager = objc_getClass("CMAdManager"));
 
-    /* ---------- 开屏广告方法拦截列表 ---------- */
     NSArray *splashHooks = @[
         @{@"class": @"GDTSplashAd", @"selectors": @[
             @"loadAdAndShowInWindow:",
@@ -136,18 +133,13 @@ static void rewardUserHook(id self, SEL _cmd) {
     ];
 
     for (NSDictionary *info in splashHooks) {
-        const char *clsName = [info[@"class"] UTF8String];
-        Class cls = objc_getClass(clsName);
+        Class cls = objc_getClass([info[@"class"] UTF8String]);
         if (!cls) continue;
-
-        NSArray *sels = info[@"selectors"];
-        for (NSString *selName in sels) {
+        for (NSString *selName in info[@"selectors"]) {
             SEL sel = NSSelectorFromString(selName);
             Method m = class_getInstanceMethod(cls, sel);
             if (!m) continue;
-
             const char *type = method_getTypeEncoding(m);
-            /* 判断是否带 UIWindow 参数 */
             if (strstr(type, "@@:@") && strstr(type, "UIWindow")) {
                 MSHookMessageEx(cls, sel, (IMP)emptyWindow, NULL);
             } else {
@@ -156,7 +148,6 @@ static void rewardUserHook(id self, SEL _cmd) {
         }
     }
 
-    /* ---------- 奖励视频 Hook ---------- */
     NSArray *rewardClasses = @[
         @"RewardedVideoAd",
         @"GMRewardedVideoAd",
@@ -165,12 +156,10 @@ static void rewardUserHook(id self, SEL _cmd) {
     for (NSString *clsName in rewardClasses) {
         Class cls = objc_getClass(clsName.UTF8String);
         if (!cls) continue;
-
         SEL selTime = NSSelectorFromString(@"remainingTime");
         if (class_getInstanceMethod(cls, selTime)) {
             MSHookMessageEx(cls, selTime, (IMP)remainingTimeHook, (IMP *)&origRemainingTime);
         }
-
         SEL selReward = NSSelectorFromString(@"rewardUser");
         if (class_getInstanceMethod(cls, selReward)) {
             MSHookMessageEx(cls, selReward, (IMP)rewardUserHook, (IMP *)&origRewardUser);
