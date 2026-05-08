@@ -29,7 +29,7 @@
 
 @interface KSAdSplashViewController : UIViewController
 - (void)loadAndShowInWindow:(UIWindow *)window;
-- (void)showInWindow:(UIWindow *)window;
+- (void)showAdInWindow:(UIWindow *)window;
 - (void)loadAd;
 @end
 
@@ -46,62 +46,53 @@
 - (void)requestSplash;
 @end
 
-// ---------- empty implementations ----------
+/* Empty implementations */
 static void voidEmpty(id self, SEL _cmd) { }
-
 static BOOL boolYES(id self, SEL _cmd) { return YES; }
-
 static NSInteger intZero(id self, SEL _cmd) { return 0; }
 
+/* Replacement helpers */
 static void replaceVoidMethod(Class cls, SEL sel) {
     Method m = class_getInstanceMethod(cls, sel);
-    if (m) {
-        MSHookMessageEx(cls, sel, (IMP)voidEmpty, NULL);
-    }
+    if (m) MSHookMessageEx(cls, sel, (IMP)voidEmpty, NULL);
 }
-
 static void replaceBOOLMethod(Class cls, SEL sel) {
     Method m = class_getInstanceMethod(cls, sel);
-    if (m) {
-        MSHookMessageEx(cls, sel, (IMP)boolYES, NULL);
-    }
+    if (m) MSHookMessageEx(cls, sel, (IMP)boolYES, NULL);
 }
-
 static void replaceIntMethod(Class cls, SEL sel) {
     Method m = class_getInstanceMethod(cls, sel);
-    if (m) {
-        MSHookMessageEx(cls, sel, (IMP)intZero, NULL);
-    }
+    if (m) MSHookMessageEx(cls, sel, (IMP)intZero, NULL);
 }
 
-// ---------- specific class hooks ----------
+/* Specific class hooks */
 %hook GDTSplashAd
-- (void)loadAdAndShowInWindow:(UIWindow *)window { }
-- (void)showAdInWindow:(UIWindow *)window { }
+- (void)loadAdAndShowInWindow:(UIWindow *)window) { }
+- (void)showAdInWindow:(UIWindow *)window) { }
 - (void)loadAd { }
 %end
 
 %hook CSJSplashAd
-- (void)loadAdAndShowInWindow:(UIWindow *)window { }
-- (void)showAdInWindow:(UIWindow *)window { }
+- (void)loadAdAndShowInWindow:(UIWindow *)window) { }
+- (void)showAdInWindow:(UIWindow *)window) { }
 - (void)loadAd { }
 %end
 
 %hook BUSplashAdView
-- (void)loadAndShowInWindow:(UIWindow *)window { }
-- (void)showInWindow:(UIWindow *)window { }
+- (void)loadAndShowInWindow:(UIWindow *)window) { }
+- (void)showInWindow:(UIWindow *)window) { }
 - (void)loadAd { }
 %end
 
 %hook BaiduMobAdSplash
-- (void)loadAndShowInWindow:(UIWindow *)window { }
-- (void)showInWindow:(UIWindow *)window { }
+- (void)loadAndShowInWindow:(UIWindow *)window) { }
+- (void)showInWindow:(UIWindow *)window) { }
 - (void)loadAd { }
 %end
 
 %hook KSAdSplashViewController
-- (void)loadAndShowInWindow:(UIWindow *)window { }
-- (void)showInWindow:(UIWindow *)window { }
+- (void)loadAndShowInWindow:(UIWindow *)window) { }
+- (void)showAdInWindow:(UIWindow *)window) { }
 - (void)loadAd { }
 %end
 
@@ -111,17 +102,18 @@ static void replaceIntMethod(Class cls, SEL sel) {
 
 %hook CMSplashManager
 - (void)fetchSplashAd { }
-- (void)showSplashAdInWindow:(UIWindow *)window { }
+- (void)showSplashAdInWindow:(UIWindow *)window) { }
 %end
 
 %hook CMAdManager
 - (void)requestSplash { }
 %end
 
+/* View controller filtering */
 %hook UIViewController
 - (void)viewDidAppear:(BOOL)animated {
-    NSString *cls = NSStringFromClass([self class]);
-    if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"]) {
+    NSString *clsName = NSStringFromClass([self class]);
+    if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"]) {
         self.view.hidden = YES;
         return;
     }
@@ -129,10 +121,11 @@ static void replaceIntMethod(Class cls, SEL sel) {
 }
 %end
 
+/* Subview filtering */
 %hook UIView
 - (void)addSubview:(UIView *)view {
-    NSString *cls = NSStringFromClass([view class]);
-    if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"]) {
+    NSString *clsName = NSStringFromClass([view class]);
+    if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"]) {
         [view removeFromSuperview];
         return;
     }
@@ -140,70 +133,59 @@ static void replaceIntMethod(Class cls, SEL sel) {
 }
 %end
 
+/* Reward video delegate auto‑reward */
+%hook NSObject
+- (void)rewardedVideoAdDidRewardUser:(id)ad {
+    if ([self respondsToSelector:@selector(rewardUser)]) {
+        ((void (*)(id, SEL))objc_msgSend)(self, @selector(rewardUser));
+    }
+    %orig;
+}
+%end
+
 %ctor {
     @autoreleasepool {
-        %init(GDTSplashAd = objc_getClass("GDTSplashAd"),
-              CSJSplashAd = objc_getClass("CSJSplashAd"),
-              BUSplashAdView = objc_getClass("BUSplashAdView"),
-              BaiduMobAdSplash = objc_getClass("BaiduMobAdSplash"),
-              KSAdSplashViewController = objc_getClass("KSAdSplashViewController"),
-              PAGSplashRequest = objc_getClass("PAGSplashRequest"),
-              CMSplashManager = objc_getClass("CMSplashManager"),
-              CMAdManager = objc_getClass("CMAdManager"));
+        %init(GDTSplashAd=objc_getClass("GDTSplashAd"),
+              CSJSplashAd=objc_getClass("CSJSplashAd"),
+              BUSplashAdView=objc_getClass("BUSplashAdView"),
+              BaiduMobAdSplash=objc_getClass("BaiduMobAdSplash"),
+              KSAdSplashViewController=objc_getClass("KSAdSplashViewController"),
+              PAGSplashRequest=objc_getClass("PAGSplashRequest"),
+              CMSplashManager=objc_getClass("CMSplashManager"),
+              CMAdManager=objc_getClass("CMAdManager"));
 
-        // Generic method replacement for any class that may expose countdown or readiness APIs
-        const char *runtimeClasses[] = {
-            "PAGSplashRequest",
-            "CMSplashManager",
-            "CMAdManager",
-            "GDTSplashAd",
-            "CSJSplashAd",
-            "BUSplashAdView",
-            "BaiduMobAdSplash",
-            "KSAdSplashViewController",
+        const char *targetClasses[] = {
+            "GDTSplashAd", "CSJSplashAd", "BUSplashAdView",
+            "BaiduMobAdSplash", "KSAdSplashViewController",
+            "PAGSplashRequest", "CMSplashManager", "CMAdManager",
             NULL
         };
-        const char *voidSelectors[] = {
-            "startTimer",
-            "setCountDown:",
-            "updateCountdown:",
-            "show",
-            "display",
-            NULL
+        const char *voidSels[] = {
+            "startTimer", "setCountDown:", "updateCountdown:",
+            "show", "display", NULL
         };
-        const char *boolSelectors[] = {
-            "isReady",
-            "isValid",
-            "hasAd",
-            NULL
+        const char *boolSels[] = {
+            "isReady", "isValid", "hasAd", NULL
         };
-        const char *intSelectors[] = {
-            "remainingTime",
-            "getCountDown",
-            NULL
+        const char *intSels[] = {
+            "remainingTime", "getCountDown", NULL
         };
 
-        for (int i = 0; runtimeClasses[i] != NULL; i++) {
-            Class cls = objc_getClass(runtimeClasses[i]);
+        for (int i = 0; targetClasses[i] != NULL; i++) {
+            Class cls = objc_getClass(targetClasses[i]);
             if (!cls) continue;
 
-            for (int j = 0; voidSelectors[j] != NULL; j++) {
-                SEL sel = sel_getUid(voidSelectors[j]);
-                if (class_respondsToSelector(cls, sel)) {
-                    replaceVoidMethod(cls, sel);
-                }
+            for (int j = 0; voidSels[j] != NULL; j++) {
+                SEL sel = sel_getUid(voidSels[j]);
+                if (class_respondsToSelector(cls, sel)) replaceVoidMethod(cls, sel);
             }
-            for (int j = 0; boolSelectors[j] != NULL; j++) {
-                SEL sel = sel_getUid(boolSelectors[j]);
-                if (class_respondsToSelector(cls, sel)) {
-                    replaceBOOLMethod(cls, sel);
-                }
+            for (int j = 0; boolSels[j] != NULL; j++) {
+                SEL sel = sel_getUid(boolSels[j]);
+                if (class_respondsToSelector(cls, sel)) replaceBOOLMethod(cls, sel);
             }
-            for (int j = 0; intSelectors[j] != NULL; j++) {
-                SEL sel = sel_getUid(intSelectors[j]);
-                if (class_respondsToSelector(cls, sel)) {
-                    replaceIntMethod(cls, sel);
-                }
+            for (int j = 0; intSels[j] != NULL; j++) {
+                SEL sel = sel_getUid(intSels[j]);
+                if (class_respondsToSelector(cls, sel)) replaceIntMethod(cls, sel);
             }
         }
     }
