@@ -92,6 +92,27 @@ export default function App() {
   const [appStoreDetails, setAppStoreDetails] = useState<{url?: string, bundleId?: string, trackName?: string} | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
 
+  useEffect(() => {
+    if (!appName || appName.trim() === '') {
+      setAppStoreDetails(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/search-appstore?query=${encodeURIComponent(appName.trim())}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.url) {
+            setAppStoreDetails(data);
+          }
+        }
+      } catch(e) {
+        // quiet fail for auto-lookup
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [appName]);
+
   const handleAppStoreLookup = async () => {
     if (!appName) return;
     setIsLookingUp(true);
@@ -102,7 +123,7 @@ export default function App() {
       if (data.url) {
         setAppStoreDetails(data);
       } else {
-        alert('未找到该应用 / App not found');
+        alert('未找到该应用 / App not found. 可能是区域问题或者应用已下架。');
       }
     } catch(e: any) {
       alert('搜索失败: ' + e.message);
@@ -117,10 +138,30 @@ export default function App() {
       setActiveTab('settings');
       return;
     }
+    if (!appName) {
+      alert(t('builder.noTarget'));
+      return;
+    }
     setIsGenerating(true);
     let target = appName;
-    if (appStoreDetails?.bundleId) {
-       target = `${appName} / Bundle ID: ${appStoreDetails.bundleId} / App Store URL: ${appStoreDetails.url}`;
+    let currentDetails = appStoreDetails;
+
+    // 当用户输入的是强制确定的 id 但又没有耐心等自动查询完毕时，我们在传给AI前拦截强查一次
+    if (!currentDetails && (/^id\d+$/i.test(appName.trim()) || appName.includes('apps.apple.com'))) {
+      try {
+        const response = await fetch(`/api/search-appstore?query=${encodeURIComponent(appName.trim())}`);
+        if (response.ok) {
+           const data = await response.json();
+           if (data.url) {
+             currentDetails = data;
+             setAppStoreDetails(data);
+           }
+        }
+      } catch(e) {}
+    }
+
+    if (currentDetails?.bundleId) {
+       target = `${currentDetails.trackName || appName} / Bundle ID: ${currentDetails.bundleId} / App Store URL: ${currentDetails.url}`;
     }
     const result = await generateHookScript(target, aiConfig);
     setGeneratedResult(result || '');
