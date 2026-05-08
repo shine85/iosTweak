@@ -89,6 +89,28 @@ export default function App() {
 
   const [isPushing, setIsPushing] = useState(false);
 
+  const [appStoreDetails, setAppStoreDetails] = useState<{url?: string, bundleId?: string, trackName?: string} | null>(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+
+  const handleAppStoreLookup = async () => {
+    if (!appName) return;
+    setIsLookingUp(true);
+    setAppStoreDetails(null);
+    try {
+      const response = await fetch(`/api/search-appstore?query=${encodeURIComponent(appName)}`);
+      const data = await response.json();
+      if (data.url) {
+        setAppStoreDetails(data);
+      } else {
+        alert('未找到该应用 / App not found');
+      }
+    } catch(e: any) {
+      alert('搜索失败: ' + e.message);
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!aiConfig.apiKey) {
       alert(t('builder.noApiKey'));
@@ -96,7 +118,11 @@ export default function App() {
       return;
     }
     setIsGenerating(true);
-    const result = await generateHookScript(appName, aiConfig);
+    let target = appName;
+    if (appStoreDetails?.bundleId) {
+       target = `${appName} / Bundle ID: ${appStoreDetails.bundleId} / App Store URL: ${appStoreDetails.url}`;
+    }
+    const result = await generateHookScript(target, aiConfig);
     setGeneratedResult(result || '');
     setIsGenerating(false);
   };
@@ -318,15 +344,33 @@ export default function App() {
                       <Smartphone className="absolute right-2 top-4 w-5 h-5 opacity-20 group-focus-within:opacity-50 transition-opacity" />
                     </div>
                     {appName && (
-                      <a 
-                        href={`https://www.google.com/search?q=${encodeURIComponent(appName)}+site:apps.apple.com`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2 text-[10px] font-mono opacity-50 hover:opacity-100 transition-opacity mt-2"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        {t('builder.appStoreSearch')}
-                      </a>
+                      <div className="flex flex-col gap-2 mt-2">
+                        <div className="flex items-center gap-4">
+                          <button 
+                            onClick={handleAppStoreLookup}
+                            disabled={isLookingUp}
+                            className="flex items-center gap-2 text-[10px] font-mono font-bold hover:text-blue-600 transition-colors disabled:opacity-50"
+                          >
+                            {isLookingUp ? <RotateCcw className="w-3 h-3 animate-spin"/> : <Search className="w-3 h-3" />}
+                            解析 App Store 链接
+                          </button>
+                          <a 
+                            href={`https://www.google.com/search?q=${encodeURIComponent(appName)}+site:apps.apple.com`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-2 text-[10px] font-mono opacity-50 hover:opacity-100 transition-opacity"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            {t('builder.appStoreSearch')}
+                          </a>
+                        </div>
+                        {appStoreDetails?.url && (
+                          <div className="text-[10px] font-mono p-2 bg-black/5 rounded-sm">
+                            <span className="opacity-50">解析结果:</span> <a href={appStoreDetails.url} target="_blank" rel="noreferrer" className="font-bold hover:underline">{appStoreDetails.trackName || appStoreDetails.url}</a>
+                            {appStoreDetails.bundleId && <div className="mt-1 opacity-50">Bundle ID: {appStoreDetails.bundleId}</div>}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </section>
 

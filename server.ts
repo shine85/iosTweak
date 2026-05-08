@@ -37,8 +37,12 @@ async function startServer() {
     next();
   });
 
-  // 共享的 Tweak 生成需求指令集 (v1.1.40 强化版)
+  // 共享的 Tweak 生成需求指令集 (v1.1.42 强化版)
   const TWEAK_REQUIREMENTS = `
+目标实体规范（极度重要）：
+- 逻辑归一化：不论用户提供的目标是官方应用名（如“中国移动”）、AppStore副标题名称（如“中国移动(手机营业厅)”）、Bundle ID（如“com.greenpoint.android.mc10086.activity”或 iOS 相关 Bundle ID）还是 App Store ID（如“id583700738”），你必须首先在内部推理阶段将其归一化解析为同一对象的标准 Bundle ID 和包体特征。
+- 产物一致性：严禁因为输入名称格式不同而导致生成的 Hook 代码、类名猜测或 Makefile 配置不同。本质是同一款 APP，其最终的注入策略与生成产物必须 100% 完全一致。
+
 深度分析策略：
 - 针对展示类方法 (showAd..., presentAd...) 实现拦截。
 - 自动化跳过：针对激励视频，强制将 \`isReady\` 返回 \`YES\`，并同步触发奖励回调。
@@ -46,6 +50,7 @@ async function startServer() {
 应用特定逻辑参考：
 - **TikTok/抖音**：Hook \`AWEFeedAdModel\`, \`BDASplashManager\`。
 - **WeChat/微信**：Hook \`WCBizMainViewController\`, \`MMUIViewController\` 的相关显示逻辑。
+- **Instagram/X (Twitter)/Snapchat 等国外热门应用**：生成明确的 .xm 代码段用于去除信息流广告、视频插入广告等，并预留 \`<#AppSpecificClassName#>\` 或类似占位符供用户填写（如果不确定具体类名）。
 - **通用**：识别并拦截 \`PAGSplashRequest\`, \`GDTSplashAd\`。
 
 代码实现 (Logos)：
@@ -57,6 +62,38 @@ async function startServer() {
 - 必须为所有 Hook 或调用的类提供 \`@interface\` 签名，防止 \`no known instance method\`。
 - 严禁在 @class 中包含系统内置类型（如 NSString）。
 `;
+
+  // API 路由：搜索 App Store 信息
+  app.get("/api/search-appstore", async (req, res) => {
+    try {
+      const { query } = req.query;
+      if (!query) {
+        return res.status(400).json({ error: "Missing query parameter" });
+      }
+
+      // Check if it's an ID starting with 'id'
+      let url = '';
+      if (typeof query === 'string' && query.startsWith('id')) {
+        const id = query.substring(2);
+        url = `https://itunes.apple.com/lookup?id=${id}`;
+      } else {
+        url = `https://itunes.apple.com/search?term=${encodeURIComponent(String(query))}&entity=software&limit=1`;
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.results && data.results.length > 0) {
+        const appInfo = data.results[0];
+        res.json({ url: appInfo.trackViewUrl, bundleId: appInfo.bundleId, trackName: appInfo.trackName });
+      } else {
+        res.status(404).json({ error: "App not found" });
+      }
+    } catch (error: any) {
+      console.error("[API] /api/search-appstore failed:", error);
+      res.status(500).json({ error: "Search failed" });
+    }
+  });
 
   // API 路由：生成 Hook 代码
   app.post("/api/generate", async (req, res) => {
@@ -76,7 +113,7 @@ async function startServer() {
 
 Task: 请针对特定的 iOS 应用执行去广告分析，并生成基于 Theos/Logos 语法的 .xm 源代码。
 
-目标应用/功能：${target}
+目标应用 (或 Bundle ID / AppStore ID)：${target}
 
 Requirements:
 ${TWEAK_REQUIREMENTS}
@@ -108,7 +145,7 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
     const prompt = `Role: 你是一位顶尖 iOS 逆向安全专家，精通 Theos/Logos 语法。
 Task: 之前的会话中生成了用于 iOS 逆向的 Tweak.xm 源代码。现在用户要求对代码进行修改或添加新功能。请根据现有的代码和用户最新的要求，提供修改后完整的最新版本代码和对应 Makefile。
 
-目标应用：${appName}
+目标应用 (或 Bundle ID / AppStore ID)：${appName}
 用户的修改要求：${userPrompt}
 目前现有的源码上下文：${currentCode}
 
