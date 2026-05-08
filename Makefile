@@ -1,14 +1,12 @@
-DEBUG = 0
-FINALPACKAGE = 1
+TARGET = iphone:clang:latest:13.0
 ARCHS = arm64 arm64e
-TARGET = iphone:clang:latest:14.5
+THEOS_DEVICE_IP = 127.0.0.1
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = MyTweak
+TWEAK_NAME = zhongguoyidongshoujiyingyeting
 
-# 源代码文件
-MyTweak_FILES = Tweak.xm
-MyTweak_CFLAGS = -fobjc-arc
+zhongguoyidongshoujiyingyeting_FILES = Tweak.xm
+zhongguoyidongshoujiyingyeting_FRAMEWORKS = UIKit Foundation
 
 include $(THEOS_MAKE_PATH)/tweak.mk
