@@ -57,7 +57,7 @@ async function startServer() {
 - **通用防护**：识别 \`PAGSplashRequest\`。
 
 代码实现 (Logos)：
-- **单次 Hook 初始化约束**：在同一个 %group (或未命名默认组) 中，绝对不允许出现超过一次的 \`%init\`，否则会引发 \`re-%init of %group _ungrouped\` 致命编译错误！多个容错类必须合并写在一个 \`%init\` 中，例如 \`%init(ClassA=objc_getClass("ClassA"), ClassB=objc_getClass("ClassB"));\`，或将其分到不同 \`%group\` 中在 \`%ctor\` 内各自 \`%init(Group);\`.
+- **单次 Hook 初始化约束**：在同一个 %group (或未命名默认组) 中，绝对不允许出现超过一次的 \`%init\` 操作。若需动态解析尚未加载的类，必须使用带赋值的语法，例如 \`%init(ClassA=objc_getClass("ClassA"), ClassB=objc_getClass("ClassB"));\`。**绝对严禁**使用 \`%init(ClassName);\` 这种只传名字不赋值的写法，因为这会被 Logos 误解析为初始化一个名叫 ClassName 的 \`%group\`，从而引发 \`%init for an undefined %group\` 致命错误！
 - **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
 - **安全拦截**：严禁直接调用可能不存在的方法引发崩溃，优先阻断广告拉取请求。
 - **架构支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。
