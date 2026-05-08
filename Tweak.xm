@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <substrate.h>
+#import <objc/message.h>
 
 @interface GDTSplashAd : NSObject @end
 @interface CSJSplashAd : NSObject @end
@@ -15,11 +16,9 @@ static BOOL returnYES(id self, SEL _cmd, ...) { return YES; }
 static NSInteger returnThree(id self, SEL _cmd, ...) { return 3; }
 static NSInteger returnFour(id self, SEL _cmd, ...) { return 4; }
 
-// ---------- reward video handling ----------
+// ---------- reward handling ----------
 static void rewardTrigger(id self, SEL _cmd, ...) {
-    // Assume the delegate responds to reward method named adDidReward:
     id delegate = nil;
-    // Try common ivar/property names
     if ([self respondsToSelector:@selector(delegate)]) {
         delegate = ((id (*)(id, SEL))objc_msgSend)(self, @selector(delegate));
     } else if ([self respondsToSelector:@selector(adDelegate)]) {
@@ -55,7 +54,7 @@ static void rewardTrigger(id self, SEL _cmd, ...) {
 %end
 
 %ctor {
-    // Single %init with class assignments
+    // ---------- single %init ----------
     %init(GDTSplashAd=objc_getClass("GDTSplashAd"),
           CSJSplashAd=objc_getClass("CSJSplashAd"),
           BUSplashAdView=objc_getClass("BUSplashAdView"),
@@ -64,35 +63,46 @@ static void rewardTrigger(id self, SEL _cmd, ...) {
           CMSplashManager=objc_getClass("CMSplashManager"),
           CMAdManager=objc_getClass("CMAdManager"));
 
-    // Helper macro for safe hooking
-    #define SAFE_HOOK(cls, sel, imp, origPtr) \
-        if (cls) { \
-            MSHookMessageEx(cls, sel, (IMP)imp, (IMP *)origPtr); \
+    // ---------- safe hook helper ----------
+    static inline void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *origPtr) {
+        Class cls = objc_getClass(clsName);
+        if (cls && sel) {
+            MSHookMessageEx(cls, sel, newImp, (IMP *)origPtr);
         }
+    }
 
-    // Hook splash related methods (void returning)
-    SAFE_HOOK(GDTSplashAd, @selector(loadAdAndShowInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(GDTSplashAd, @selector(showAdInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(CSJSplashAd, @selector(loadAdAndShowInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(CSJSplashAd, @selector(showAdInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(BUSplashAdView, @selector(loadAdAndShowInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(BUSplashAdView, @selector(showAdInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(BaiduMobAdSplash, @selector(loadAndShowInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(BaiduMobAdSplash, @selector(showInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(KSAdSplashViewController, @selector(loadAd), emptyVoid, NULL);
-    SAFE_HOOK(KSAdSplashViewController, @selector(showAdInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(CMSplashManager, @selector(loadSplashAd), emptyVoid, NULL);
-    SAFE_HOOK(CMSplashManager, @selector(showSplashAdInWindow:), emptyVoid, NULL);
-    SAFE_HOOK(CMAdManager, @selector(requestAd), emptyVoid, NULL);
-    SAFE_HOOK(CMAdManager, @selector(isAdReady), returnYES, NULL);
+    // ---------- hook list ----------
+    struct {
+        const char *cls;
+        const char *sel;
+        IMP imp;
+        IMP *orig;
+    } hookList[] = {
+        {"GDTSplashAd",            "loadAdAndShowInWindow:",   (IMP)emptyVoid,   NULL},
+        {"GDTSplashAd",            "showAdInWindow:",          (IMP)emptyVoid,   NULL},
+        {"CSJSplashAd",            "loadAdAndShowInWindow:",   (IMP)emptyVoid,   NULL},
+        {"CSJSplashAd",            "showAdInWindow:",          (IMP)emptyVoid,   NULL},
+        {"BUSplashAdView",         "loadAdAndShowInWindow:",   (IMP)emptyVoid,   NULL},
+        {"BUSplashAdView",         "showAdInWindow:",          (IMP)emptyVoid,   NULL},
+        {"BaiduMobAdSplash",      "loadAndShowInWindow:",     (IMP)emptyVoid,   NULL},
+        {"BaiduMobAdSplash",      "showInWindow:",            (IMP)emptyVoid,   NULL},
+        {"KSAdSplashViewController","loadAd",                 (IMP)emptyVoid,   NULL},
+        {"KSAdSplashViewController","showAdInWindow:",        (IMP)emptyVoid,   NULL},
+        {"CMSplashManager",        "loadSplashAd",             (IMP)emptyVoid,   NULL},
+        {"CMSplashManager",        "showSplashAdInWindow:",   (IMP)emptyVoid,   NULL},
+        {"CMAdManager",           "requestAd",                (IMP)emptyVoid,   NULL},
+        {"CMAdManager",           "isAdReady",                (IMP)returnYES,   NULL},
+        // reward video and countdown
+        {"RewardVideoAd",          "remainingTime",            (IMP)returnThree, NULL},
+        {"SplashCountdownManager","remainingTime",            (IMP)returnFour,  NULL},
+        {"RewardVideoAd",          "didEarnReward",            (IMP)rewardTrigger, NULL},
+    };
 
-    // Reward video hooks (example selectors)
-    // Adjust countdown to 3 seconds
-    SAFE_HOOK(objc_getClass("RewardVideoAd"), @selector(remainingTime), returnThree, NULL);
-    // Adjust countdown to 4 seconds (generic splash countdown)
-    SAFE_HOOK(objc_getClass("SplashCountdownManager"), @selector(remainingTime), returnFour, NULL);
-    // Directly trigger reward callback
-    SAFE_HOOK(objc_getClass("RewardVideoAd"), @selector(didEarnReward), rewardTrigger, NULL);
-
-    #undef SAFE_HOOK
+    // ---------- apply hooks ----------
+    for (unsigned i = 0; i < sizeof(hookList)/sizeof(hookList[0]); ++i) {
+        hookIfExists(hookList[i].cls,
+                     sel_registerName(hookList[i].sel),
+                     hookList[i].imp,
+                     hookList[i].orig);
+    }
 }
