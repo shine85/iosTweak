@@ -248,7 +248,7 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
 
   // API 路由：推送到 GitHub
   app.post("/api/github-push", async (req, res) => {
-    let { token, owner, repo, content, appName } = req.body;
+    let { token, owner, repo, content, appName, bundleId } = req.body;
 
     // 允许从环境变量读取 Token，如果前端没传
     token = token || process.env.GITHUB_TOKEN;
@@ -436,7 +436,15 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
 
       // 1.5 同步 Plist 过滤器
       try {
-        const plistContent = await fs.readFile(path.join(process.cwd(), 'Filter.plist'), 'utf-8');
+        let targetBundleId = bundleId;
+        if (!targetBundleId) {
+            if (/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+$/i.test(appName.trim()) || /^[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+$/i.test(appName.trim())) {
+                targetBundleId = appName.trim();
+            } else {
+                targetBundleId = 'com.apple.springboard';
+            }
+        }
+        const plistContent = `{ Filter = { Bundles = ( "${targetBundleId}" ); }; }`;
         const remotePlist = await getFile(`${finalSafeName}.plist`);
         await updateFile(`${finalSafeName}.plist`, plistContent, `Sync ${finalSafeName}.plist`, remotePlist?.sha);
       } catch (e) {

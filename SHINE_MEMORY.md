@@ -36,6 +36,7 @@
 - [x] 更新 GitHub Actions 插件 (checkout, setup-node) 版本以消除 Node 20 弃用警告 (v1.1.0)。
 - [x] 移除 GitHub Action 中引起干扰的 Node 24 强制环境变量 (v1.1.3)。
 - [x] 在 Web UI 设置页面添加配置备份导出及恢复功能。
+- [x] **Filter.plist 动态作用域劫持修复 (v1.1.50)**：解决了用户安装编译的 `.deb` 包后设备注销进入以安全模式 (Safe Mode / SpringBoard Crash) 的致命缺陷。原因在于过去服务端在生成 `Filter.plist` 时，写死了 `com.apple.springboard` 的全局注入作用域，这导致不论是什么应用的 Tweak，在越狱环境下都会被强行注入到 SpringBoard 中并执行 `%ctor` 阶段，引起 `EXC_BAD_ACCESS` 崩溃。本次修改通过前台向服务端透传 App Store 抓取到的真实 `bundleId`（或者从 `appName` 正则推断的备用 BundleId），让服务端动态生成针对具体 App 的 `Filter.plist` 文件，从而彻底修复 `.deb` 包的越狱全局崩溃问题。
 - [x] 修复 `/api/github-push` 直接将带有 Markdown 和 Makefile 的完整对话推送进 `Tweak.xm`，导致 Theos 出现 `dangling %end` 甚至严重编译失败的问题 (v1.1.6)。
 - [x] 修复 GitHub Actions 编译时因应用中文名被安全名过滤剥离（导致仅剩默认空包名）引起的名称冲刷和覆盖问题。优化 `server.ts` 强行保留后缀以解决包名一致的Bug (v1.1.7)。
 - [x] 优化 Action Workflow 步骤，实现多 Scheme 执行，产物分离并且严格按照 `ios-{appName}-v1.1.X.dylib`，`{appName}-arm64_arm64e-rootless(无根).deb`， 以及 `{appName}-arm64_arm64e-roothide(隐根).deb` 输出，明确标识出在 Dopamine 中兼容跨平台的 arm64 及 arm64e 双向架构特性 (v1.1.9)。
@@ -53,6 +54,7 @@
 - [x] 修复 `Tweak.xm` 编译时因 AI 输出 Markdown 标题（##）导致的语法错误：加固了 AI Prompt 的禁令，并在后端增加了自动剔除源码中无效 Markdown 标题行的清洗逻辑 (v1.1.17)。
 - [x] 解决推送后 GitHub 任务堆积问题：引入 `concurrency` 控制，自动取消旧的任务，只保留最后一次推送生成的构建任务 (v1.1.18)。
 - [x] 彻底解决 `Tweak.xm` 编译报错：加固后端清洗中心，不仅剔除 Markdown 标题，还增加了对 `---` 等分割线的拦截，并自动将全角括号纠偏为半角括号 (v1.1.19)。
+- [x] **Theos 构建产物提取与 TrollFools Dylib 兼容修复 (v1.1.49)**：修复了云编译导出的 `.dylib` 文件在通过 TrollFools 注入目标 App 时提示 `ldid: Unsupported Mach-O type` 签名失败的问题。根本原因是此前云编译提取的是 Theos 打包合并后的 Fat Binary，由于 TrollFools 自带的旧版 `ldid` 无法解析包含新版 `arm64e` ABI 的二进制切片结构导致崩溃退出。在 GitHub Action 的 `build.yml` 的提取阶段增加了精细的路径匹配（优先 `find .theos/obj -type f -path "*/arm64/*.dylib"` 抓取纯 `arm64` 切片作为最终产物）。不仅让 `make package` 直接产生的 `arm64` 纯净可用版脱离 `debug` Fat 的污染，而且目前绝大多数 App Tweak 通过 TrollFools 注入时只需要运行在 `arm64` 指令集即可，这彻底规避了 `ldid` 读取新版 `arm64e` 的报错壁垒，保障注入成功。
 - [x] **Theos 语法 AI 校验与容错增强 (v1.1.48)**：由于 AI 生成偶尔会出现悬空的 `%end` 导致 `Theos` 编译报错，在 `server.ts` 强化了 Prompt，加入强制红线：要求生成的所有 `.xm` 文件 `%hook` 和 `%end` 以及 `@interface` 等成对关键字必须严格匹配闭合，绝对不允许出现 `dangling %end`。同时优化了纯 ID 和应用名称识别抓取逻辑，确保无论是前端主动触发查询还是最后防抖兜底，都可以使用真实 `appName` 进行构建以防 `History: id583700738 build` 这样不知所云的编译包流出。
 - [x] **源码容器UI重新调校 (v1.1.46)**：优化了代码编辑区的界面布局。将左侧设定区域缩减并放宽右侧编辑器宽度。提升代码框的高度 (`70vh`)，通过配置 `highlight.js` 的 `atom-one-dark` 主题实现了 Objective-C 语法的高亮呈现，并将“导入、复制、云编译”三个操作按钮挪动至标题右侧，使界面更加整洁。
 - [x] **App Store 链接解析增强与静默联想 (v1.1.45)**：修复了纯 ID 因为无交互导致解析缺失的问题：前端 (`App.tsx`) 新增 `useEffect` 防抖拦截监听，只要输入内容且非空，停顿 1000 毫秒即自动走后台拉取并显示 App Store 实体信息；在用户急躁点击生成按钮时，底层再次执行强阻断确保 ID (如 `id583700738`) 或者链接 (如 `apps.apple.com`) 被 100% 解析补全目标。

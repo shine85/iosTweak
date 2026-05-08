@@ -208,7 +208,8 @@ export default function App() {
           } catch(e) {}
       }
 
-      await import('./services/aiService').then(m => m.pushToGithub(generatedResult, commitAppName, aiConfig));
+      const bundleId = appStoreDetails?.bundleId;
+      await import('./services/aiService').then(m => m.pushToGithub(generatedResult, commitAppName, aiConfig, bundleId));
       alert(t('builder.pushSuccess'));
     } catch (error: any) {
       alert(`${t('builder.pushFailed')}${error.message}`);
