@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.51)
+name: iOS Tweak Build (FORCE_v1.1.50)
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       contents: write
     env:
       # 强制刷新标识
-      FORCE_BUILD_ID: "1.1.51"
+      FORCE_BUILD_ID: "1.1.50"
 
     steps:
       - name: "1. 检出代码"
@@ -127,14 +127,13 @@ jobs:
             cp "$ROOTLESS_DEB" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}-arm64-rootless.deb"
           fi
           
-          # 提取 Dylib (使用 toolchain 的 lipo 提取纯 arm64 切片，解决 TrollFools ldid 签名不支持 arm64e 导致 Unsupported Mach-O type 的问题)
-          DYLIB_PATH=$(find .theos/obj -type f -name "${TWEAK_NAME}.dylib" | awk '{print length, $0}' | sort -n | awk '{print $2}' | head -n 1)
+          # 提取 Dylib (优先抓取纯 arm64 切片，解决 TrollFools 的 ldid 不支持 arm64e 参数导致 Unsupported Mach-O type)
+          DYLIB_PATH=$(find .theos/obj -type f -path "*/arm64/*.dylib" -name "${TWEAK_NAME}.dylib" | head -n 1)
+          if [ -z "$DYLIB_PATH" ]; then
+            DYLIB_PATH=$(find .theos/obj -type f -name "${TWEAK_NAME}.dylib" | head -n 1)
+          fi
           if [ -n "$DYLIB_PATH" ]; then
-            if [ -f "$GITHUB_WORKSPACE/theos/toolchain/linux/iphone/bin/lipo" ]; then
-              $GITHUB_WORKSPACE/theos/toolchain/linux/iphone/bin/lipo "$DYLIB_PATH" -thin arm64 -output "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}.dylib" || cp "$DYLIB_PATH" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}.dylib"
-            else
-              cp "$DYLIB_PATH" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}.dylib"
-            fi
+            cp "$DYLIB_PATH" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}.dylib"
           fi
           
           rm -rf packages/*
