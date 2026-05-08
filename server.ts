@@ -37,7 +37,7 @@ async function startServer() {
     next();
   });
 
-  // 共享的 Tweak 生成需求指令集 (v1.1.51 强化版)
+  // 共享的 Tweak 生成需求指令集 (v1.1.53 强化版)
   const TWEAK_REQUIREMENTS = `
 目标实体规范（极度重要）：
 - 逻辑归一化：不论用户提供的目标是官方应用名（如“中国移动”）、AppStore副标题名称（如“中国移动(手机营业厅)”）、Bundle ID 还是 App Store ID，你必须首先在内部推理阶段将其归一化解析为同一对象的标准包体特征，并生成对应的、准确度高的去除广告逻辑。
@@ -57,7 +57,8 @@ async function startServer() {
 - **通用防护**：识别 \`PAGSplashRequest\`。
 
 代码实现 (Logos)：
-- **强制早期执行**：必须在 \`%ctor\` 中动态初始化敏感类（如 \`%init(GDTSplashAd=objc_getClass("GDTSplashAd"))\` 等容错写法），防止 App 中未编译该 SDK 导致白苹果或 Crash。
+- **单次 Hook 初始化约束**：在同一个 %group (或未命名默认组) 中，绝对不允许出现超过一次的 \`%init\`，否则会引发 \`re-%init of %group _ungrouped\` 致命编译错误！多个容错类必须合并写在一个 \`%init\` 中，例如 \`%init(ClassA=objc_getClass("ClassA"), ClassB=objc_getClass("ClassB"));\`，或将其分到不同 \`%group\` 中在 \`%ctor\` 内各自 \`%init(Group);\`.
+- **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
 - **安全拦截**：严禁直接调用可能不存在的方法引发崩溃，优先阻断广告拉取请求。
 - **架构支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。
 - **基石依赖**：所有 Hook 必须确保引入相应的 Foundation 框架类型定义，使用 \`MSHookMessageEx\` 必须 \`#import <substrate.h>\`。
