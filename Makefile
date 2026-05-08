@@ -1,7 +1,6 @@
 include $(THEOS)/makefiles/common.mk
 
 ARCHS = arm64 arm64e
-
 TWEAK_NAME = zhongguoyidongshoujiyingyeting
 
 zhongguoyidongshoujiyingyeting_FILES = Tweak.xm
