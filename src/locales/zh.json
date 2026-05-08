@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "iOS 插件",
-    "version": "v1.1.35-稳定版",
+    "version": "v1.1.40-稳定版",
     "admin": "管理员",
     "logout": "登出系统",
     "status": "系统状态",
@@ -28,6 +28,7 @@
     "subtitle": "基于 Logos (.xm) 语法，生成用于制作 Dylib 插件的 Hook 源码，强制绕过应用层广告。",
     "target": "目标对象",
     "placeholder": "例如: 河马剧场",
+    "appStoreSearch": "App Store 搜索",
     "presets": "快捷对象预设",
     "infoText": "INFO: 生成的代码需要使用 Theos 进行编译。\n编译目标：iPhoneOS ARM64",
     "generating": "正在分析 SDK 符号...",

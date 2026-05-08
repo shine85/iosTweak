@@ -31,7 +31,8 @@ import {
   Settings,
   X,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -316,17 +317,28 @@ export default function App() {
                       />
                       <Smartphone className="absolute right-2 top-4 w-5 h-5 opacity-20 group-focus-within:opacity-50 transition-opacity" />
                     </div>
+                    {appName && (
+                      <a 
+                        href={`https://www.google.com/search?q=${encodeURIComponent(appName)}+site:apps.apple.com`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 text-[10px] font-mono opacity-50 hover:opacity-100 transition-opacity mt-2"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        {t('builder.appStoreSearch')}
+                      </a>
+                    )}
                   </section>
 
                   <section className="space-y-4 font-mono">
                     <label className="text-[11px] opacity-50 uppercase tracking-widest block">{t('builder.presets')}</label>
                     <div className="flex flex-wrap gap-2">
-                      {['河马剧场', '番茄小说', '抖音', 'B站', '小红书'].map(name => (
+                      {['河马剧场', '番茄小说', '抖音', '抖音极速版', 'B站', '小红书', 'Instagram', 'X (Twitter)', 'TikTok', 'WeChat', 'Telegram'].map(name => (
                         <button 
                           key={name}
                           onClick={() => setAppName(name)}
                           className={cn(
-                            "px-3 py-1 border border-[#141414] text-[10px] transition-colors",
+                            "px-3 py-1 border border-[#141414] text-[10px] transition-colors whitespace-nowrap",
                             appName === name ? "bg-[#141414] text-[#E4E3E0]" : "hover:bg-[#141414] hover:text-[#E4E3E0]"
                           )}
                         >

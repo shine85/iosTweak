@@ -53,11 +53,16 @@
 - [x] 修复 `Tweak.xm` 编译时因 AI 输出 Markdown 标题（##）导致的语法错误：加固了 AI Prompt 的禁令，并在后端增加了自动剔除源码中无效 Markdown 标题行的清洗逻辑 (v1.1.17)。
 - [x] 解决推送后 GitHub 任务堆积问题：引入 `concurrency` 控制，自动取消旧的任务，只保留最后一次推送生成的构建任务 (v1.1.18)。
 - [x] 彻底解决 `Tweak.xm` 编译报错：加固后端清洗中心，不仅剔除 Markdown 标题，还增加了对 `---` 等分割线的拦截，并自动将全角括号纠偏为半角括号 (v1.1.19)。
+- [x] **架构硬化与监控升级 (v1.1.40)**：重构了后端日志审计中间件，统一了 Tweak 生成的安全性指令集，并确保 `arm64e` 架构及基石依赖在所有生成模式下强制生效。
+- [x] **上线 App Store 快捷搜索功能**：在 Builder 页面目标对象输入框下方新增了“App Store 搜索”入口，支持一键跳转并定位目标应用的商店页面，辅助开发者快速确认版本及 Bundle 信息 (v1.1.39)。
+- [x] **全方位系统监测与架构扩展**：在 `server.ts` 中引入了耗时监测中间件及精准错误捕获逻辑，并在 Prompts 指令集中强制加入了 `arm64e` 架构支持及全球热门应用（TikTok, X, WeChat 等）的预设模板 (v1.1.38)。
+- [x] **彻底修复 `MSHookMessageEx` 与修改模式冲突**：重构了 `server.ts` 源码，将基石依赖（substrate.h）及方法签名（Interface）要求提取为共享指令集，确保在“修改/对话”模式下 AI 依然遵循编译安全准则 (v1.1.37)。
+- [x] **修复 `MSHookMessageEx` 未定义报错**：在后端指令中强制要求使用 Substrate 函数时必须声明或引用 `substrate.h`，解决了防止检测模式下的编译中断 (v1.1.36)。
 - [x] **修复服务端 `server.ts` 崩溃**：转义了 Prompt 模板内嵌套的反引号（Backticks），根治了导致 Node.js v24 及 esbuild 解析失败的语法冲突 (v1.1.35)。
 - [x] **上线去广告专项强化模块**：针对开屏广告和主流广告 SDK（穿山甲、优量汇等）建立了“爆头式”拦截指令集，强制 Hook 早期加载方法及代理回调 (v1.1.34)。
 - [x] **解决 `no known instance method` 编译崩溃**：升级后端 Prompt 指令，强制 AI 必须为所有 Hook 或调用的 Class 提供 `@interface` 补全方法签名 (Signature) (v1.1.33)。
 - [x] **根治 NSClassFromString 重定义冲突**：在 `server.ts` 后端增加了正则表达式强制过滤逻辑，自动剔除代码中错误的前向声明 (v1.1.32)。
-- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.35。
+- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.40。
 - [x] **新增外部源码导入功能**：在 Builder 页面增加了“导入”入口，支持直接粘贴外部生成的 `.xm` 代码并一键推送到云端编译 (v1.1.31)。
 - [x] **彻底解决 Pangle SDK 编译冲突**：在 `server.ts` 指令集中强制加入了对 `PAGInterstitialRequest` 等不确定类型的防御性 `@interface` 定义要求，并要求所有 Hook 内的 `self` 调用 `respondsToSelector` 时必须强转为 `id` 类型 (v1.1.30)。
 - [x] 彻底解决 `server.ts` 服务端崩溃问题：通过变量拼接（String Concatenation）隔离 Prompt 模板中的反引号 (v1.1.29)。
@@ -66,4 +71,4 @@
 - [ ] 验证服务器上的 Firebase Auth 域名授权 (Authorized Domains) 是否包含生产域名或公网 IP。
 - [ ] 若使用 Firestore，需确保 `firestore.rules` 已部署。
 
--- *最后更新: 2026-05-07*
+-- *最后更新: 2026-05-08*

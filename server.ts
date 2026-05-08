@@ -18,9 +18,48 @@ async function startServer() {
 
   app.use(express.json());
 
+  // 请求耗时监测与详细日志中间件
+  app.use((req, res, next) => {
+    const start = Date.now();
+    const { method, url } = req;
+    
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      const status = res.statusCode;
+      const logMsg = `[${new Date().toISOString()}] ${method} ${url} - Status: ${status} - Time: ${duration}ms`;
+      
+      if (status >= 400) {
+        console.error(`\x1b[31m${logMsg}\x1b[0m`);
+      } else {
+        console.log(`\x1b[32m${logMsg}\x1b[0m`);
+      }
+    });
+    next();
+  });
+
+  // 共享的 Tweak 生成需求指令集 (v1.1.40 强化版)
+  const TWEAK_REQUIREMENTS = `
+深度分析策略：
+- 针对展示类方法 (showAd..., presentAd...) 实现拦截。
+- 自动化跳过：针对激励视频，强制将 \`isReady\` 返回 \`YES\`，并同步触发奖励回调。
+
+应用特定逻辑参考：
+- **TikTok/抖音**：Hook \`AWEFeedAdModel\`, \`BDASplashManager\`。
+- **WeChat/微信**：Hook \`WCBizMainViewController\`, \`MMUIViewController\` 的相关显示逻辑。
+- **通用**：识别并拦截 \`PAGSplashRequest\`, \`GDTSplashAd\`。
+
+代码实现 (Logos)：
+- **强制早期执行**：必须在 \`%ctor\` 中尽早拦截。
+- **架构支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。
+- **基石依赖**：使用 \`MSHookMessageEx\` 必须 \`#import <substrate.h>\`。
+
+防御对抗：
+- 必须为所有 Hook 或调用的类提供 \`@interface\` 签名，防止 \`no known instance method\`。
+- 严禁在 @class 中包含系统内置类型（如 NSString）。
+`;
+
   // API 路由：生成 Hook 代码
   app.post("/api/generate", async (req, res) => {
-    console.log(`[API] /api/generate called for: ${req.body.appName}`);
     const { appName, config } = req.body;
     
     // 增加一个简单的安全判断，如果是 RESEARCH_QUERY 则是研究请求
@@ -33,128 +72,114 @@ async function startServer() {
 
     const prompt = isResearch 
       ? `你是一位 iOS 逆向工程专家。请用中文详细回答关于 iOS 应用内部结构或逆向工程的以下问题：${target}。重点关注类名、方法名以及使用 Logos 或 Frida 的 hook 策略。`
-      : `Role: 你是一位顶尖 iOS 逆向安全专家，精通 LLDB 调试、Cycript 分析及主流广告 SDK（Pangle, GDT, Baidu）的内部架构。
+      : `Role: 你是一位顶尖 iOS 逆向安全专家，精通 LLDB 调试、Cycript 分析及主流广告 SDK 架构。
 
 Task: 请针对特定的 iOS 应用执行去广告分析，并生成基于 Theos/Logos 语法的 .xm 源代码。
 
 目标应用/功能：${target}
 
 Requirements:
-
-深度分析策略：
-- 识别广告初始化入口（如 BUAdSDKManager, GDTSDKConfig, BaiduMobAdSetting）。
-- 针对展示类方法（showAdInViewController:, presentAdFromRootViewController:）编写拦截逻辑。
-- 针对奖励视频（Rewarded Video）实现“自动达成逻辑”，即 Hook激励回调（如 rewardedVideoAdDidRewardUser:）强制返回成功状态。
-
-代码实现 (Logos)：
-- 单例拦截：Hook sharedInstance 类型方法，返回 nil 或阻止配置加载。
-- 视图隐藏：针对 UIView 及其子类中的 layoutSubviews 或 didMoveToWindow 进行 Hook，识别并 setHidden:YES 或 removeFromSuperview。
-- 网络请求：Hook NSURLSession 或 AFNetworking 的关键路径，根据 URL 关键字（如 ads.pangle.io）拦截广告数据下发。
-
-去广告专项策略：
-- **开屏广告 (Splash)**：必须优先 Hook 广告请求类（如 \`PAGSplashRequest\`）的 \`load\` 方法或初始化方法，使其直接失败。严禁只 Hook \`show\` 方法，因为加载动作本身可能耗时并卡住 UI。
-- **SDK 爆头逻辑**：针对主流 SDK（穿山甲/PAG、优量汇/GDTSDK、百度/BaiduMob），强制 Hook 其单例初始化或核心配置类，直接返回已禁用状态。
-- **强制早期执行**：必须在 \`%ctor\` 中尽早设置拦截标志位。对于 UI 层的广告容器（如 \`UIView\`），如果包含 "Ad", "Splash", "Banner" 等字样的类名，强制将其 \`setHidden:YES\` 且 \`setFrame:CGRectZero\`。
-- **拦截代理回调**：如果无法拦截请求，则 Hook 代理回调（Delegate），模拟“加载失败” (\`didFailWithErrorCode:\`) 的信号，促使应用跳过广告。
-
-防御对抗：
-- 包含防止检测 Hook 的技巧（如使用 MSHookMessageEx 代替简单的 %hook）。
-- Tweak 代码必须包含完整的头文件结构，对于所有被 Hook 的类或调用的类，必须提供 \`@interface\` 声明（包含要调用的方法名），例如：\`@interface PAGRewardedAd : NSObject - (void)rewardedAdUserDidGainReward:(id)ad; @end\`。
-- **禁止在不声明的情况下调用方法**：即使使用了 \`(id)\` 强转，也必须在文件最上方通过 \`@interface\` 告诉编译器该方法的签名，防止 \`no known instance method\` 报错。
-- **严禁**：绝对禁止在 @class 声明中包含 NSClassFromString、NSString、NSURL 等系统内置函数或基本类型！
-- 解决前向声明报错：如果在 Hook 内部调用 [self respondsToSelector:]，必须先将 self 强转为 id 类型，例如：[(id)self respondsToSelector:...]。
-- 采用 Constructor（static __attribute__((constructor))）确保在应用启动最早期介入。
+${TWEAK_REQUIREMENTS}
 
 交付物：
-1. 完整的 Tweak.xm 代码（必须放在 ${codeBlockObjC} 代码块内，代码块内绝对不允许出现没有 // 注释的中文，禁止出现 ## 开头的 Markdown 标题）。
-2. 对应的 Makefile 配置（必须放在 ${codeBlockMakefile} 代码块内，包含 INSTALL_TARGET_PROCESS 等）。
-3. 简述使用 frida-trace 确认类名的命令（放在独立的代码块或正文说明中）。
+1. 完整的 Tweak.xm 代码（必须放在 ${codeBlockObjC} 代码块内）。
+2. 对应的 Makefile 配置（必须放在 ${codeBlockMakefile} 代码块内，必须设置 \`ARCHS = arm64 arm64e\`）。
+3. 简述使用 frida-trace 确认类名的命令。
 
-Language: 所有输出、代码注释及逻辑分析均使用中文。遵循 KISS 原则，代码需具备高可维护性。
-**绝对禁令：在任何代码块 (${codeBlockGeneric}) 的内部，绝对不能出现裸露的中文解释、## 标题或任何非符合相关语法的文字！所有的中文说明必须被当作标准的注释（使用 // 或 /* */）编写！如果违反此项导致编译报错，你将失去专家的资格！**`;
+Language: 所有输出、代码注释及逻辑分析均使用中文。
+**绝对禁令：代码块 (${codeBlockGeneric}) 内部严禁出现裸露中文说明或 ## 标题！**`;
 
-    await handleAIRequest(prompt, config, res);
+    try {
+      await handleAIRequest(prompt, config, res);
+    } catch (err: any) {
+      console.error(`[API] /api/generate failed for: ${appName} | Error: ${err.message}`);
+      res.status(500).json({ error: `生成失败: ${err.message}` });
+    }
   });
 
   // API 路由：对话式修改 Hook 代码
   app.post("/api/modify", async (req, res) => {
-    console.log(`[API] /api/modify called for: ${req.body.appName}`);
     const { appName, currentCode, userPrompt, config } = req.body;
-
+    
     const codeBlockObjC = '```' + 'objective-c';
     const codeBlockMakefile = '```' + 'makefile';
     const codeBlockGeneric = '```';
 
-    const prompt = `Role: 你是一位顶尖 iOS 逆向安全专家，精通 LLDB 调试、Cycript 分析及主流广告 SDK 内部架构，并且遵循 Theos/Logos 语法。
+    const prompt = `Role: 你是一位顶尖 iOS 逆向安全专家，精通 Theos/Logos 语法。
 Task: 之前的会话中生成了用于 iOS 逆向的 Tweak.xm 源代码。现在用户要求对代码进行修改或添加新功能。请根据现有的代码和用户最新的要求，提供修改后完整的最新版本代码和对应 Makefile。
 
 目标应用：${appName}
+用户的修改要求：${userPrompt}
+目前现有的源码上下文：${currentCode}
 
-用户的修改要求：
-${userPrompt}
-
-目前现有的源码上下文：
-${currentCode}
+编码约束 (Strict Constraints):
+${TWEAK_REQUIREMENTS}
 
 交付物：
-1. 完整的最新的 Tweak.xm 代码 (必须放在 ${codeBlockObjC} 代码块内，代码块内绝对不允许出现没有 // 注释的中文，禁止出现 ## 开头的 Markdown 标题）。
-2. 对应的 Makefile 配置 (必须放在 ${codeBlockMakefile} 代码块内)。
+1. 完整的最新的 Tweak.xm 代码 (必须放在 ${codeBlockObjC} 代码块内)。
+2. 对应的 Makefile 配置 (必须放在 ${codeBlockMakefile} 代码块内，必须包含 \`ARCHS = arm64 arm64e\`)。
 3. 简述所做修改。
-Language: 所有输出、代码注释及逻辑分析均使用中文。代码需具备高可维护性。
-**绝对禁令：在任何代码块 (${codeBlockGeneric}) 的内部，绝对不能出现裸露的中文解释、## 标题或任何非符合相关语法的文字！所有的中文说明必须被当作标准的注释（使用 // 或 /* */）编写！如果违反此项导致编译报错，你将失去专家的资格！**`;
+Language: 所有输出、代码注释及逻辑分析均使用中文。
+**绝对禁令：代码块 (${codeBlockGeneric}) 内部严禁出现裸露中文说明或 ## 标题！**`;
 
-    await handleAIRequest(prompt, config, res);
+    try {
+      await handleAIRequest(prompt, config, res);
+    } catch (err: any) {
+      console.error(`[API] /api/modify failed for: ${appName} | Error: ${err.message}`);
+      res.status(500).json({ error: `修改失败: ${err.message}` });
+    }
   });
 
   async function handleAIRequest(prompt: string, config: any, res: any) {
-    try {
-      const aiProvider = config.provider || process.env.AI_PROVIDER || 'gemini';
-      const apiKey = config.apiKey || (aiProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GEMINI_API_KEY);
-      const modelName = config.modelName || process.env.AI_MODEL || (aiProvider === 'openai' ? 'gpt-4' : 'gemini-1.5-flash');
-      const baseUrl = config.baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+    const aiProvider = config.provider || process.env.AI_PROVIDER || 'gemini';
+    const apiKey = config.apiKey || (aiProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GEMINI_API_KEY);
+    const modelName = config.modelName || process.env.AI_MODEL || (aiProvider === 'openai' ? 'gpt-4' : 'gemini-1.5-flash');
+    const baseUrl = config.baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
 
-      if (!apiKey) {
-        return res.status(400).json({ error: "API Key 未设置，请在设置面板配置或检查服务器环境变量。" });
+    if (!apiKey) {
+      throw new Error("API Key 未配置。请检查前端设置或服务器 .env 文件。");
+    }
+
+    if (aiProvider === 'gemini') {
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: modelName === 'gemini-1.5-flash' ? 'gemini-3.1-pro-preview' : modelName,
+        contents: prompt
+      });
+      res.json({ result: response.text });
+    } else {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: [{ role: 'user', content: prompt }],
+          stream: false
+        })
+      });
+      
+      const rawResponse = await response.text();
+      let data;
+      try {
+        data = JSON.parse(rawResponse);
+      } catch (e) {
+        throw new Error(`AI 服务返回格式错误 (Raw: ${rawResponse.substring(0, 50)}...)`);
       }
 
-      if (aiProvider === 'gemini') {
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-           model: modelName,
-           contents: prompt
-        });
-        res.json({ result: response.text });
-      } else {
-        const response = await fetch(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: modelName,
-            messages: [{ role: 'user', content: prompt }],
-            stream: false
-          })
-        });
-        
-        const rawResponse = await response.text();
-        let data;
-        try {
-          data = JSON.parse(rawResponse);
-        } catch (e) {
-          throw new Error(`AI 服务返回了非 JSON 格式的消息（可能是流式干扰）：${rawResponse.substring(0, 100)}...`);
-        }
-
-        if (!response.ok) {
-          throw new Error(`AI 服务报错 (${response.status}): ${data.error?.message || rawResponse}`);
-        }
-
-        res.json({ result: data.choices[0].message.content });
+      if (!response.ok) {
+        const errorMsg = data.error?.message || `HTTP ${response.status}`;
+        throw new Error(`AI Provider 报错: ${errorMsg}`);
       }
-    } catch (error: any) {
-      console.error("Server API Error:", error);
-      res.status(500).json({ error: error.message });
+
+      const content = data.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("AI 服务未返回有效内容。");
+      }
+
+      res.json({ result: content });
     }
   }
 

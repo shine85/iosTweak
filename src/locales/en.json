@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "iOS Tweak",
-    "version": "v1.1.35-Stable",
+    "version": "v1.1.40-Stable",
     "admin": "Admin",
     "logout": "Logout",
     "status": "Status",
@@ -28,6 +28,7 @@
     "subtitle": "Generate Logos (.xm) hook source code for Dylib tweaks, focused on bypassing application-level ads.",
     "target": "Target App",
     "placeholder": "e.g. Hippo Cinema",
+    "appStoreSearch": "App Store Search",
     "presets": "Presets",
     "infoText": "INFO: Generated code needs to be compiled with Theos.\nTarget: iPhoneOS ARM64",
     "generating": "Analyzing SDK Symbols...",
