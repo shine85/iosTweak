@@ -36,6 +36,7 @@
 - [x] 更新 GitHub Actions 插件 (checkout, setup-node) 版本以消除 Node 20 弃用警告 (v1.1.0)。
 - [x] 移除 GitHub Action 中引起干扰的 Node 24 强制环境变量 (v1.1.3)。
 - [x] 在 Web UI 设置页面添加配置备份导出及恢复功能。
+- [x] **Logos / Theos 语法生成强化与防崩溃约束 (v1.1.55)**：针对近期部分复杂应用生成的 `Tweak.xm` 文件出现的两种低级却致命的编译报错进行了底层提示词级的封堵。1. 修复 `%init does not make sense outside a block`：强制 AI 必须且只能将宏观调度指令 `%init` 写入 `%ctor { ... }` 构造块内部，禁止全局流出调用。2. 修复 `expected function body after function declarator`：严禁 AI 在生成带有参数传入（例如带 `UIWindow *window`）的方法拦截钩子时随手带上并列右多余括号 `)`，这保证了 Logos 在转写 Objective-C 后不会因末尾多出括号导致编译器抛出缺少方法体的故障。
 - [x] **Logos / Theos \`%init\` 组名冲突编译致命错误修复 (v1.1.54)**：深入修补了此前针对动态类解析的提示词指令。之前的 AI 在尝试处理多重防崩 Hook 时使用 \`%init(ClassName);\` 的直接传参写法，这被 Logos 语法解析器误认为是要初始化名叫 \`ClassName\` 的自定义 \`%group\`，从而引发 \`%init for an undefined %group\` 的编译中断。本次不仅禁止了该错误写法，还针对性地明确指出若需在隐匿组动态解析加载类名必须遵循 \`%init(ClassA=objc_getClass("ClassA"));\` 的强绑定带赋值语法，从而彻底解决生成产物过程中的语法识别冲突报错。
 - [x] **Logos / Theos \`%init\` 多次调用编译修复 (v1.1.53)**：修复了 AI 在生成代码时，为了兼容不同平台的 SDK 在 \`%ctor\` 阶段针对同一个对象进行了多次 \`%init\` 调用，引发了 Theos 终端上的致命编译错误：\`re-%init of %group _ungrouped\`。在底层 \`server.ts\` 服务端的提示词约束 \`TWEAK_REQUIREMENTS\` 之中增加了**单次 Hook 初始化约束**，如果需要容错拦截多种穿山甲/广点通广告类，需要使用 \`%init(ClassA=..., ClassB=...)\` 的合并写法，或放到独立的组别内分别初始化。
 - [x] **Deb 包版本号动态同步修复 (v1.1.52)**：修复了云编译导出的 `.deb` 安装包内版本号始终为固定（如 `0.0.1`），无法与每次生成的产物文件名或源码修改次数同步的问题。由于 Theos 包配置依赖于静态的 `control` 文件，本次已在 GitHub Action 的构建流 (`build.yml`) 中注入了前置处理，通过提取项目中动态的 `package.json` 的版本号，利用 `sed` 命令强制刷新复写 `control` 内的 `Version`。现在，无论是导入 Sileo/Zebra，每一次重新生成编译的插件包都将具有唯一对应递增的版本标识了。
