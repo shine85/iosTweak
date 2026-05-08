@@ -508,7 +508,7 @@ export default function App() {
                   <div className="relative group overflow-hidden border border-[#141414] rounded-sm bg-[#141414] flex-grow">
                     <div className="h-[70vh] min-h-[600px] overflow-auto p-6 font-mono text-xs leading-relaxed text-[#E4E3E0]">
                       <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
-                        {generatedResult ? `\`\`\`objectivec\n${generatedResult}\n\`\`\`` : t('builder.waitInstructions', { appName })}
+                        {generatedResult || t('builder.waitInstructions', { appName })}
                       </ReactMarkdown>
                     </div>
                   </div>

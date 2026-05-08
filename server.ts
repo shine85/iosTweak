@@ -58,6 +58,7 @@ async function startServer() {
 
 代码实现 (Logos)：
 - **单次 Hook 初始化约束**：在同一个 %group (或未命名默认组) 中，绝对不允许出现超过一次的 \`%init\` 操作。若需动态解析尚未加载的类，必须使用带赋值的语法，例如 \`%init(ClassA=objc_getClass("ClassA"), ClassB=objc_getClass("ClassB"));\`。**绝对严禁**使用 \`%init(ClassName);\` 这种只传名字不赋值的写法，因为这会被 Logos 误解析为初始化一个名叫 ClassName 的 \`%group\`，从而引发 \`%init for an undefined %group\` 致命错误！
+- **未知类初始化防崩约束**：当在 \`%init(ClassA=...);\` 中动态赋值类名时，**必须且仅能**为你真正在代码中实现了 \`%hook ClassA\` 的目标类进行赋值！严禁在 \`%init\` 中盲目写入一堆你没有编写 \`%hook\` 模块的类名，否则会触发 Logos 警告 \`tried to set expression for unknown class or function\`，且在此工具链中警告会被转为致命错误导致编译中断。
 - **%init 位置约束**：所有的 \`%init\` 宏指令必须且只能放置在 \`%ctor { ... }\` 构造块内部！绝对不要在外部全局直接调用 \`%init;\`，否则会引发 \`%init does not make sense outside a block\` 致命编译错误。
 - **Hook 语法约束**：在 Hook 带有参数的 Objective-C 方法时，**绝对禁止**在参数名称后面添加多余的右括号 \`)\`。例如正确写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window { ... }\`，错误写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window) { ... }\`（这会引发 \`expected function body after function declarator\` 编译错误）。
 - **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
