@@ -1,93 +1,114 @@
-#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
 #import <substrate.h>
-#import <objc/runtime.h>
-#import <objc/message.h>
 
-/* ---------- Helper Functions (global scope) ---------- */
-static inline void hookIfExists(const char *className, SEL selector, IMP newImp) {
-    Class cls = objc_getClass(className);
-    if (cls) {
-        MSHookMessageEx(cls, selector, newImp, NULL);
-    }
-}
+@interface GDTSplashAd : NSObject
+- (void)loadAdAndShowInWindow:(UIWindow *)window;
+- (void)loadAd;
+@end
 
-/* Empty implementation that does nothing */
-static void blockVoid(id self, SEL _cmd, ...) { }
+@interface CSJSplashAd : NSObject
+- (void)loadAdAndShowInWindow:(UIWindow *)window;
+- (void)loadAd;
+@end
 
-/* Implementation that always returns YES */
-static BOOL blockYES(id self, SEL _cmd) {
-    return YES;
-}
+@interface BUSplashAdView : NSObject
+- (void)loadAdAndShowInWindow:(UIWindow *)window;
+- (void)loadAd;
+@end
 
-/* Implementation that forces a 3‑second countdown */
-static NSInteger blockCountdown(id self, SEL _cmd) {
-    return 3;
-}
+@interface BaiduMobAdSplash : NSObject
+- (void)loadAndDisplay;
+- (void)loadAd;
+@end
 
-/* Call reward delegate if possible */
-static void invokeReward(id self, SEL _cmd) {
-    id delegate = ((id (*)(id, SEL))objc_msgSend)(self, sel_getUid("delegate"));
-    if (delegate && [delegate respondsToSelector:sel_getUid("rewardUser")]) {
-        ((void (*)(id, SEL))objc_msgSend)(delegate, sel_getUid("rewardUser"));
-    }
-}
+@interface KSAdSplashViewController : UIViewController
+- (void)loadAd;
+- (void)showAdInWindow:(UIWindow *)window;
+@end
 
-/* ---------- UI Filtering ---------- */
+@interface CMAdManager : NSObject
+- (void)requestSplashAd;
+- (void)showSplashAd;
+@end
+
+@interface NSURLSession (AdBlock)
+- (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request completionHandler:(void (^)(NSData *data, NSURLResponse *response, NSError *error))completionHandler;
+- (NSURLSessionDataTask *)dataTaskWithURL:(NSURL *)url completionHandler:(void (^)(NSData *data, NSURLResponse *response, NSError *error))completionHandler;
+@end
+
+%hook GDTSplashAd
+- (void)loadAdAndShowInWindow:(UIWindow *)window { }
+- (void)loadAd { }
+%end
+
+%hook CSJSplashAd
+- (void)loadAdAndShowInWindow:(UIWindow *)window { }
+- (void)loadAd { }
+%end
+
+%hook BUSplashAdView
+- (void)loadAdAndShowInWindow:(UIWindow *)window { }
+- (void)loadAd { }
+%end
+
+%hook BaiduMobAdSplash
+- (void)loadAndDisplay { }
+- (void)loadAd { }
+%end
+
+%hook KSAdSplashViewController
+- (void)loadAd { }
+- (void)showAdInWindow:(UIWindow *)window { }
+%end
+
+%hook CMAdManager
+- (void)requestSplashAd { }
+- (void)showSplashAd { }
+%end
+
 %hook UIViewController
 - (void)viewDidAppear:(BOOL)animated {
-    NSString *clsName = NSStringFromClass([self class]);
-    if ([clsName rangeOfString:@"Splash"].location != NSNotFound ||
-        [clsName rangeOfString:@"Ad"].location != NSNotFound) {
-        self.view.hidden = YES;
-        return;
-    }
     %orig;
+    NSString *clsName = NSStringFromClass([self class]);
+    if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"]) {
+        ((UIViewController *)self).view.hidden = YES;
+        [self dismissViewControllerAnimated:NO completion:nil];
+    }
 }
 %end
 
-/* ---------- Constructor ---------- */
-%ctor {
-    /* Merge all %init into a single statement */
-    %init(UIViewController=objc_getClass("UIViewController"));
-
-    /* Configuration list for dynamic hooks */
-    struct {
-        const char *cls;
-        const char *sel;
-        IMP imp;
-    } hookConfigs[] = {
-        {"GDTSplashAd",                 "loadAdAndShowInWindow:", (IMP)blockVoid},
-        {"GDTSplashAd",                 "showAdInWindow:",        (IMP)blockVoid},
-        {"GDTSplashAd",                 "loadAd",               (IMP)blockVoid},
-        {"CSJSplashAd",                "loadAdAndShowInWindow:", (IMP)blockVoid},
-        {"CSJSplashAd",                "showAdInWindow:",        (IMP)blockVoid},
-        {"CSJSplashAd",                "loadAd",               (IMP)blockVoid},
-        {"BUSplashAdView",              "loadAndShow",         (IMP)blockVoid},
-        {"BUSplashAdView",              "loadAd",              (IMP)blockVoid},
-        {"BaiduMobAdSplash",           "startAdLoad",         (IMP)blockVoid},
-        {"BaiduMobAdSplash",           "loadAd",              (IMP)blockVoid},
-        {"KSAdSplashViewController",   "loadAd",             (IMP)blockVoid},
-
-        /* Reward video related hooks */
-        {"GDTRewardVideoAd",            "loadAd",             (IMP)blockVoid},
-        {"GDTRewardVideoAd",            "showAdFromRootViewController:", (IMP)blockVoid},
-        {"GDTRewardVideoAd",            "rewardedVideoAdDidRewardUser:", (IMP)invokeReward},
-        {"GDTRewardVideoAd",            "remainingTime",       (IMP)blockCountdown},
-
-        {"KSRewardVideoAd",            "loadAd",             (IMP)blockVoid},
-        {"KSRewardVideoAd",            "showAdFromRootViewController:", (IMP)blockVoid},
-        {"KSRewardVideoAd",            "rewardedVideoAdDidRewardUser:", (IMP)invokeReward},
-        {"KSRewardVideoAd",            "remainingTime",       (IMP)blockCountdown},
-
-        {"BURewardedVideoAd",          "loadAdData",         (IMP)blockVoid},
-        {"BURewardedVideoAd",          "showAdFromRootViewController:", (IMP)blockVoid},
-        {"BURewardedVideoAd",           "rewardedVideoAdDidRewardUser:", (IMP)invokeReward},
-        {"BURewardedVideoAd",          "remainingTime",       (IMP)blockCountdown}
-    };
-
-    size_t count = sizeof(hookConfigs) / sizeof(hookConfigs[0]);
-    for (size_t i = 0; i < count; ++i) {
-        hookIfExists(hookConfigs[i].cls, sel_getUid(hookConfigs[i].sel), hookConfigs[i].imp);
+%hook NSURLSession
+- (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request completionHandler:(void (^)(NSData *data, NSURLResponse *response, NSError *error))completionHandler {
+    NSString *urlStr = request.URL.absoluteString;
+    if (urlStr && ( [urlStr containsString:@"gdt.qq.com"] ||
+                    [urlStr containsString:@"adservice"] ||
+                    [urlStr containsString:@"kuaishou.com"] ||
+                    [urlStr containsString:@"unionapi"] ||
+                    [urlStr containsString:@"ads"] )) {
+        if (completionHandler) {
+            completionHandler(nil, nil, nil);
+        }
+        return nil;
     }
+    return %orig;
+}
+- (NSURLSessionDataTask *)dataTaskWithURL:(NSURL *)url completionHandler:(void (^)(NSData *data, NSURLResponse *response, NSError *error))completionHandler {
+    NSString *urlStr = url.absoluteString;
+    if (urlStr && ( [urlStr containsString:@"gdt.qq.com"] ||
+                    [urlStr containsString:@"adservice"] ||
+                    [urlStr containsString:@"kuaishou.com"] ||
+                    [urlStr containsString:@"unionapi"] ||
+                    [urlStr containsString:@"ads"] )) {
+        if (completionHandler) {
+            completionHandler(nil, nil, nil);
+        }
+        return nil;
+    }
+    return %orig;
+}
+%end
+
+%ctor {
+    %init(GDTSplashAd=objc_getClass("GDTSplashAd"), CSJSplashAd=objc_getClass("CSJSplashAd"), BUSplashAdView=objc_getClass("BUSplashAdView"), BaiduMobAdSplash=objc_getClass("BaiduMobAdSplash"), KSAdSplashViewController=objc_getClass("KSAdSplashViewController"), CMAdManager=objc_getClass("CMAdManager"), UIViewController=objc_getClass("UIViewController"), NSURLSession=objc_getClass("NSURLSession"));
 }
