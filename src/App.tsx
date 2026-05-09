@@ -32,7 +32,9 @@ import {
   X,
   LogOut,
   User as UserIcon,
-  ExternalLink
+  ExternalLink,
+  Play,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -108,6 +110,7 @@ export default function App() {
 
   const [appStoreDetails, setAppStoreDetails] = useState<{url?: string, bundleId?: string, trackName?: string} | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
 
   useEffect(() => {
     if (!appName || appName.trim() === '') {
@@ -279,6 +282,29 @@ export default function App() {
       alert(`${t('builder.pushFailed')}${error.message}`);
     } finally {
       setIsPushing(false);
+    }
+  };
+
+  const handleBuild = async () => {
+    if (!generatedResult) return;
+    setIsBuilding(true);
+    try {
+      // 模拟或者调用真编译接口
+      const response = await fetch('/api/build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: generatedResult, appName })
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        alert('编译成功 / Build Successful!');
+      } else {
+        throw new Error(data.error || 'Unknown error');
+      }
+    } catch (err: any) {
+      alert('编译失败 / Build Failed: ' + err.message);
+    } finally {
+      setIsBuilding(false);
     }
   };
 
@@ -575,131 +601,123 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="col-span-12 lg:col-span-8 flex flex-col h-[75vh] min-h-[700px]">
-                  <div className="flex items-center justify-between mb-4">
-                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('builder.chatHistory')}</label>
-                    <div className="flex gap-2 z-10">
-                      <button 
-                        onClick={() => setIsImportModalOpen(true)}
-                        title="导入外部源码 (Import Source)"
-                        className="flex items-center gap-2 px-3 py-2 bg-neutral-600 hover:bg-neutral-700 text-white transition-colors rounded-sm text-xs font-bold"
-                      >
-                        <Upload className="w-3 h-3" />
-                        导入
-                      </button>
-                      {generatedResult && (
+                {/* 右侧容器：分屏显示源码和对话 */}
+                <div className="col-span-12 lg:col-span-8 flex flex-col lg:flex-row gap-6 h-[80vh] min-h-[700px]">
+                  {/* 左侧：源码实时预览 */}
+                  <div className="flex-1 flex flex-col border-2 border-[#141414] bg-[#141414] shadow-[8px_8px_0px_0px_rgba(20,20,20,1)] rounded-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2 bg-[#1a1a1a] border-b border-white/10">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#FF5F56] shadow-[0_0_4px_#FF5F56]" />
+                        <div className="w-2 h-2 rounded-full bg-[#FFBD2E] shadow-[0_0_4px_#FFBD2E]" />
+                        <div className="w-2 h-2 rounded-full bg-[#27C93F] shadow-[0_0_4px_#27C93F]" />
+                        <span className="text-[9px] font-mono text-white/40 ml-2 uppercase tracking-[0.2em]">Tweak.xm / Source</span>
+                      </div>
+                      <div className="flex gap-1">
                         <button 
-                          onClick={handlePushToGithub}
-                          disabled={isPushing}
-                          title={t('builder.pushGithub')}
-                          className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white transition-colors rounded-sm text-xs font-bold disabled:opacity-50"
+                          onClick={() => setIsImportModalOpen(true)}
+                          className="p-1 px-2 text-[9px] font-mono text-white/40 hover:text-[#FFE100] transition-colors border border-white/5 rounded-sm"
                         >
-                          {isPushing ? <RotateCcw className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                          {isPushing ? t('builder.pushing') : t('builder.pushGithub')}
+                          IMPORT
                         </button>
+                        <button 
+                          onClick={() => copyToClipboard(generatedResult, 'builder')}
+                          className="p-1.5 text-white/40 hover:text-white transition-colors"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-auto p-4 font-mono text-[11px] leading-relaxed text-[#E4E3E0] custom-scrollbar-dark selection:bg-[#FFE100] selection:text-[#141414]">
+                      {generatedResult ? (
+                        <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
+                          {`\`\`\`objective-c\n${generatedResult}\n\`\`\``}
+                        </ReactMarkdown>
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center opacity-20 text-center space-y-4">
+                          <Layers className="w-10 h-10" />
+                          <p className="uppercase tracking-[0.2em] text-[10px]">等待指令生成源码</p>
+                        </div>
                       )}
-                      <button 
-                        onClick={() => copyToClipboard(generatedResult, 'builder')}
-                        className="p-2 bg-[#E4E3E0] hover:bg-white text-[#141414] transition-colors rounded-sm ml-2 border border-[#141414]"
-                      >
-                        {copying === 'builder' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      </button>
                     </div>
                   </div>
 
-                  {/* Chat Message List */}
-                  <div className="border border-[#141414] rounded-sm bg-white flex-grow flex flex-col overflow-hidden shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
-                    <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-gray-50 custom-scrollbar">
+                  {/* 右侧：AI 对话流 */}
+                  <div className="w-full lg:w-[320px] flex flex-col border-2 border-[#141414] bg-white shadow-[8px_8px_0px_0px_rgba(20,20,20,1)] rounded-sm overflow-hidden">
+                    <div className="px-3 py-2 bg-[#141414] text-white flex items-center justify-between">
+                      <span className="text-[9px] font-mono uppercase tracking-widest flex items-center gap-2">
+                        <Terminal className="w-3 h-3 text-[#FFE100]" />
+                        DEBUG CHAT
+                      </span>
+                      <div className="flex gap-2">
+                         <button 
+                          onClick={handleBuild}
+                          disabled={isBuilding || !generatedResult}
+                          className="p-1 text-[#FFE100] hover:scale-110 transition-transform disabled:opacity-30 disabled:scale-100"
+                        >
+                          {isBuilding ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-3 space-y-4 bg-gray-50 custom-scrollbar text-[11px]">
                       {messages.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center opacity-30 text-center space-y-4">
-                          <Terminal className="w-12 h-12" />
-                          <p className="font-mono text-sm uppercase tracking-widest">{t('builder.waitInstructions', { appName })}</p>
+                        <div className="h-full flex flex-col items-center justify-center opacity-30 text-center p-4">
+                          <p className="font-mono text-[9px] uppercase tracking-tighter">说点什么来修改代码...</p>
                         </div>
                       ) : (
                         messages.map((msg, idx) => (
                           <div 
                             key={idx} 
                             className={cn(
-                              "flex flex-col max-w-[90%]",
+                              "flex flex-col max-w-[95%]",
                               msg.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
                             )}
                           >
                             <div className={cn(
-                              "px-4 py-3 border-2 border-[#141414] text-sm",
-                              msg.role === 'user' ? "bg-[#FFE100] shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]" : "bg-white shadow-[-4px_4px_0px_0px_rgba(20,20,20,1)]"
+                              "px-2.5 py-2 border-2 border-[#141414] shadow-[1px_1px_0px_0px_rgba(20,20,20,1)]",
+                              msg.role === 'user' ? "bg-[#FFE100]" : "bg-white"
                             )}>
-                              {msg.explanation ? (
-                                <div className="prose prose-sm max-w-none font-serif italic text-[#141414]/80">
-                                  {msg.explanation}
-                                </div>
-                              ) : (
-                                <p className="font-mono">{msg.content}</p>
-                              )}
+                               <div className="prose prose-xs max-w-none text-[#141414] font-mono leading-tight">
+                                 {msg.explanation || msg.content}
+                               </div>
                             </div>
-                            
-                            {msg.code && (
-                              <div className="mt-3 w-full max-w-full overflow-hidden border-2 border-[#141414] bg-[#141414] text-xs shadow-[-6px_6px_0px_0px_rgba(30,30,30,0.5)]">
-                                <div className="flex items-center justify-between px-3 py-1 bg-[#222] border-b border-white/10">
-                                  <span className="text-[10px] font-mono text-white/50 uppercase">Tweak.xm (v{idx})</span>
-                                  <button 
-                                    onClick={() => copyToClipboard(msg.code || '', 'builder')}
-                                    className="p-1 text-white/50 hover:text-white transition-colors"
-                                  >
-                                    <Copy className="w-3 h-3" />
-                                  </button>
-                                </div>
-                                <div className="p-4 max-h-[400px] overflow-auto custom-scrollbar-dark text-emerald-400 font-mono">
-                                  <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
-                                    {`\`\`\`objective-c\n${msg.code}\n\`\`\``}
-                                  </ReactMarkdown>
-                                </div>
-                              </div>
-                            )}
-                            <span className="text-[8px] font-mono opacity-40 mt-1 uppercase">
+                            <span className="text-[7px] font-mono opacity-40 mt-0.5 uppercase">
                               {new Date(msg.timestamp).toLocaleTimeString()}
                             </span>
                           </div>
                         ))
                       )}
-                      
                       {isGenerating || isModifying ? (
-                        <div className="flex flex-col items-start mr-auto max-w-[90%]">
-                          <div className="px-4 py-3 border-2 border-[#141414] bg-white shadow-[-4px_4px_0px_0px_rgba(20,20,20,1)] flex items-center gap-3">
-                            <div className="flex gap-1">
-                              <span className="w-1.5 h-1.5 bg-[#141414] rounded-full animate-bounce [animation-delay:-0.3s]" />
-                              <span className="w-1.5 h-1.5 bg-[#141414] rounded-full animate-bounce [animation-delay:-0.15s]" />
-                              <span className="w-1.5 h-1.5 bg-[#141414] rounded-full animate-bounce" />
-                            </div>
-                            <span className="text-xs font-mono italic opacity-50">SHINE IS THINKING...</span>
+                        <div className="flex items-center gap-2 px-2 py-1.5 border-2 border-[#141414] bg-white shadow-[1px_1px_0px_0px_rgba(20,20,20,1)] w-fit">
+                          <div className="flex gap-1">
+                            <span className="w-1 h-1 bg-[#141414] rounded-full animate-bounce" />
+                            <span className="w-1 h-1 bg-[#141414] rounded-full animate-bounce [animation-delay:0.2s]" />
+                            <span className="w-1 h-1 bg-[#141414] rounded-full animate-bounce [animation-delay:0.4s]" />
                           </div>
                         </div>
                       ) : null}
                       <div ref={chatEndRef} />
                     </div>
 
-                    {/* AI 修改对话区 - 固化到底部 */}
-                    <div className="p-4 bg-white border-t-2 border-[#141414]">
+                    <div className="p-3 bg-white border-t-2 border-[#141414]">
                       <div className="flex gap-2">
                          <input 
                            type="text" 
                            value={modifyPrompt}
                            onChange={(e) => setModifyPrompt(e.target.value)}
                            disabled={isGenerating || isModifying || !generatedResult}
-                           placeholder={generatedResult ? t('builder.modifyPlaceholder') : "请先通过左侧按钮生成基础代码..."}
-                           className="flex-grow bg-[#F5F5F5] border-2 border-[#141414] py-3 px-4 font-mono text-sm focus:outline-none focus:bg-white transition-all disabled:opacity-50"
+                           placeholder="输入指令..."
+                           className="flex-grow bg-[#F5F5F5] border-2 border-[#141414] py-2 px-2 font-mono text-[11px] focus:outline-none focus:bg-white transition-all disabled:opacity-50"
                            onKeyDown={(e) => {
-                             if (e.key === 'Enter') {
-                               handleModify();
-                             }
+                             if (e.key === 'Enter') handleModify();
                            }}
                          />
                          <button
                            onClick={handleModify}
                            disabled={isModifying || isGenerating || !modifyPrompt.trim() || !generatedResult}
-                           className="px-6 py-3 bg-[#FFE100] text-[#141414] border-2 border-[#141414] font-bold shadow-[4px_4px_0px_0px_rgba(20,20,20,1)] hover:translate-y-[-1px] hover:shadow-[5px_5px_0px_0px_rgba(20,20,20,1)] disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 transition-all flex items-center justify-center gap-2"
+                           className="w-8 h-8 bg-[#FFE100] border-2 border-[#141414] flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(20,20,20,1)] hover:bg-[#FFD700] disabled:opacity-50 transition-all"
                          >
-                           <Terminal className="w-4 h-4" />
-                           发送
+                           <Send className="w-3 h-3" />
                          </button>
                       </div>
                     </div>
