@@ -5,7 +5,7 @@
 #import <objc/message.h>
 #import <dispatch/dispatch.h>
 
-/* Helper */
+/* ---------- Helper ---------- */
 static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     Class cls = objc_getClass(clsName);
     if (cls) {
@@ -13,25 +13,47 @@ static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     }
 }
 
-/* Recursively search subviews for a UIButton with title "跳过" or "Skip".
-   If found, hide its top‑most container after a 1‑second delay. */
-static void hideSplashIfButtonFound(UIView *view) {
-    for (UIView *sub in view.subviews) {
+/* ---------- Splash‑skip 检测 ----------
+   递归遍历子视图，寻找标题含 “跳过” 或 “Skip” 的 UIButton。
+   若找到则隐藏传入的根视图并返回 YES；否则返回 NO。
+   为兼容按钮在 viewDidAppear 之后才出现的情况，外部提供
+   scheduleSplashSkipCheck 进行多次轮询。 */
+static BOOL hideSplashIfButtonFound(UIView *rootView) {
+    for (UIView *sub in rootView.subviews) {
         if (object_getClass(sub) == objc_getClass("UIButton")) {
             NSString *title = ((UIButton *)sub).currentTitle;
             if (title && ([title containsString:@"跳过"] || [title containsString:@"Skip"])) {
-                UIView *container = view;
-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                    [container setHidden:YES];
+                // 隐藏根视图(即整个启动页)
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)),
+                               dispatch_get_main_queue(), ^{
+                    [rootView setHidden:YES];
                 });
-                return;
+                return YES;
             }
         }
-        hideSplashIfButtonFound(sub);
+        if (hideSplashIfButtonFound(sub)) {
+            return YES;
+        }
     }
+    return NO;
 }
 
-/* Original IMP placeholders */
+/* 轮询检查函数 – 最多 10 次、间隔 0.5 秒 */
+static void scheduleSplashSkipCheck(UIView *rootView, NSInteger attempt) {
+    const NSInteger maxAttempts = 10;
+    const double interval = 0.5; // 秒
+    if (attempt >= maxAttempts) return;
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
+                                 (int64_t)(interval * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        if (!hideSplashIfButtonFound(rootView)) {
+            scheduleSplashSkipCheck(rootView, attempt + 1);
+        }
+    });
+}
+
+/* ---------- 原始 IMP 占位 ---------- */
 static IMP GDTSplashAd_loadAdAndShowInWindow_orig = NULL;
 static IMP GDTSplashAd_loadAd_orig = NULL;
 static IMP CSJSplashAd_loadAdAndShowInWindow_orig = NULL;
@@ -49,7 +71,7 @@ static IMP CSJRewardedVideoAd_loadAd_orig = NULL;
 static IMP CSJRewardedVideoAd_showAdFromRootViewController_orig = NULL;
 static IMP CSJRewardedVideoAd_startCountdown_orig = NULL;
 
-/* Hook implementations – all methods are stubbed to block ad loading */
+/* ---------- Hook 实现 ---------- */
 static void GDTSplashAd_loadAdAndShowInWindow_hook(id self, SEL _cmd, UIWindow *window) { }
 static void GDTSplashAd_loadAd_hook(id self, SEL _cmd) { }
 
@@ -74,13 +96,15 @@ static void CSJRewardedVideoAd_showAdFromRootViewController_hook(id self, SEL _c
     if ([self respondsToSelector:@selector(delegate)]) {
         id delegate = ((id (*)(id, SEL))objc_msgSend)(self, @selector(delegate));
         if (delegate && [delegate respondsToSelector:@selector(rewardedVideoAdDidRewardUser:)]) {
-            ((void (*)(id, SEL, id))objc_msgSend)(delegate, @selector(rewardedVideoAdDidRewardUser:), self);
+            ((void (*)(id, SEL, id))objc_msgSend)(delegate,
+                                                @selector(rewardedVideoAdDidRewardUser:),
+                                                self);
         }
     }
 }
 static void CSJRewardedVideoAd_startCountdown_hook(id self, SEL _cmd, NSInteger seconds) { }
 
-/* Empty %hook blocks for targeted classes */
+/* ---------- 空 Hook 块(保持兼容) ---------- */
 %hook GDTSplashAd %end
 %hook CSJSplashAd %end
 %hook BUSplashAdView %end
@@ -96,7 +120,8 @@ static void CSJRewardedVideoAd_startCountdown_hook(id self, SEL _cmd, NSInteger 
     if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"]) {
         [[self view] setHidden:YES];
     } else {
-        hideSplashIfButtonFound([self view]);
+        // 首次立即检查一次，随后最多再检查 9 次(共 10 次)
+        scheduleSplashSkipCheck([self view], 0);
     }
 }
 %end
