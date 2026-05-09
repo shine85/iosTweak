@@ -62,7 +62,7 @@ async function startServer() {
 - **%init 位置约束**：所有的 \`%init\` 宏指令必须且只能放置在 \`%ctor { ... }\` 构造块内部！绝对不要在外部全局直接调用 \`%init;\`，否则会引发 \`%init does not make sense outside a block\` 致命编译错误。
 - **Hook 语法约束**：在 Hook 带有参数的 Objective-C 方法时，**绝对禁止**在参数名称后面添加多余的右括号 \`)\`。例如正确写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window { ... }\`，错误写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window) { ... }\`（这会引发 \`expected function body after function declarator\` 编译错误）。
 - **C 函数规范约束**：严禁在 \`%ctor { ... }\` 块内部、或者其他任何函数体/Block 内部直接定义 C/C++ 辅助函数（例如 \`static inline void hookIfExists(...)\`）。局部嵌套定义函数会引发 \`function definition is not allowed here\` 致命错误！任何辅助函数的定义必须放置在文件顶层全局作用域（所有 \`%hook\` 或 \`%ctor\` 的外围）。
-- **对象属性强转约束**：在使用 \`self.view\` 等只属于特定类（如 \`UIViewController\`, \`UIView\`）的属性时，对于可能被推断为 \`id\` 的 \`self\` 或其他变量，必须**进行显式前置类型转换**，例如 \`((UIViewController *)self).view\`。这能避免爆发 \`property 'view' not found on object of type 'id'\` 的编译错误。
+- **对象属性点语法崩溃约束**：在 C 语言的 Hook 辅助函数、Block 回调或者被推断为 \`id\`（如 \`__unsafe_unretained id const\`）的作用域内，**绝对禁止使用点语法**读取专属属性（例如写出 \`self.view.hidden = YES\` 会导致 \`property 'view' not found on object of type 'id'\` 的致命报错）。遇到这种情况，你**必须强制进行显式前置接口转换**，例如写为 \`((UIViewController *)self).view.hidden = YES;\` 或者转化为消息发送语法 \`[[self view] setHidden:YES];\`。这是零容忍规定。
 - **类名传参安全防范**：在往自定义 C/C++ 辅助函数（如 \`hookIfExists(...)\`）传递目标类名时，如果参数是字符串，**必须带上双引号**写成 \`"ClassName"\`；如果参数是 Class，必须写成 \`objc_getClass("ClassName")\`。绝对禁止把裸的类名（如 \`GDTSplashAd\`）当作变量直接传参，这会导致 \`unexpected interface name: expected expression\` 报错阻断编译！
 - **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
 - **安全拦截**：严禁直接调用可能不存在的方法引发崩溃，优先阻断广告拉取请求。
@@ -232,6 +232,11 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
            return '// 被 WebUI 自动过滤: 移除了未提供 %hook 的无意义 %init 赋值防报错';
         }
       });
+      
+      // Auto-cast self.view to avoid "property 'view' not found on object of type 'id'"
+      // This matches self.view that is NOT preceded by a closing parenthesis (like a typecast).
+      newCode = newCode.replace(/(?<!\)\s*)self\.view/g, '((UIViewController *)self).view');
+      
       return '```objective-c\n' + newCode.trim() + '\n```';
     });
   }
