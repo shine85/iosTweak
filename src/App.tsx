@@ -42,6 +42,7 @@ import { generateHookScript, researchMethod, type AIConfig, fetchModels, testAIC
 import { useAuth, logout } from './components/AuthProvider';
 import { useI18n } from './components/I18nProvider';
 import { ImportModal } from './components/ImportModal';
+import { ModelPickerModal } from './components/ModelPickerModal';
 import 'highlight.js/styles/atom-one-dark.css';
 
 type Tab = 'builder' | 'researcher' | 'guides' | 'settings';
@@ -62,6 +63,8 @@ export default function App() {
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
+  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
 
   // AI Configuration State with Persistence
   const [aiConfig, setAiConfig] = useState<AIConfig>(() => {
@@ -281,13 +284,8 @@ export default function App() {
     try {
       const models = await fetchModels(aiConfig);
       if (models.length > 0) {
-        // 创建一个简单的列表，询问是否更新模型名称
-        const modelsStr = models.slice(0, 10).join('\n');
-        const count = models.length;
-        const msg = `发现 ${count} 个模型。是否将当前模型设置为: ${models[0]}?\n\n列表预览:\n${modelsStr}${count > 10 ? '\n...' : ''}`;
-        if (window.confirm(msg)) {
-          setAiConfig({ ...aiConfig, modelName: models[0] });
-        }
+        setFetchedModels(models);
+        setIsModelPickerOpen(true);
       } else {
         alert("未获取到模型列表。");
       }
@@ -963,6 +961,14 @@ jobs:
           isOpen={isImportModalOpen} 
           onClose={() => setIsImportModalOpen(false)} 
           onImport={handleImportCode} 
+        />
+
+        <ModelPickerModal
+          isOpen={isModelPickerOpen}
+          onClose={() => setIsModelPickerOpen(false)}
+          models={fetchedModels}
+          onSelect={(model) => setAiConfig({ ...aiConfig, modelName: model })}
+          currentModel={aiConfig.modelName}
         />
       </main>
     </div>
