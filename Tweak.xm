@@ -20,8 +20,8 @@ static BOOL hideSplashIfButtonFound(UIView *root) {
             NSString *title = ((UIButton *)sub).currentTitle;
             if (title && ([title containsString:@"跳过"] || [title containsString:@"Skip"] || [title containsString:@"关闭"])) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [sub setHidden:YES];
-                    [sub.superview setHidden:YES];
+                    [sub setHidden:NO];
+                    if (sub.superview) [sub.superview setHidden:NO];
                 });
                 return YES;
             }
@@ -33,10 +33,9 @@ static BOOL hideSplashIfButtonFound(UIView *root) {
     return NO;
 }
 
-/* 采用定时多次检查的方式，确保延迟出现的跳过按钮也能被隐藏 */
 static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt) {
-    const NSInteger maxAttempts = 20;
-    const double interval = 0.3;
+    const NSInteger maxAttempts = 15;
+    const double interval = 0.35;
     if (attempt >= maxAttempts) return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
@@ -46,30 +45,32 @@ static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt) {
     });
 }
 
-/* 隐藏窗口内可能的开屏/广告视图 */
+/* 更谨慎的广告视图隐藏(避免误杀主界面) */
 static void hideWindowSplashIfNeeded(UIWindow *window) {
     if (!window) return;
     for (UIView *v in window.subviews) {
         NSString *cls = NSStringFromClass([v class]);
         if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"] || 
             [cls containsString:@"Launch"] || [cls containsString:@"Advert"] ||
-            [cls containsString:@"CT"] || [cls containsString:@"Telecom"]) {
+            [cls containsString:@"CT"] || [cls containsString:@"Telecom"] || 
+            [cls containsString:@"GDTSplash"] || [cls containsString:@"CSJSplash"] ||
+            [cls containsString:@"BUSplash"] || [cls containsString:@"BaiduMobAd"]) {
+            
             dispatch_async(dispatch_get_main_queue(), ^{
                 [v setHidden:YES];
                 [v removeFromSuperview];
             });
+        } else {
+            hideWindowSplashIfNeeded((UIWindow *)v);
         }
-        hideWindowSplashIfNeeded((UIWindow *)v); // 递归处理
     }
 }
 
-/* 遍历所有窗口并统一隐藏 */
 static void hideAllSplashViews(void) {
     UIApplication *app = [UIApplication sharedApplication];
     for (UIWindow *win in app.windows) {
         hideWindowSplashIfNeeded(win);
     }
-    // 额外处理 keyWindow
     UIWindow *keyWin = [app keyWindow];
     if (keyWin) {
         hideWindowSplashIfNeeded(keyWin);
@@ -114,7 +115,7 @@ static void CtSplashManager_showSplashInWindow_hook(id self, SEL _cmd, UIWindow 
 static void CTAdSplashManager_fetchSplash_hook(id self, SEL _cmd) { }
 static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 
-/* ---------- 空类 Hook(满足 %init 要求) ---------- */
+/* ---------- 空类 Hook ---------- */
 %hook GDTSplashAd %end
 %hook CSJSplashAd %end
 %hook BUSplashAdView %end
@@ -123,18 +124,21 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 %hook CtSplashManager %end
 %hook CTAdSplashManager %end
 
-/* ---------- UIViewController 关键点拦截 ---------- */
+/* ---------- UIViewController 关键点拦截(优化版，降低误杀) ---------- */
 %hook UIViewController
 - (void)viewDidLoad {
     %orig;
     NSString *clsName = NSStringFromClass([self class]);
-    if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"] || 
-        [clsName containsString:@"Launch"] || [clsName containsString:@"CTSplash"]) {
+    BOOL isSplash = [clsName containsString:@"Splash"] || [clsName containsString:@"Ad"] || 
+                    [clsName containsString:@"Launch"] || [clsName containsString:@"CTSplash"] ||
+                    [clsName containsString:@"CTAd"] || [clsName containsString:@"TelecomSplash"];
+    
+    if (isSplash) {
         [[self view] setHidden:YES];
         UIWindow *win = [[self view] window];
         if (win) hideWindowSplashIfNeeded(win);
         if ([self respondsToSelector:@selector(dismissViewControllerAnimated:completion:)]) {
-            ((void (*)(id, SEL, BOOL, id))objc_msgSend)(self, @selector(dismissViewControllerAnimated:completion:), NO, nil);
+            ((void (*)(id, SEL, BOOL, id))objc_msgSend)(self, @selector(dismissViewControllerAnimated:completion:), YES, nil);
         }
     }
 }
@@ -142,47 +146,61 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     NSString *clsName = NSStringFromClass([self class]);
-    if ([clsName containsString:@"Splash"] ||
-        [clsName containsString:@"Ad"] ||
-        [clsName containsString:@"Launch"] ||
-        [clsName containsString:@"CTSplash"]) {
-
+    BOOL isSplash = [clsName containsString:@"Splash"] || [clsName containsString:@"Ad"] || 
+                    [clsName containsString:@"Launch"] || [clsName containsString:@"CTSplash"] ||
+                    [clsName containsString:@"CTAd"] || [clsName containsString:@"TelecomSplash"];
+    
+    if (isSplash) {
         UIWindow *win = [[self view] window];
-        if (win) {
-            hideWindowSplashIfNeeded(win);
-        }
+        if (win) hideWindowSplashIfNeeded(win);
         [[self view] setHidden:YES];
         if ([self respondsToSelector:@selector(dismissViewControllerAnimated:completion:)]) {
-            ((void (*)(id, SEL, BOOL, id))objc_msgSend)(self,
-                                                       @selector(dismissViewControllerAnimated:completion:),
-                                                       NO, nil);
+            ((void (*)(id, SEL, BOOL, id))objc_msgSend)(self, @selector(dismissViewControllerAnimated:completion:), YES, nil);
         }
     } else {
-        scheduleSplashSkipCheck([self view], 0);
+        // 非开屏页面才尝试查找跳过按钮
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            scheduleSplashSkipCheck([self view], 0);
+        });
     }
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     %orig;
     NSString *clsName = NSStringFromClass([self class]);
-    if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"]) {
+    BOOL isSplash = [clsName containsString:@"Splash"] || [clsName containsString:@"Ad"] || 
+                    [clsName containsString:@"Launch"] || [clsName containsString:@"CTSplash"];
+    if (isSplash) {
         [[self view] setHidden:YES];
     }
 }
 %end
 
-/* 额外增强：拦截 UIWindow 添加子视图 */
+/* 拦截 UIWindow 添加子视图(增加白名单保护) */
 %hook UIWindow
 - (void)addSubview:(UIView *)view {
+    if (!view) {
+        %orig;
+        return;
+    }
     NSString *cls = NSStringFromClass([view class]);
-    if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"] || [cls containsString:@"Launch"]) {
-        return; // 阻断添加
+    if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"] || 
+        [cls containsString:@"Launch"] || [cls containsString:@"GDTSplash"] ||
+        [cls containsString:@"CSJSplash"] || [cls containsString:@"BUSplash"]) {
+        return; // 阻断广告视图添加
     }
     %orig;
 }
 %end
 
-/* ---------- 构造函数：统一初始化、延迟清理 ---------- */
+/* 确保主界面可见 */
+%hook UIApplication
+- (void)setStatusBarHidden:(BOOL)hidden withAnimation:(UIStatusBarAnimation)animation {
+    %orig(NO, animation);
+}
+%end
+
+/* ---------- 构造函数 ---------- */
 %ctor {
     %init(GDTSplashAd=objc_getClass("GDTSplashAd"), CSJSplashAd=objc_getClass("CSJSplashAd"), BUSplashAdView=objc_getClass("BUSplashAdView"), BaiduMobAdSplash=objc_getClass("BaiduMobAdSplash"), KSAdSplashViewController=objc_getClass("KSAdSplashViewController"), CtSplashManager=objc_getClass("CtSplashManager"), CTAdSplashManager=objc_getClass("CTAdSplashManager"));
 
@@ -207,14 +225,14 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
     hookIfExists("CTAdSplashManager", @selector(fetchSplash), (IMP)CTAdSplashManager_fetchSplash_hook, &CTAdSplashManager_fetchSplash_orig);
     hookIfExists("CTAdSplashManager", @selector(show:), (IMP)CTAdSplashManager_show_hook, &CTAdSplashManager_show_orig);
 
-    /* 应用启动后立即多次尝试清理残余的开屏视图 */
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    /* 启动后多次清理 + 保护主界面 */
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllSplashViews();
     });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllSplashViews();
     });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllSplashViews();
     });
 }
