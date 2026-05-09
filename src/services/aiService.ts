@@ -9,7 +9,14 @@ export interface AIConfig {
   githubRepo?: string;
 }
 
-export async function modifyHookScript(appName: string, currentCode: string, userPrompt: string, config: AIConfig) {
+export interface GenerationResult {
+  explanation?: string;
+  code?: string;
+  makefile?: string;
+  error?: string;
+}
+
+export async function modifyHookScript(appName: string, currentCode: string, userPrompt: string, config: AIConfig): Promise<GenerationResult> {
   try {
     const response = await fetch('/api/modify', {
       method: 'POST',
@@ -18,13 +25,13 @@ export async function modifyHookScript(appName: string, currentCode: string, use
     });
     const data = await response.json();
     if (data.error) throw new Error(data.error);
-    return data.result;
+    return data;
   } catch (error: any) {
-    return `生成错误: ${error.message}`;
+    return { error: error.message };
   }
 }
 
-export async function generateHookScript(appName: string, config: AIConfig) {
+export async function generateHookScript(appName: string, config: AIConfig): Promise<GenerationResult> {
   try {
     const response = await fetch('/api/generate', {
       method: 'POST',
@@ -33,9 +40,9 @@ export async function generateHookScript(appName: string, config: AIConfig) {
     });
     const data = await response.json();
     if (data.error) throw new Error(data.error);
-    return data.result;
+    return data;
   } catch (error: any) {
-    return `生成错误: ${error.message}`;
+    return { error: error.message };
   }
 }
 

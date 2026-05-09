@@ -258,9 +258,10 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         model: modelName === 'gemini-1.5-flash' ? 'gemini-3.1-pro-preview' : modelName,
         contents: prompt
       });
-      res.json({ result: cleanupLogosCode(response.text || "") });
+      const resultText = response.text || "";
+      res.json({ explanation: "生成成功", code: cleanupLogosCode(resultText) });
     } else {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
+      const resp = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -269,46 +270,37 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         body: JSON.stringify({
           model: modelName,
           messages: [{ role: 'user', content: prompt }],
-          stream: false
+          stream: false,
+          response_format: { type: "json_object" }
         })
       });
       
-      const rawResponse = await response.text();
+      const rawText = await resp.text();
+      if (!resp.ok) throw new Error(`AI Provider 报错 (HTTP ${resp.status}): ${rawText.substring(0, 100)}`);
+
       let data;
-      const isHtml = rawResponse.trim().toLowerCase().startsWith('<!doctype html') || rawResponse.trim().toLowerCase().startsWith('<html');
-
-      if (!response.ok) {
-        if (isHtml) {
-          const titleMatch = rawResponse.match(/<title>(.*?)<\/title>/i);
-          const title = titleMatch ? titleMatch[1] : 'HTML Error Page';
-          throw new Error(`服务商返回了错误页面 (HTTP ${response.status}: ${title})。请检查接口地址 (Base URL) 是否填写正确（通常不带 /chat/completions 后缀）。`);
-        }
-        try {
-          data = JSON.parse(rawResponse);
-          const errorMsg = data.error?.message || `HTTP ${response.status}`;
-          throw new Error(`AI Provider 报错: ${errorMsg}`);
-        } catch (e) {
-          throw new Error(`AI 服务返回 HTTP ${response.status}，且响应内容非 JSON。`);
-        }
-      }
-
       try {
-        data = JSON.parse(rawResponse);
+        data = JSON.parse(rawText);
       } catch (e) {
-        if (isHtml) {
-          const titleMatch = rawResponse.match(/<title>(.*?)<\/title>/i);
-          const title = titleMatch ? titleMatch[1] : 'HTML Error Page';
-          throw new Error(`接口地址配置可能错误。服务商返回了 HTML 而非 JSON (TITLE: ${title})。请检查 Base URL 是否正确。`);
-        }
-        throw new Error(`AI 服务返回格式错误 (Raw 前50位: ${rawResponse.substring(0, 50)}...)`);
+        throw new Error("AI 服务返回非 JSON 格式。");
       }
 
-      const content = data.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error("AI 服务未返回有效内容。");
+      const content = data.choices[0]?.message?.content || "";
+      let result;
+      try {
+        let jsonStr = content.trim();
+        if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+        result = JSON.parse(jsonStr);
+      } catch (e) {
+        const codeMatch = content.match(/```(?:obj-cpp|objective-c|cpp)?\s*([\s\S]*?)```/);
+        result = {
+          explanation: content.split('```')[0].trim() || "生成完毕",
+          code: codeMatch ? codeMatch[1].trim() : content.trim()
+        };
       }
 
-      res.json({ result: cleanupLogosCode(content) });
+      if (result.code) result.code = cleanupLogosCode(result.code);
+      res.json(result);
     }
   }
 

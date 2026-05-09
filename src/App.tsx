@@ -38,7 +38,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import { cn } from './lib/utils';
-import { generateHookScript, researchMethod, type AIConfig, fetchModels, testAIConnection } from './services/aiService';
+import { generateHookScript, modifyHookScript, researchMethod, type AIConfig, fetchModels, testAIConnection } from './services/aiService';
 import { useAuth, logout } from './components/AuthProvider';
 import { useI18n } from './components/I18nProvider';
 import { ImportModal } from './components/ImportModal';
@@ -47,6 +47,14 @@ import 'highlight.js/styles/atom-one-dark.css';
 
 type Tab = 'builder' | 'researcher' | 'guides' | 'settings';
 
+interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  explanation?: string;
+  code?: string;
+  timestamp: number;
+}
+
 export default function App() {
   const { t, locale, setLocale } = useI18n();
   const { user } = useAuth();
@@ -54,6 +62,9 @@ export default function App() {
   const [appName, setAppName] = useState('Hippo Cinema');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedResult, setGeneratedResult] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+  
   const [researchQuery, setResearchQuery] = useState('');
   const [researchResult, setResearchResult] = useState('');
   const [copying, setCopying] = useState<'builder' | 'researcher' | null>(null);
@@ -138,6 +149,12 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (activeTab === 'builder' && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, activeTab]);
+
   const handleGenerate = async () => {
     if (!aiConfig.apiKey) {
       alert(t('builder.noApiKey'));
@@ -148,11 +165,19 @@ export default function App() {
       alert(t('builder.noTarget'));
       return;
     }
+    
+    // Add user message to chat
+    const userMsg: Message = {
+      role: 'user',
+      content: `生成针对 ${appName} 的去广告代码`,
+      timestamp: Date.now()
+    };
+    setMessages(prev => [...prev, userMsg]);
     setIsGenerating(true);
+
     let target = appName;
     let currentDetails = appStoreDetails;
 
-    // 当用户输入的是强制确定的 id 但又没有耐心等自动查询完毕时，我们在传给AI前拦截强查一次
     if (!currentDetails && (/^id\d+$/i.test(appName.trim()) || appName.includes('apps.apple.com'))) {
       try {
         const response = await fetch(`/api/search-appstore?query=${encodeURIComponent(appName.trim())}`);
@@ -169,8 +194,19 @@ export default function App() {
     if (currentDetails?.bundleId) {
        target = `${currentDetails.trackName || appName} / Bundle ID: ${currentDetails.bundleId} / App Store URL: ${currentDetails.url}`;
     }
+    
     const result = await generateHookScript(target, aiConfig);
-    setGeneratedResult(result || '');
+    
+    const aiMsg: Message = {
+      role: 'assistant',
+      content: result.explanation || "代码生成完成。",
+      explanation: result.explanation,
+      code: result.code,
+      timestamp: Date.now()
+    };
+    
+    setMessages(prev => [...prev, aiMsg]);
+    if (result.code) setGeneratedResult(result.code);
     setIsGenerating(false);
   };
 
@@ -181,15 +217,38 @@ export default function App() {
       return;
     }
     if (!modifyPrompt.trim() || !generatedResult) return;
+    
+    const promptSnapshot = modifyPrompt;
+    setModifyPrompt('');
+    
+    // Add user message
+    const userMsg: Message = {
+      role: 'user',
+      content: promptSnapshot,
+      timestamp: Date.now()
+    };
+    setMessages(prev => [...prev, userMsg]);
+    
     setIsModifying(true);
     try {
-      const { modifyHookScript } = await import('./services/aiService');
-      const result = await modifyHookScript(appName, generatedResult, modifyPrompt, aiConfig);
-      setGeneratedResult(result || '');
-      setModifyPrompt('');
+      const result = await modifyHookScript(appName, generatedResult, promptSnapshot, aiConfig);
+      
+      const aiMsg: Message = {
+        role: 'assistant',
+        content: result.explanation || "修改已完成。",
+        explanation: result.explanation,
+        code: result.code,
+        timestamp: Date.now()
+      };
+      
+      setMessages(prev => [...prev, aiMsg]);
+      if (result.code) setGeneratedResult(result.code);
     } catch (err: any) {
-      console.error(err);
-      alert('Modify Failed: ' + err.message);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Error: ${err.message}`,
+        timestamp: Date.now()
+      }]);
     } finally {
       setIsModifying(false);
     }
@@ -516,9 +575,9 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="col-span-12 lg:col-span-8 flex flex-col">
+                <div className="col-span-12 lg:col-span-8 flex flex-col h-[75vh] min-h-[700px]">
                   <div className="flex items-center justify-between mb-4">
-                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('builder.sourceCode')}</label>
+                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('builder.chatHistory')}</label>
                     <div className="flex gap-2 z-10">
                       <button 
                         onClick={() => setIsImportModalOpen(true)}
@@ -547,39 +606,104 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <div className="relative group overflow-hidden border border-[#141414] rounded-sm bg-[#141414] flex-grow">
-                    <div className="h-[70vh] min-h-[600px] overflow-auto p-6 font-mono text-xs leading-relaxed text-[#E4E3E0]">
-                      <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
-                        {generatedResult || t('builder.waitInstructions', { appName })}
-                      </ReactMarkdown>
+
+                  {/* Chat Message List */}
+                  <div className="border border-[#141414] rounded-sm bg-white flex-grow flex flex-col overflow-hidden shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-gray-50 custom-scrollbar">
+                      {messages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center opacity-30 text-center space-y-4">
+                          <Terminal className="w-12 h-12" />
+                          <p className="font-mono text-sm uppercase tracking-widest">{t('builder.waitInstructions', { appName })}</p>
+                        </div>
+                      ) : (
+                        messages.map((msg, idx) => (
+                          <div 
+                            key={idx} 
+                            className={cn(
+                              "flex flex-col max-w-[90%]",
+                              msg.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
+                            )}
+                          >
+                            <div className={cn(
+                              "px-4 py-3 border-2 border-[#141414] text-sm",
+                              msg.role === 'user' ? "bg-[#FFE100] shadow-[4px_4px_0px_0px_rgba(20,20,20,1)]" : "bg-white shadow-[-4px_4px_0px_0px_rgba(20,20,20,1)]"
+                            )}>
+                              {msg.explanation ? (
+                                <div className="prose prose-sm max-w-none font-serif italic text-[#141414]/80">
+                                  {msg.explanation}
+                                </div>
+                              ) : (
+                                <p className="font-mono">{msg.content}</p>
+                              )}
+                            </div>
+                            
+                            {msg.code && (
+                              <div className="mt-3 w-full max-w-full overflow-hidden border-2 border-[#141414] bg-[#141414] text-xs shadow-[-6px_6px_0px_0px_rgba(30,30,30,0.5)]">
+                                <div className="flex items-center justify-between px-3 py-1 bg-[#222] border-b border-white/10">
+                                  <span className="text-[10px] font-mono text-white/50 uppercase">Tweak.xm (v{idx})</span>
+                                  <button 
+                                    onClick={() => copyToClipboard(msg.code || '', 'builder')}
+                                    className="p-1 text-white/50 hover:text-white transition-colors"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <div className="p-4 max-h-[400px] overflow-auto custom-scrollbar-dark text-emerald-400 font-mono">
+                                  <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
+                                    {`\`\`\`objective-c\n${msg.code}\n\`\`\``}
+                                  </ReactMarkdown>
+                                </div>
+                              </div>
+                            )}
+                            <span className="text-[8px] font-mono opacity-40 mt-1 uppercase">
+                              {new Date(msg.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                      
+                      {isGenerating || isModifying ? (
+                        <div className="flex flex-col items-start mr-auto max-w-[90%]">
+                          <div className="px-4 py-3 border-2 border-[#141414] bg-white shadow-[-4px_4px_0px_0px_rgba(20,20,20,1)] flex items-center gap-3">
+                            <div className="flex gap-1">
+                              <span className="w-1.5 h-1.5 bg-[#141414] rounded-full animate-bounce [animation-delay:-0.3s]" />
+                              <span className="w-1.5 h-1.5 bg-[#141414] rounded-full animate-bounce [animation-delay:-0.15s]" />
+                              <span className="w-1.5 h-1.5 bg-[#141414] rounded-full animate-bounce" />
+                            </div>
+                            <span className="text-xs font-mono italic opacity-50">SHINE IS THINKING...</span>
+                          </div>
+                        </div>
+                      ) : null}
+                      <div ref={chatEndRef} />
+                    </div>
+
+                    {/* AI 修改对话区 - 固化到底部 */}
+                    <div className="p-4 bg-white border-t-2 border-[#141414]">
+                      <div className="flex gap-2">
+                         <input 
+                           type="text" 
+                           value={modifyPrompt}
+                           onChange={(e) => setModifyPrompt(e.target.value)}
+                           disabled={isGenerating || isModifying || !generatedResult}
+                           placeholder={generatedResult ? t('builder.modifyPlaceholder') : "请先通过左侧按钮生成基础代码..."}
+                           className="flex-grow bg-[#F5F5F5] border-2 border-[#141414] py-3 px-4 font-mono text-sm focus:outline-none focus:bg-white transition-all disabled:opacity-50"
+                           onKeyDown={(e) => {
+                             if (e.key === 'Enter') {
+                               handleModify();
+                             }
+                           }}
+                         />
+                         <button
+                           onClick={handleModify}
+                           disabled={isModifying || isGenerating || !modifyPrompt.trim() || !generatedResult}
+                           className="px-6 py-3 bg-[#FFE100] text-[#141414] border-2 border-[#141414] font-bold shadow-[4px_4px_0px_0px_rgba(20,20,20,1)] hover:translate-y-[-1px] hover:shadow-[5px_5px_0px_0px_rgba(20,20,20,1)] disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 transition-all flex items-center justify-center gap-2"
+                         >
+                           <Terminal className="w-4 h-4" />
+                           发送
+                         </button>
+                      </div>
                     </div>
                   </div>
-
-                  {/* AI 修改对话区 */}
-                  {generatedResult && (
-                    <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                       <input 
-                         type="text" 
-                         value={modifyPrompt}
-                         onChange={(e) => setModifyPrompt(e.target.value)}
-                         placeholder={t('builder.modifyPlaceholder')}
-                         className="flex-grow bg-transparent border-2 border-[#141414] py-3 px-4 font-mono text-sm focus:outline-none focus:bg-[#141414]/5 transition-all"
-                         onKeyDown={(e) => {
-                           if (e.key === 'Enter') {
-                             handleModify();
-                           }
-                         }}
-                       />
-                       <button
-                         onClick={handleModify}
-                         disabled={isModifying || !modifyPrompt.trim()}
-                         className="px-6 py-3 bg-[#141414] text-[#E4E3E0] font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 h-full"
-                       >
-                         {isModifying ? <RotateCcw className="w-4 h-4 animate-spin" /> : <Terminal className="w-4 h-4" />}
-                         {t('builder.modifyButton')}
-                       </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </motion.div>

@@ -88,7 +88,8 @@
 - [x] **上线去广告专项强化模块**：针对开屏广告和主流广告 SDK（穿山甲、优量汇等）建立了“爆头式”拦截指令集，强制 Hook 早期加载方法及代理回调 (v1.1.34)。
 - [x] **解决 `no known instance method` 编译崩溃**：升级后端 Prompt 指令，强制 AI 必须为所有 Hook 或调用的 Class 提供 `@interface` 补全方法签名 (Signature) (v1.1.33)。
 - [x] **根治 NSClassFromString 重定义冲突**：在 `server.ts` 后端增加了正则表达式强制过滤逻辑，自动剔除代码中错误的前向声明 (v1.1.32)。
-- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.66。
+- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.67。
+- [x] **上线 AI 对话流模式 (Chat Mode)**：将 Builder 页面重构为类似 ChatGPT 的对话模式。支持“修改说明”与“源码预览”混合显示，实时解答 AI 做了哪些修改 (v1.1.67)。
 - [x] **新增外部源码导入功能**：在 Builder 页面增加了“导入”入口，支持直接粘贴外部生成的 `.xm` 代码并一键推送到云端编译 (v1.1.31)。
 - [x] **彻底解决 Pangle SDK 编译冲突**：在 `server.ts` 指令集中强制加入了对 `PAGInterstitialRequest` 等不确定类型的防御性 `@interface` 定义要求，并要求所有 Hook 内的 `self` 调用 `respondsToSelector` 时必须强转为 `id` 类型 (v1.1.30)。
 - [x] 彻底解决 `server.ts` 服务端崩溃问题：通过变量拼接（String Concatenation）隔离 Prompt 模板中的反引号 (v1.1.29)。
