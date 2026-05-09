@@ -1,5 +1,5 @@
-Package: com.yourcompany.importedtweak
-Name: Imported_Tweak
+Package: com.yourcompany.zhongguoliantong
+Name: 中国联通
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm
