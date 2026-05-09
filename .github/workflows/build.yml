@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.58)
+name: iOS Tweak Build (FORCE_v1.1.60)
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       contents: write
     env:
       # 强制刷新标识
-      FORCE_BUILD_ID: "1.1.58"
+      FORCE_BUILD_ID: "1.1.60"
 
     steps:
       - name: "1. 检出代码"
@@ -125,7 +125,7 @@ jobs:
           # 1. Rootless 编译
           echo ">>> 编译 Rootless (无根) <<<"
           make clean
-          make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
+          make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1 GO_EASY_ON_ME=1
           ROOTLESS_DEB=$(find packages -name "*.deb" | head -n 1)
           if [ -n "$ROOTLESS_DEB" ]; then
             cp "$ROOTLESS_DEB" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}-arm64-rootless.deb"
@@ -146,7 +146,7 @@ jobs:
           # 2. Roothide 编译
           echo ">>> 编译 Roothide (隐根) <<<"
           make clean
-          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1
+          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 GO_EASY_ON_ME=1
           ROOTHIDE_DEB=$(find packages -name "*.deb" | head -n 1)
           if [ -n "$ROOTHIDE_DEB" ]; then
             cp "$ROOTHIDE_DEB" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}-arm64e-roothide.deb"

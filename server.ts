@@ -201,6 +201,38 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
     }
   });
 
+  function cleanupLogosCode(text: string): string {
+    return text.replace(/```objective-c([\s\S]*?)```/gi, (match, code) => {
+      // Extract all hooked classes
+      const hookMatches = [...code.matchAll(/%hook\s+([a-zA-Z0-9_]+)/g)];
+      const hookedClasses = new Set(hookMatches.map((m: any) => m[1]));
+
+      // Clean up %init(...)
+      let newCode = code.replace(/%init\s*\(([\s\S]*?)\)\s*;/g, (initMatch: string, initContent: string) => {
+        if (!initContent.includes('=')) {
+          return initMatch;
+        }
+        
+        const parts = initContent.split(',').map((p: string) => p.trim());
+        const validParts = parts.filter((part: string) => {
+           const classNameMatch = part.match(/^([a-zA-Z0-9_]+)\s*=/);
+           if (classNameMatch) {
+              const className = classNameMatch[1];
+              return hookedClasses.has(className);
+           }
+           return true; 
+        });
+        
+        if (validParts.length > 0) {
+           return '%init(' + validParts.join(', ') + ');';
+        } else {
+           return '// 被 WebUI 自动过滤: 移除了未提供 %hook 的无意义 %init 赋值防报错';
+        }
+      });
+      return '```objective-c\n' + newCode.trim() + '\n```';
+    });
+  }
+
   async function handleAIRequest(prompt: string, config: any, res: any) {
     const aiProvider = config.provider || process.env.AI_PROVIDER || 'gemini';
     const apiKey = config.apiKey || (aiProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GEMINI_API_KEY);
@@ -217,7 +249,7 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         model: modelName === 'gemini-1.5-flash' ? 'gemini-3.1-pro-preview' : modelName,
         contents: prompt
       });
-      res.json({ result: response.text });
+      res.json({ result: cleanupLogosCode(response.text || "") });
     } else {
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
@@ -250,7 +282,7 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         throw new Error("AI 服务未返回有效内容。");
       }
 
-      res.json({ result: content });
+      res.json({ result: cleanupLogosCode(content) });
     }
   }
 
