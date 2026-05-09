@@ -661,14 +661,7 @@ export default function App() {
                         DEBUG CHAT
                       </span>
                       <div className="flex gap-2">
-                         <button 
-                          onClick={handleBuild}
-                          disabled={isBuilding || !generatedResult}
-                          className="p-1 text-[#FFE100] hover:scale-110 transition-transform disabled:opacity-30 disabled:scale-100"
-                          title="Local Test Build"
-                        >
-                          {isBuilding ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-                        </button>
+                        {/* 移除冗余按钮 */}
                       </div>
                     </div>
                     
@@ -694,6 +687,17 @@ export default function App() {
                                  {msg.explanation || msg.content}
                                </div>
                             </div>
+                            
+                            {msg.code && (
+                              <div className="mt-2 w-full max-w-full overflow-hidden border-2 border-[#141414] bg-[#141414] text-[9px] shadow-[1px_1px_0px_0px_rgba(20,20,20,0.5)]">
+                                <div className="p-2 max-h-[150px] overflow-auto custom-scrollbar-dark text-emerald-400 font-mono">
+                                  <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
+                                    {`\`\`\`objective-c\n${msg.code}\n\`\`\``}
+                                  </ReactMarkdown>
+                                </div>
+                              </div>
+                            )}
+
                             <span className="text-[7px] font-mono opacity-40 mt-0.5 uppercase">
                               {new Date(msg.timestamp).toLocaleTimeString()}
                             </span>
