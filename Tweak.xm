@@ -45,7 +45,7 @@ static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt) {
     });
 }
 
-/* 谨慎的广告视图隐藏 */
+/* 谨慎的广告视图隐藏 - 加强主界面保护 */
 static void hideWindowSplashIfNeeded(UIWindow *window) {
     if (!window) return;
     for (UIView *v in window.subviews) {
@@ -66,7 +66,9 @@ static void hideWindowSplashIfNeeded(UIWindow *window) {
         } else {
             if (![cls containsString:@"UIViewControllerWrapperView"] && 
                 ![cls containsString:@"UILayoutContainerView"] &&
-                ![cls containsString:@"UINavigationController"]) {
+                ![cls containsString:@"UINavigationController"] &&
+                ![cls containsString:@"UITabBarController"] &&
+                ![cls containsString:@"UIWindow"]) {
                 hideWindowSplashIfNeeded((UIWindow *)v);
             }
         }
@@ -137,7 +139,7 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 %hook CtSplashManager %end
 %hook CTAdSplashManager %end
 
-/* ---------- UIViewController 关键点拦截(强化版，针对白屏修复) ---------- */
+/* ---------- UIViewController 关键点拦截(优化白屏修复) ---------- */
 %hook UIViewController
 - (void)viewDidLoad {
     %orig;
@@ -185,8 +187,8 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
             });
         }
     } else {
-        /* 非开屏页面 - 强化主界面恢复 */
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        /* 非开屏页面 - 强化主界面恢复(针对电信白屏优化) */
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             UIWindow *keyWin = [[UIApplication sharedApplication] keyWindow];
             if (keyWin) {
                 [keyWin setHidden:NO];
@@ -215,7 +217,7 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 }
 %end
 
-/* 拦截 UIWindow 添加子视图(强化阻断) */
+/* 拦截 UIWindow 添加子视图(优化阻断) */
 %hook UIWindow
 - (void)addSubview:(UIView *)view {
     if (!view) {
@@ -236,14 +238,11 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 }
 
 - (void)setHidden:(BOOL)hidden {
-    if (!hidden) {
-        %orig;
-    } else {
-        NSString *winCls = NSStringFromClass([self class]);
-        if (![winCls containsString:@"Splash"] && ![winCls containsString:@"Ad"] && ![winCls containsString:@"Telecom"]) {
-            %orig;
-        }
+    NSString *winCls = NSStringFromClass([self class]);
+    if (hidden && ([winCls containsString:@"Splash"] || [winCls containsString:@"Ad"] || [winCls containsString:@"Telecom"])) {
+        return;
     }
+    %orig;
 }
 %end
 
@@ -285,14 +284,14 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
     hookIfExists("CTAdSplashManager", @selector(fetchSplash), (IMP)CTAdSplashManager_fetchSplash_hook, &CTAdSplashManager_fetchSplash_orig);
     hookIfExists("CTAdSplashManager", @selector(show:), (IMP)CTAdSplashManager_show_hook, &CTAdSplashManager_show_orig);
 
-    /* 针对电信加强多次清理 + 主界面恢复 */
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    /* 针对电信加强多次清理 + 主界面恢复(优化白屏) */
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllSplashViews();
     });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllSplashViews();
     });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllSplashViews();
         UIWindow *keyWin = [[UIApplication sharedApplication] keyWindow];
         if (keyWin) {
@@ -302,7 +301,7 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
             [keyWin layoutIfNeeded];
         }
     });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllSplashViews();
     });
 }
