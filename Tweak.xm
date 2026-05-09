@@ -5,7 +5,7 @@
 #import <objc/message.h>
 #import <dispatch/dispatch.h>
 
-/* ---------- Helper ---------- */
+/* Helper to hook method if class exists */
 static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     Class cls = objc_getClass(clsName);
     if (cls) {
@@ -13,20 +13,20 @@ static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     }
 }
 
-/* ---------- Splash‑skip 检测 ----------
-   递归遍历子视图，寻找标题含 “跳过” 或 “Skip” 的 UIButton。
-   若找到则隐藏传入的根视图并返回 YES；否则返回 NO。
-   为兼容按钮在 viewDidAppear 之后才出现的情况，外部提供
-   scheduleSplashSkipCheck 进行多次轮询。 */
+/* Recursively search subviews for a UIButton whose title contains "跳过" or "Skip".
+   If found, hide the top‑most view that contains the button and return YES. */
 static BOOL hideSplashIfButtonFound(UIView *rootView) {
     for (UIView *sub in rootView.subviews) {
         if (object_getClass(sub) == objc_getClass("UIButton")) {
             NSString *title = ((UIButton *)sub).currentTitle;
             if (title && ([title containsString:@"跳过"] || [title containsString:@"Skip"])) {
-                // 隐藏根视图(即整个启动页)
-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)),
-                               dispatch_get_main_queue(), ^{
-                    [rootView setHidden:YES];
+                // Find the highest superview that is not the window
+                UIView *target = sub;
+                while (target.superview && ![target isKindOfClass:[UIWindow class]]) {
+                    target = target.superview;
+                }
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [target setHidden:YES];
                 });
                 return YES;
             }
@@ -38,14 +38,12 @@ static BOOL hideSplashIfButtonFound(UIView *rootView) {
     return NO;
 }
 
-/* 轮询检查函数 – 最多 10 次、间隔 0.5 秒 */
+/* Schedule repeated checks (max 10 attempts, 0.5 s interval). */
 static void scheduleSplashSkipCheck(UIView *rootView, NSInteger attempt) {
     const NSInteger maxAttempts = 10;
-    const double interval = 0.5; // 秒
+    const double interval = 0.5;
     if (attempt >= maxAttempts) return;
-
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
-                                 (int64_t)(interval * NSEC_PER_SEC)),
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
         if (!hideSplashIfButtonFound(rootView)) {
             scheduleSplashSkipCheck(rootView, attempt + 1);
@@ -53,7 +51,7 @@ static void scheduleSplashSkipCheck(UIView *rootView, NSInteger attempt) {
     });
 }
 
-/* ---------- 原始 IMP 占位 ---------- */
+/* ---------- Original IMP placeholders ---------- */
 static IMP GDTSplashAd_loadAdAndShowInWindow_orig = NULL;
 static IMP GDTSplashAd_loadAd_orig = NULL;
 static IMP CSJSplashAd_loadAdAndShowInWindow_orig = NULL;
@@ -71,7 +69,7 @@ static IMP CSJRewardedVideoAd_loadAd_orig = NULL;
 static IMP CSJRewardedVideoAd_showAdFromRootViewController_orig = NULL;
 static IMP CSJRewardedVideoAd_startCountdown_orig = NULL;
 
-/* ---------- Hook 实现 ---------- */
+/* ---------- Hook implementations (empty to block ads) ---------- */
 static void GDTSplashAd_loadAdAndShowInWindow_hook(id self, SEL _cmd, UIWindow *window) { }
 static void GDTSplashAd_loadAd_hook(id self, SEL _cmd) { }
 
@@ -104,7 +102,7 @@ static void CSJRewardedVideoAd_showAdFromRootViewController_hook(id self, SEL _c
 }
 static void CSJRewardedVideoAd_startCountdown_hook(id self, SEL _cmd, NSInteger seconds) { }
 
-/* ---------- 空 Hook 块(保持兼容) ---------- */
+/* Empty class hooks to satisfy %init requirements */
 %hook GDTSplashAd %end
 %hook CSJSplashAd %end
 %hook BUSplashAdView %end
@@ -120,7 +118,6 @@ static void CSJRewardedVideoAd_startCountdown_hook(id self, SEL _cmd, NSInteger 
     if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"]) {
         [[self view] setHidden:YES];
     } else {
-        // 首次立即检查一次，随后最多再检查 9 次(共 10 次)
         scheduleSplashSkipCheck([self view], 0);
     }
 }
