@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "iOS 插件",
-    "version": "v1.1.63-稳定版",
+    "version": "v1.1.64-稳定版",
     "admin": "管理员",
     "logout": "登出系统",
     "status": "系统状态",
@@ -111,6 +111,8 @@
     "apiKeyPlaceholder": "输入您的 API 密钥",
     "baseUrl": "接口地址 (Base URL)",
     "baseUrlTip": "支持 DeepSeek: https://api.deepseek.com",
+    "testConnection": "测试连接",
+    "fetchModels": "获取模型列表",
     "githubTitle": "GitHub 自动化配置",
     "githubToken": "GitHub Token (必填)",
     "githubTokenPlaceholder": "ghp_xxxxxxxxxxxx",

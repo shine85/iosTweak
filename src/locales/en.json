@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "iOS Tweak",
-    "version": "v1.1.63-Stable",
+    "version": "v1.1.64-Stable",
     "admin": "Admin",
     "logout": "Logout",
     "status": "Status",
@@ -111,6 +111,8 @@
     "apiKeyPlaceholder": "Enter your API Key",
     "baseUrl": "Base URL",
     "baseUrlTip": "DeepSeek: https://api.deepseek.com",
+    "testConnection": "Test Connection",
+    "fetchModels": "Fetch Models",
     "githubTitle": "GitHub Configuration",
     "githubToken": "GitHub Token (Required)",
     "githubTokenPlaceholder": "ghp_xxxxxxxxxxxx",

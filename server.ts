@@ -294,6 +294,79 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
     }
   }
 
+  // API 路由：获取可用模型列表
+  app.post("/api/ai-models", async (req, res) => {
+    const { config } = req.body;
+    const aiProvider = config.provider || 'gemini';
+    const apiKey = config.apiKey;
+    const baseUrl = config.baseUrl || 'https://api.openai.com/v1';
+
+    if (!apiKey) {
+      return res.status(400).json({ error: "API Key 未设置" });
+    }
+
+    try {
+      if (aiProvider === 'gemini') {
+        // Gemini 的 SDK 列表获取复杂，这里返回常用模型列表
+        res.json({ models: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'] });
+      } else {
+        const response = await fetch(`${baseUrl}/models`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const models = data.data?.map((m: any) => m.id) || [];
+        res.json({ models });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // API 路由：测试 AI 连接
+  app.post("/api/ai-test", async (req, res) => {
+    const { config } = req.body;
+    const prompt = "Hi, reply only with 'Connection Successful' in Chinese if you can hear me.";
+    
+    try {
+      // 复用已有的 handleAIRequest 逻辑，但拦截输出
+      const aiProvider = config.provider || 'gemini';
+      const apiKey = config.apiKey;
+      const modelName = config.modelName || (aiProvider === 'openai' ? 'gpt-4' : 'gemini-1.5-flash');
+      const baseUrl = config.baseUrl || 'https://api.openai.com/v1';
+
+      if (!apiKey) throw new Error("API Key 未设置");
+
+      if (aiProvider === 'gemini') {
+        const ai = new GoogleGenAI({ apiKey });
+        // 使用与 handleAIRequest 一致的调用方式避免类型错误
+        const response: any = await (ai as any).models.generateContent({
+          model: modelName === 'gemini-1.5-flash' ? 'gemini-3.1-pro-preview' : modelName,
+          contents: prompt
+        });
+        res.json({ success: true, message: response.text || "Connection OK" });
+      } else {
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [{ role: 'user', content: prompt }],
+            stream: false
+          })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message || `HTTP ${response.status}`);
+        res.json({ success: true, message: data.choices[0]?.message?.content });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // API 路由：推送到 GitHub
   app.post("/api/github-push", async (req, res) => {
     let { token, owner, repo, content, appName, bundleId } = req.body;

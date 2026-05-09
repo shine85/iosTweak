@@ -38,7 +38,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import { cn } from './lib/utils';
-import { generateHookScript, researchMethod, type AIConfig } from './services/aiService';
+import { generateHookScript, researchMethod, type AIConfig, fetchModels, testAIConnection } from './services/aiService';
 import { useAuth, logout } from './components/AuthProvider';
 import { useI18n } from './components/I18nProvider';
 import { ImportModal } from './components/ImportModal';
@@ -59,6 +59,8 @@ export default function App() {
   
   const [modifyPrompt, setModifyPrompt] = useState('');
   const [isModifying, setIsModifying] = useState(false);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // AI Configuration State with Persistence
@@ -268,6 +270,48 @@ export default function App() {
     reader.readAsText(file);
     // Reset input
     event.target.value = '';
+  };
+
+  const handleFetchModels = async () => {
+    if (!aiConfig.apiKey) {
+      alert(t('builder.noApiKey'));
+      return;
+    }
+    setIsFetchingModels(true);
+    try {
+      const models = await fetchModels(aiConfig);
+      if (models.length > 0) {
+        // 创建一个简单的列表，询问是否更新模型名称
+        const modelsStr = models.slice(0, 10).join('\n');
+        const count = models.length;
+        const msg = `发现 ${count} 个模型。是否将当前模型设置为: ${models[0]}?\n\n列表预览:\n${modelsStr}${count > 10 ? '\n...' : ''}`;
+        if (window.confirm(msg)) {
+          setAiConfig({ ...aiConfig, modelName: models[0] });
+        }
+      } else {
+        alert("未获取到模型列表。");
+      }
+    } catch (err: any) {
+      alert("获取失败: " + err.message);
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!aiConfig.apiKey) {
+      alert(t('builder.noApiKey'));
+      return;
+    }
+    setIsTestingConnection(true);
+    try {
+      const msg = await testAIConnection(aiConfig);
+      alert(`连接成功！AI 回复: ${msg}`);
+    } catch (err: any) {
+      alert("连接失败: " + err.message);
+    } finally {
+      setIsTestingConnection(false);
+    }
   };
 
   const copyToClipboard = async (text: string, type: 'builder' | 'researcher') => {
@@ -797,7 +841,17 @@ jobs:
                     </select>
                   </section>
                   <section className="space-y-4">
-                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.modelName')}</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.modelName')}</label>
+                      <button 
+                        onClick={handleFetchModels}
+                        disabled={isFetchingModels}
+                        className="text-[10px] text-blue-600 hover:underline flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {isFetchingModels ? <RotateCcw className="w-3 h-3 animate-spin" /> : <Layers className="w-3 h-3" />}
+                        {t('settings.fetchModels')}
+                      </button>
+                    </div>
                     <input 
                       type="text" 
                       value={aiConfig.modelName}
@@ -810,7 +864,17 @@ jobs:
 
                 <div className="grid grid-cols-2 gap-8">
                   <section className="space-y-4">
-                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.apiKey')}</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.apiKey')}</label>
+                      <button 
+                        onClick={handleTestConnection}
+                        disabled={isTestingConnection}
+                        className="text-[10px] text-green-600 hover:underline flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {isTestingConnection ? <RotateCcw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                        {t('settings.testConnection')}
+                      </button>
+                    </div>
                     <input 
                       type="password" 
                       value={aiConfig.apiKey}

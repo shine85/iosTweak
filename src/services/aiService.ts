@@ -83,3 +83,33 @@ export async function researchMethod(query: string, config: AIConfig) {
     return "获取研究数据失败。";
   }
 }
+
+export async function fetchModels(config: AIConfig) {
+  try {
+    const response = await fetch('/api/ai-models', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config })
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data.models as string[];
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function testAIConnection(config: AIConfig) {
+  try {
+    const response = await fetch('/api/ai-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config })
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data.message;
+  } catch (error: any) {
+    throw error;
+  }
+}
