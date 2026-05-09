@@ -245,7 +245,8 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
     const aiProvider = config.provider || process.env.AI_PROVIDER || 'gemini';
     const apiKey = config.apiKey || (aiProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.GEMINI_API_KEY);
     const modelName = config.modelName || process.env.AI_MODEL || (aiProvider === 'openai' ? 'gpt-4' : 'gemini-1.5-flash');
-    const baseUrl = config.baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+    const rawBaseUrl = config.baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+    const baseUrl = rawBaseUrl.replace(/\/+$/, ''); // 移除末尾所有斜杠防止拼接错误
 
     if (!apiKey) {
       throw new Error("API Key 未配置。请检查前端设置或服务器 .env 文件。");
@@ -253,7 +254,7 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
 
     if (aiProvider === 'gemini') {
       const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
+      const response = await (ai as any).models.generateContent({
         model: modelName === 'gemini-1.5-flash' ? 'gemini-3.1-pro-preview' : modelName,
         contents: prompt
       });
@@ -263,7 +264,7 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Authorization': apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: modelName,
@@ -274,15 +275,32 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
       
       const rawResponse = await response.text();
       let data;
+      const isHtml = rawResponse.trim().toLowerCase().startsWith('<!doctype html') || rawResponse.trim().toLowerCase().startsWith('<html');
+
+      if (!response.ok) {
+        if (isHtml) {
+          const titleMatch = rawResponse.match(/<title>(.*?)<\/title>/i);
+          const title = titleMatch ? titleMatch[1] : 'HTML Error Page';
+          throw new Error(`服务商返回了错误页面 (HTTP ${response.status}: ${title})。请检查接口地址 (Base URL) 是否填写正确（通常不带 /chat/completions 后缀）。`);
+        }
+        try {
+          data = JSON.parse(rawResponse);
+          const errorMsg = data.error?.message || `HTTP ${response.status}`;
+          throw new Error(`AI Provider 报错: ${errorMsg}`);
+        } catch (e) {
+          throw new Error(`AI 服务返回 HTTP ${response.status}，且响应内容非 JSON。`);
+        }
+      }
+
       try {
         data = JSON.parse(rawResponse);
       } catch (e) {
-        throw new Error(`AI 服务返回格式错误 (Raw: ${rawResponse.substring(0, 50)}...)`);
-      }
-
-      if (!response.ok) {
-        const errorMsg = data.error?.message || `HTTP ${response.status}`;
-        throw new Error(`AI Provider 报错: ${errorMsg}`);
+        if (isHtml) {
+          const titleMatch = rawResponse.match(/<title>(.*?)<\/title>/i);
+          const title = titleMatch ? titleMatch[1] : 'HTML Error Page';
+          throw new Error(`接口地址配置可能错误。服务商返回了 HTML 而非 JSON (TITLE: ${title})。请检查 Base URL 是否正确。`);
+        }
+        throw new Error(`AI 服务返回格式错误 (Raw 前50位: ${rawResponse.substring(0, 50)}...)`);
       }
 
       const content = data.choices[0]?.message?.content;

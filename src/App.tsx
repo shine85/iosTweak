@@ -42,7 +42,7 @@ import { generateHookScript, researchMethod, type AIConfig, fetchModels, testAIC
 import { useAuth, logout } from './components/AuthProvider';
 import { useI18n } from './components/I18nProvider';
 import { ImportModal } from './components/ImportModal';
-import { ModelPickerModal } from './components/ModelPickerModal';
+import { ModelSelect } from './components/ModelSelect';
 import 'highlight.js/styles/atom-one-dark.css';
 
 type Tab = 'builder' | 'researcher' | 'guides' | 'settings';
@@ -839,23 +839,14 @@ jobs:
                     </select>
                   </section>
                   <section className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.modelName')}</label>
-                      <button 
-                        onClick={handleFetchModels}
-                        disabled={isFetchingModels}
-                        className="text-[10px] text-blue-600 hover:underline flex items-center gap-1 disabled:opacity-50"
-                      >
-                        {isFetchingModels ? <RotateCcw className="w-3 h-3 animate-spin" /> : <Layers className="w-3 h-3" />}
-                        {t('settings.fetchModels')}
-                      </button>
-                    </div>
-                    <input 
-                      type="text" 
+                    <label className="text-[11px] font-mono opacity-50 uppercase tracking-widest block">{t('settings.modelName')}</label>
+                    <ModelSelect 
                       value={aiConfig.modelName}
-                      onChange={(e) => setAiConfig({...aiConfig, modelName: e.target.value})}
+                      onChange={(model) => setAiConfig({...aiConfig, modelName: model})}
+                      models={fetchedModels}
+                      onFetch={handleFetchModels}
+                      isFetching={isFetchingModels}
                       placeholder={aiConfig.provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4 / deepseek-chat'}
-                      className="w-full bg-transparent border-2 border-[#141414] h-12 px-4 font-mono focus:outline-none"
                     />
                   </section>
                 </div>
@@ -961,14 +952,6 @@ jobs:
           isOpen={isImportModalOpen} 
           onClose={() => setIsImportModalOpen(false)} 
           onImport={handleImportCode} 
-        />
-
-        <ModelPickerModal
-          isOpen={isModelPickerOpen}
-          onClose={() => setIsModelPickerOpen(false)}
-          models={fetchedModels}
-          onSelect={(model) => setAiConfig({ ...aiConfig, modelName: model })}
-          currentModel={aiConfig.modelName}
         />
       </main>
     </div>
