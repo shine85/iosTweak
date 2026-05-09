@@ -5,7 +5,7 @@
 #import <objc/message.h>
 #import <dispatch/dispatch.h>
 
-/* Helper to hook method if class exists */
+/* ---------- 辅助函数 ---------- */
 static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     Class cls = objc_getClass(clsName);
     if (cls) {
@@ -13,10 +13,9 @@ static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     }
 }
 
-/* Recursively search subviews for a UIButton whose title contains "跳过" or "Skip".
-   If found, hide the button itself and return YES. */
-static BOOL hideSplashIfButtonFound(UIView *rootView) {
-    for (UIView *sub in rootView.subviews) {
+/* 递归搜索子视图中是否有标题含 “跳过” / “Skip” 的 UIButton */
+static BOOL hideSplashIfButtonFound(UIView *root) {
+    for (UIView *sub in root.subviews) {
         if (object_getClass(sub) == objc_getClass("UIButton")) {
             NSString *title = ((UIButton *)sub).currentTitle;
             if (title && ([title containsString:@"跳过"] || [title containsString:@"Skip"])) {
@@ -33,24 +32,24 @@ static BOOL hideSplashIfButtonFound(UIView *rootView) {
     return NO;
 }
 
-/* Repeated checks for delayed skip buttons */
-static void scheduleSplashSkipCheck(UIView *rootView, NSInteger attempt) {
-    const NSInteger maxAttempts = 10;
+/* 采用定时多次检查的方式，确保延迟出现的跳过按钮也能被隐藏 */
+static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt) {
+    const NSInteger maxAttempts = 12;
     const double interval = 0.5;
     if (attempt >= maxAttempts) return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
-        if (!hideSplashIfButtonFound(rootView)) {
-            scheduleSplashSkipCheck(rootView, attempt + 1);
+        if (!hideSplashIfButtonFound(root)) {
+            scheduleSplashSkipCheck(root, attempt + 1);
         }
     });
 }
 
-/* Hide any subview of the given window that looks like a splash/ad view */
+/* 隐藏窗口内可能的开屏/广告视图 */
 static void hideWindowSplashIfNeeded(UIWindow *window) {
     for (UIView *v in window.subviews) {
         NSString *cls = NSStringFromClass([v class]);
-        if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"]) {
+        if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"] || [cls containsString:@"Launch"]) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [v setHidden:YES];
             });
@@ -58,7 +57,15 @@ static void hideWindowSplashIfNeeded(UIWindow *window) {
     }
 }
 
-/* ---------- Original IMP placeholders ---------- */
+/* 遍历所有窗口并统一隐藏 */
+static void hideAllSplashViews(void) {
+    UIApplication *app = [UIApplication sharedApplication];
+    for (UIWindow *win in app.windows) {
+        hideWindowSplashIfNeeded(win);
+    }
+}
+
+/* ---------- 原始 IMP 占位 ---------- */
 static IMP GDTSplashAd_loadAdAndShowInWindow_orig = NULL;
 static IMP GDTSplashAd_loadAd_orig = NULL;
 static IMP CSJSplashAd_loadAdAndShowInWindow_orig = NULL;
@@ -76,7 +83,7 @@ static IMP CSJRewardedVideoAd_loadAd_orig = NULL;
 static IMP CSJRewardedVideoAd_showAdFromRootViewController_orig = NULL;
 static IMP CSJRewardedVideoAd_startCountdown_orig = NULL;
 
-/* ---------- Hook implementations (empty to block ads) ---------- */
+/* ---------- Hook 实现(全部阻断) ---------- */
 static void GDTSplashAd_loadAdAndShowInWindow_hook(id self, SEL _cmd, UIWindow *window) { }
 static void GDTSplashAd_loadAd_hook(id self, SEL _cmd) { }
 
@@ -109,7 +116,7 @@ static void CSJRewardedVideoAd_showAdFromRootViewController_hook(id self, SEL _c
 }
 static void CSJRewardedVideoAd_startCountdown_hook(id self, SEL _cmd, NSInteger seconds) { }
 
-/* Empty class hooks to satisfy %init requirements */
+/* ---------- 空类 Hook(满足 %init 要求) ---------- */
 %hook GDTSplashAd %end
 %hook CSJSplashAd %end
 %hook BUSplashAdView %end
@@ -118,18 +125,24 @@ static void CSJRewardedVideoAd_startCountdown_hook(id self, SEL _cmd, NSInteger 
 %hook CtSplashManager %end
 %hook CSJRewardedVideoAd %end
 
+/* ---------- UIViewController 关键点拦截 ---------- */
 %hook UIViewController
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     NSString *clsName = NSStringFromClass([self class]);
-    if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"]) {
+    if ([clsName containsString:@"Splash"] ||
+        [clsName containsString:@"Ad"] ||
+        [clsName containsString:@"Launch"]) {
+
         UIWindow *win = [[self view] window];
         if (win) {
             hideWindowSplashIfNeeded(win);
         }
         [[self view] setHidden:YES];
         if ([self respondsToSelector:@selector(dismissViewControllerAnimated:completion:)]) {
-            ((void (*)(id, SEL, BOOL, id))objc_msgSend)(self, @selector(dismissViewControllerAnimated:completion:), NO, nil);
+            ((void (*)(id, SEL, BOOL, id))objc_msgSend)(self,
+                                                       @selector(dismissViewControllerAnimated:completion:),
+                                                       NO, nil);
         }
     } else {
         scheduleSplashSkipCheck([self view], 0);
@@ -137,6 +150,7 @@ static void CSJRewardedVideoAd_startCountdown_hook(id self, SEL _cmd, NSInteger 
 }
 %end
 
+/* ---------- 构造函数：统一初始化、延迟清理 ---------- */
 %ctor {
     %init(GDTSplashAd=objc_getClass("GDTSplashAd"), CSJSplashAd=objc_getClass("CSJSplashAd"), BUSplashAdView=objc_getClass("BUSplashAdView"), BaiduMobAdSplash=objc_getClass("BaiduMobAdSplash"), KSAdSplashViewController=objc_getClass("KSAdSplashViewController"), CtSplashManager=objc_getClass("CtSplashManager"), CSJRewardedVideoAd=objc_getClass("CSJRewardedVideoAd"));
 
@@ -162,4 +176,10 @@ static void CSJRewardedVideoAd_startCountdown_hook(id self, SEL _cmd, NSInteger 
     hookIfExists("CSJRewardedVideoAd", @selector(loadAd), (IMP)CSJRewardedVideoAd_loadAd_hook, &CSJRewardedVideoAd_loadAd_orig);
     hookIfExists("CSJRewardedVideoAd", @selector(showAdFromRootViewController:), (IMP)CSJRewardedVideoAd_showAdFromRootViewController_hook, &CSJRewardedVideoAd_showAdFromRootViewController_orig);
     hookIfExists("CSJRewardedVideoAd", @selector(startCountdown:), (IMP)CSJRewardedVideoAd_startCountdown_hook, &CSJRewardedVideoAd_startCountdown_orig);
+
+    /* 应用启动后立即尝试清理残余的开屏视图 */
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        hideAllSplashViews();
+    });
 }
