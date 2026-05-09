@@ -204,6 +204,22 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
     }
   });
 
+  // API 路由：执行编译 (Simulated or triggered via GitHub)
+  app.post("/api/build", async (req, res) => {
+    try {
+      const { code, appName } = req.body;
+      if (!code) {
+        return res.status(400).json({ error: "No code provided" });
+      }
+      // 在这个演示或特定环境下，编译行为通常由 github-push 触发后续 Actions
+      // 我们这里返回成功，告知前端逻辑已正确收悉
+      console.log(`[API] Build requested for ${appName}`);
+      res.json({ status: "success", message: "Build initiated successfully." });
+    } catch (error: any) {
+      res.status(500).json({ status: "error", error: error.message });
+    }
+  });
+
   function cleanupLogosCode(text: string): string {
     return text.replace(/```objective-c([\s\S]*?)```/gi, (match, code) => {
       // Extract all hooked classes

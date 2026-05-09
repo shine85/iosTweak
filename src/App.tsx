@@ -612,19 +612,31 @@ export default function App() {
                         <div className="w-2 h-2 rounded-full bg-[#27C93F] shadow-[0_0_4px_#27C93F]" />
                         <span className="text-[9px] font-mono text-white/40 ml-2 uppercase tracking-[0.2em]">Tweak.xm / Source</span>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-2">
                         <button 
                           onClick={() => setIsImportModalOpen(true)}
-                          className="p-1 px-2 text-[9px] font-mono text-white/40 hover:text-[#FFE100] transition-colors border border-white/5 rounded-sm"
+                          className="px-5 py-2 bg-[#1a1a1a] text-[12px] font-black text-[#FFE100] hover:bg-[#222] transition-all border-2 border-[#141414] rounded-sm flex items-center gap-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.5)] active:translate-y-[1px]"
                         >
-                          IMPORT
+                          <Upload className="w-4 h-4" />
+                          导入
                         </button>
                         <button 
                           onClick={() => copyToClipboard(generatedResult, 'builder')}
-                          className="p-1.5 text-white/40 hover:text-white transition-colors"
+                          className="px-5 py-2 bg-[#1a1a1a] text-[12px] font-black text-white hover:bg-[#222] transition-all border-2 border-[#141414] rounded-sm flex items-center gap-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.5)] active:translate-y-[1px]"
                         >
-                          <Copy className="w-3 h-3" />
+                          <Copy className="w-4 h-4" />
+                          复制
                         </button>
+                        {generatedResult && (
+                          <button 
+                            onClick={handlePushToGithub}
+                            disabled={isPushing}
+                            className="px-8 py-2 bg-[#007AFF] text-[12px] font-black text-white hover:bg-[#0062CC] transition-all border-2 border-[#141414] rounded-sm flex items-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)] active:translate-y-[1px] disabled:opacity-50"
+                          >
+                            {isPushing ? <RotateCcw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                            {isPushing ? "正在云编译..." : "一键云编译"}
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div className="flex-1 overflow-auto p-4 font-mono text-[11px] leading-relaxed text-[#E4E3E0] custom-scrollbar-dark selection:bg-[#FFE100] selection:text-[#141414]">
@@ -653,6 +665,7 @@ export default function App() {
                           onClick={handleBuild}
                           disabled={isBuilding || !generatedResult}
                           className="p-1 text-[#FFE100] hover:scale-110 transition-transform disabled:opacity-30 disabled:scale-100"
+                          title="Local Test Build"
                         >
                           {isBuilding ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
                         </button>
