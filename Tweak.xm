@@ -14,19 +14,14 @@ static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
 }
 
 /* Recursively search subviews for a UIButton whose title contains "跳过" or "Skip".
-   If found, hide the top‑most view that contains the button and return YES. */
+   If found, hide the button itself and return YES. */
 static BOOL hideSplashIfButtonFound(UIView *rootView) {
     for (UIView *sub in rootView.subviews) {
         if (object_getClass(sub) == objc_getClass("UIButton")) {
             NSString *title = ((UIButton *)sub).currentTitle;
             if (title && ([title containsString:@"跳过"] || [title containsString:@"Skip"])) {
-                // Find the highest superview that is not the window
-                UIView *target = sub;
-                while (target.superview && ![target isKindOfClass:[UIWindow class]]) {
-                    target = target.superview;
-                }
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [target setHidden:YES];
+                    [sub setHidden:YES];
                 });
                 return YES;
             }
@@ -38,7 +33,7 @@ static BOOL hideSplashIfButtonFound(UIView *rootView) {
     return NO;
 }
 
-/* Schedule repeated checks (max 10 attempts, 0.5 s interval). */
+/* Repeated checks for delayed skip buttons */
 static void scheduleSplashSkipCheck(UIView *rootView, NSInteger attempt) {
     const NSInteger maxAttempts = 10;
     const double interval = 0.5;
@@ -49,6 +44,18 @@ static void scheduleSplashSkipCheck(UIView *rootView, NSInteger attempt) {
             scheduleSplashSkipCheck(rootView, attempt + 1);
         }
     });
+}
+
+/* Hide any subview of the given window that looks like a splash/ad view */
+static void hideWindowSplashIfNeeded(UIWindow *window) {
+    for (UIView *v in window.subviews) {
+        NSString *cls = NSStringFromClass([v class]);
+        if ([cls containsString:@"Splash"] || [cls containsString:@"Ad"]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [v setHidden:YES];
+            });
+        }
+    }
 }
 
 /* ---------- Original IMP placeholders ---------- */
@@ -116,7 +123,14 @@ static void CSJRewardedVideoAd_startCountdown_hook(id self, SEL _cmd, NSInteger 
     %orig;
     NSString *clsName = NSStringFromClass([self class]);
     if ([clsName containsString:@"Splash"] || [clsName containsString:@"Ad"]) {
+        UIWindow *win = [[self view] window];
+        if (win) {
+            hideWindowSplashIfNeeded(win);
+        }
         [[self view] setHidden:YES];
+        if ([self respondsToSelector:@selector(dismissViewControllerAnimated:completion:)]) {
+            ((void (*)(id, SEL, BOOL, id))objc_msgSend)(self, @selector(dismissViewControllerAnimated:completion:), NO, nil);
+        }
     } else {
         scheduleSplashSkipCheck([self view], 0);
     }
