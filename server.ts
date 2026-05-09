@@ -61,6 +61,7 @@ async function startServer() {
 - **未知类初始化防崩约束**：对于每一个你在 \`%init(ClassA=...)\` 里列出的类，你在文件内部**必须**要有确切的 \`%hook ClassA\` 到 \`%end\` 的代码块（哪怕它里面什么都不拦截是个空块！）如果只有 \`%init\` 缺少了对应的 \`%hook\` 块，Logos 会将其视为错误抛出 \`tried to set expression for unknown class\` 警告并导致整个编译直接致命中断。不要贪图写一堆防备性的 init 而没有后续的 hook 代码！
 - **%init 位置约束**：所有的 \`%init\` 宏指令必须且只能放置在 \`%ctor { ... }\` 构造块内部！绝对不要在外部全局直接调用 \`%init;\`，否则会引发 \`%init does not make sense outside a block\` 致命编译错误。
 - **Hook 语法约束**：在 Hook 带有参数的 Objective-C 方法时，**绝对禁止**在参数名称后面添加多余的右括号 \`)\`。例如正确写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window { ... }\`，错误写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window) { ... }\`（这会引发 \`expected function body after function declarator\` 编译错误）。
+- **C 函数规范约束**：严禁在 \`%ctor { ... }\` 块内部、或者其他任何函数体/Block 内部直接定义 C/C++ 辅助函数（例如 \`static inline void hookIfExists(...)\`）。局部嵌套定义函数会引发 \`function definition is not allowed here\` 致命错误！任何辅助函数的定义必须放置在文件顶层全局作用域（所有 \`%hook\` 或 \`%ctor\` 的外围）。
 - **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
 - **安全拦截**：严禁直接调用可能不存在的方法引发崩溃，优先阻断广告拉取请求。
 - **架构支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。
