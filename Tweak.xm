@@ -34,8 +34,8 @@ static BOOL hideSplashIfButtonFound(UIView *root) {
 }
 
 static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt) {
-    const NSInteger maxAttempts = 12;
-    const double interval = 0.4;
+    const NSInteger maxAttempts = 15;
+    const double interval = 0.35;
     if (attempt >= maxAttempts) return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
@@ -70,28 +70,53 @@ static void hideWindowSplashIfNeeded(UIWindow *window) {
                 ![cls containsString:@"UITabBarController"] &&
                 ![cls containsString:@"UIWindow"] &&
                 ![cls containsString:@"UITabBar"] &&
-                ![cls containsString:@"UINavigationBar"]) {
+                ![cls containsString:@"UINavigationBar"] &&
+                ![cls containsString:@"UITransitionView"]) {
                 hideWindowSplashIfNeeded((UIWindow *)v);
             }
         }
     }
 }
 
-static void hideAllSplashViews(void) {
-    UIApplication *app = [UIApplication sharedApplication];
-    for (UIWindow *win in app.windows) {
-        hideWindowSplashIfNeeded(win);
-    }
-    UIWindow *keyWin = [app keyWindow];
-    if (keyWin) {
-        hideWindowSplashIfNeeded(keyWin);
-        dispatch_async(dispatch_get_main_queue(), ^{
+static void forceMainUIVisible(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIApplication *app = [UIApplication sharedApplication];
+        for (UIWindow *win in app.windows) {
+            [win setHidden:NO];
+            [win setAlpha:1.0];
+            [win setBackgroundColor:[UIColor whiteColor]];
+            [win layoutIfNeeded];
+            
+            if (win.rootViewController) {
+                UIView *rootView = [win.rootViewController view];
+                [rootView setHidden:NO];
+                [rootView setAlpha:1.0];
+                [rootView setBackgroundColor:[UIColor whiteColor]];
+                [rootView layoutIfNeeded];
+                
+                for (UIView *sub in rootView.subviews) {
+                    [sub setHidden:NO];
+                    [sub setAlpha:1.0];
+                }
+            }
+        }
+        
+        UIWindow *keyWin = [app keyWindow];
+        if (keyWin) {
             [keyWin setHidden:NO];
             [keyWin setAlpha:1.0];
             [keyWin setBackgroundColor:[UIColor whiteColor]];
             [keyWin layoutIfNeeded];
-        });
-    }
+            
+            if (keyWin.rootViewController) {
+                UIViewController *rootVC = keyWin.rootViewController;
+                UIView *rootView = [rootVC view];
+                [rootView setHidden:NO];
+                [rootView setAlpha:1.0];
+                [rootView layoutIfNeeded];
+            }
+        }
+    });
 }
 
 /* ---------- 原始 IMP 占位 ---------- */
@@ -141,7 +166,7 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 %hook CtSplashManager %end
 %hook CTAdSplashManager %end
 
-/* ---------- UIViewController 关键点拦截(优化白屏) ---------- */
+/* ---------- UIViewController 关键点拦截(针对电信白屏强化恢复) ---------- */
 %hook UIViewController
 - (void)viewDidLoad {
     %orig;
@@ -176,40 +201,21 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
         [[self view] setHidden:YES];
         [[self view] setAlpha:0.0];
         UIWindow *win = [[self view] window];
-        if (win) {
-            hideWindowSplashIfNeeded(win);
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [win setHidden:NO];
-                [win setAlpha:1.0];
-            });
-        }
+        if (win) hideWindowSplashIfNeeded(win);
         if ([self respondsToSelector:@selector(dismissViewControllerAnimated:completion:)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 ((void (*)(id, SEL, BOOL, id))objc_msgSend)(self, @selector(dismissViewControllerAnimated:completion:), YES, nil);
             });
         }
     } else {
-        /* 非开屏页面 - 强化主界面恢复(针对电信白屏重点优化) */
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            UIWindow *keyWin = [[UIApplication sharedApplication] keyWindow];
-            if (keyWin) {
-                [keyWin setHidden:NO];
-                [keyWin setAlpha:1.0];
-                [keyWin setBackgroundColor:[UIColor whiteColor]];
-                [keyWin layoutIfNeeded];
-            }
-            [[self view] setHidden:NO];
-            [[self view] setAlpha:1.0];
-            [[self view] layoutIfNeeded];
-            
-            UIViewController *rootVC = [[[UIApplication sharedApplication] delegate] window].rootViewController;
-            if (rootVC && rootVC != self) {
-                [[rootVC view] setHidden:NO];
-                [[rootVC view] setAlpha:1.0];
-                [[rootVC view] layoutIfNeeded];
-            }
-            
+        /* 非开屏页面 - 针对电信白屏重点强化主界面恢复 */
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            forceMainUIVisible();
             scheduleSplashSkipCheck([self view], 0);
+        });
+        
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            forceMainUIVisible();
         });
     }
 }
@@ -227,7 +233,7 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 }
 %end
 
-/* 拦截 UIWindow 添加子视图(优化阻断) */
+/* 拦截 UIWindow 添加子视图 */
 %hook UIWindow
 - (void)addSubview:(UIView *)view {
     if (!view) {
@@ -294,29 +300,33 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
     hookIfExists("CTAdSplashManager", @selector(fetchSplash), (IMP)CTAdSplashManager_fetchSplash_hook, &CTAdSplashManager_fetchSplash_orig);
     hookIfExists("CTAdSplashManager", @selector(show:), (IMP)CTAdSplashManager_show_hook, &CTAdSplashManager_show_orig);
 
-    /* 针对电信白屏优化：减少清理频率，增加主界面恢复 */
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    /* 针对电信白屏优化：多次强制恢复主界面 */
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllSplashViews();
+        forceMainUIVisible();
     });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllSplashViews();
-        UIWindow *keyWin = [[UIApplication sharedApplication] keyWindow];
-        if (keyWin) {
-            [keyWin setHidden:NO];
-            [keyWin setAlpha:1.0];
-            [keyWin setBackgroundColor:[UIColor whiteColor]];
-            [keyWin layoutIfNeeded];
-        }
+        forceMainUIVisible();
     });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        UIWindow *keyWin = [[UIApplication sharedApplication] keyWindow];
-        if (keyWin) {
-            UIViewController *rootVC = keyWin.rootViewController;
-            if (rootVC) {
-                [[rootVC view] setHidden:NO];
-                [[rootVC view] setAlpha:1.0];
-                [[rootVC view] layoutIfNeeded];
-            }
-        }
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        forceMainUIVisible();
     });
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        forceMainUIVisible();
+    });
+}
+
+static void hideAllSplashViews(void) {
+    UIApplication *app = [UIApplication sharedApplication];
+    for (UIWindow *win in app.windows) {
+        hideWindowSplashIfNeeded(win);
+    }
+    UIWindow *keyWin = [app keyWindow];
+    if (keyWin) {
+        hideWindowSplashIfNeeded(keyWin);
+    }
 }
