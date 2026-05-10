@@ -46,9 +46,9 @@ static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt) {
 }
 
 /* 谨慎的广告视图隐藏 - 针对电信白屏问题优化 */
-static void hideWindowSplashIfNeeded(UIWindow *window) {
-    if (!window) return;
-    for (UIView *v in window.subviews) {
+static void hideWindowSplashIfNeeded(UIView *view) {
+    if (!view) return;
+    for (UIView *v in view.subviews) {
         NSString *cls = NSStringFromClass([v class]);
         BOOL isSplashView = [cls containsString:@"Splash"] || [cls containsString:@"Ad"] || 
                            [cls containsString:@"Launch"] || [cls containsString:@"Advert"] ||
@@ -72,7 +72,7 @@ static void hideWindowSplashIfNeeded(UIWindow *window) {
                 ![cls containsString:@"UITabBar"] &&
                 ![cls containsString:@"UINavigationBar"] &&
                 ![cls containsString:@"UITransitionView"]) {
-                hideWindowSplashIfNeeded((UIWindow *)v);
+                hideWindowSplashIfNeeded(v);
             }
         }
     }
@@ -109,14 +109,24 @@ static void forceMainUIVisible(void) {
             [keyWin layoutIfNeeded];
             
             if (keyWin.rootViewController) {
-                UIViewController *rootVC = keyWin.rootViewController;
-                UIView *rootView = [rootVC view];
+                UIView *rootView = [keyWin.rootViewController view];
                 [rootView setHidden:NO];
                 [rootView setAlpha:1.0];
                 [rootView layoutIfNeeded];
             }
         }
     });
+}
+
+static void hideAllSplashViews(void) {
+    UIApplication *app = [UIApplication sharedApplication];
+    for (UIWindow *win in app.windows) {
+        hideWindowSplashIfNeeded(win);
+    }
+    UIWindow *keyWin = [app keyWindow];
+    if (keyWin) {
+        hideWindowSplashIfNeeded(keyWin);
+    }
 }
 
 /* ---------- 原始 IMP 占位 ---------- */
@@ -318,15 +328,4 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         forceMainUIVisible();
     });
-}
-
-static void hideAllSplashViews(void) {
-    UIApplication *app = [UIApplication sharedApplication];
-    for (UIWindow *win in app.windows) {
-        hideWindowSplashIfNeeded(win);
-    }
-    UIWindow *keyWin = [app keyWindow];
-    if (keyWin) {
-        hideWindowSplashIfNeeded(keyWin);
-    }
 }
