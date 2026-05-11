@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.76)
+name: iOS Tweak Build (FORCE_v1.1.79)
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       contents: write
     env:
       # 强制刷新标识
-      FORCE_BUILD_ID: "1.1.76"
+      FORCE_BUILD_ID: "1.1.79"
       # 基于 GitHub 编译次数生成独立的插件版本号 (例如 1.0.42，与 IDE 版本号解耦)
       TWEAK_BASE_VERSION: "1.0"
       DYNAMIC_VERSION: "1.0.${{ github.run_number }}"
@@ -118,11 +118,8 @@ jobs:
           fi
 
           TWEAK_NAME=$(grep -i "^TWEAK_NAME" Makefile | cut -d'=' -f2 | sed -e 's/^[[:space:]]*//' | tr -d '\n\r')
-          # 动态从环境变量读取编译版本号
-          TWEAK_VERSION="${DYNAMIC_VERSION}"
-          VER_SUFFIX="v${TWEAK_VERSION}"
           
-          # 定义更新 control 字段的辅助函数
+          # 定义更新/获取 control 字段的辅助函数
           update_control_field() {
             local key=$1
             local value=$2
@@ -141,7 +138,21 @@ jobs:
             echo "Description: 实时编译产物，由云端自动化系统生成。" >> control
             echo "Section: Tweaks" >> control
           fi
+
+          # 动态从 control 文件中读取版本号，如果没有则读取自动生成的编译次数
+          if grep -q "^Version:" control; then
+            TWEAK_VERSION=$(grep "^Version:" control | cut -d':' -f2 | tr -d ' ' | tr -d '\n\r')
+          else
+            TWEAK_VERSION="${DYNAMIC_VERSION}"
+          fi
           
+          # 如果此时 TWEAK_VERSION 为空，最后做保底
+          if [ -z "$TWEAK_VERSION" ]; then
+            TWEAK_VERSION="${DYNAMIC_VERSION}"
+          fi
+          
+          VER_SUFFIX="v${TWEAK_VERSION}"
+
           update_control_field "Version" "${TWEAK_VERSION}"
           update_control_field "Author" "${AUTHOR_NAME}"
           update_control_field "Maintainer" "${AUTHOR_NAME}"
@@ -149,7 +160,7 @@ jobs:
           # 1. Rootless 编译
           echo ">>> 编译 Rootless (无根) <<<"
           make clean
-          make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1 GO_EASY_ON_ME=1
+          make package PACKAGE_VERSION=${TWEAK_VERSION} THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1 GO_EASY_ON_ME=1
           ROOTLESS_DEB=$(find packages -name "*.deb" | head -n 1)
           if [ -n "$ROOTLESS_DEB" ]; then
             cp "$ROOTLESS_DEB" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}-arm64-rootless.deb"
@@ -170,7 +181,7 @@ jobs:
           # 2. Roothide 编译
           echo ">>> 编译 Roothide (隐根) <<<"
           make clean
-          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 GO_EASY_ON_ME=1
+          make package PACKAGE_VERSION=${TWEAK_VERSION} THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 GO_EASY_ON_ME=1
           ROOTHIDE_DEB=$(find packages -name "*.deb" | head -n 1)
           if [ -n "$ROOTHIDE_DEB" ]; then
             cp "$ROOTHIDE_DEB" "final_artifacts/${SAFE_APP_NAME}-${VER_SUFFIX}-arm64e-roothide.deb"

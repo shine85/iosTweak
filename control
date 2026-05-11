@@ -1,5 +1,5 @@
-Package: com.yourcompany.importedtweak
-Name: Imported_Tweak
+Package: com.yourcompany.mytweak
+Name: MyTweak
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm
