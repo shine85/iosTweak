@@ -124,7 +124,7 @@ const LoginScreen = ({ error, setError }: { error: string | null, setError: (e: 
       <div className="max-w-md w-full bg-white border-4 border-[#141414] p-10 shadow-[8px_8px_0px_0px_rgba(20,20,20,1)] flex flex-col items-center gap-8">
         <div className="text-center">
             <h1 className="text-4xl font-black italic tracking-tighter mb-2">iOS TWEAK STUDIO</h1>
-            <p className="text-[10px] font-mono opacity-50 uppercase tracking-[0.2em] underline decoration-blue-500 decoration-2 underline-offset-4">Secure Admin Terminal v1.1.74</p>
+            <p className="text-[10px] font-mono opacity-50 uppercase tracking-[0.2em] underline decoration-blue-500 decoration-2 underline-offset-4">Secure Admin Terminal v1.1.76</p>
         </div>
 
         {error && (

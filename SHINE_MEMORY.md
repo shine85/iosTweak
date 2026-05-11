@@ -88,7 +88,10 @@
 - [x] **上线去广告专项强化模块**：针对开屏广告和主流广告 SDK（穿山甲、优量汇等）建立了“爆头式”拦截指令集，强制 Hook 早期加载方法及代理回调 (v1.1.34)。
 - [x] **解决 `no known instance method` 编译崩溃**：升级后端 Prompt 指令，强制 AI 必须为所有 Hook 或调用的 Class 提供 `@interface` 补全方法签名 (Signature) (v1.1.33)。
 - [x] **根治 NSClassFromString 重定义冲突**：在 `server.ts` 后端增加了正则表达式强制过滤逻辑，自动剔除代码中错误的前向声明 (v1.1.32)。
-- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.74。
+- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.76。
+- [x] **修复 Tweak 编译“未定义符号”报错**：在 `server.ts` 后端 Prompt 中注入了 `forceRestoreSubViews` 与 `get_keyWindow` 的标准实现指南，确保 AI 在生成复杂 UI 拦截逻辑时能自动补全缺失的辅助函数定义 (v1.1.76)。
+- [x] **上线插件版本“独立计数”算法**：插件的 `control` 版本号现在严格按照编译次数生成（如 `1.0.1`、`1.0.2`），不再受 IDE 系统版本号 (1.1.x) 干扰 (v1.1.75)。
+- [x] **强制作者身份注入 (Author Attribution)**：在 `control` 文件中强制注入作者信息 `目目`，确保在 Sileo/Cydia 安装后的展示完全符合预期 (v1.1.75)。
 - [x] **上线云编译版本自动化系统**：接入 `github.run_number` 实时追踪编译次数，并自动注入到 Sileo 的 `control` 元数据中，确保下载产物与安装后显示的版本完全一致 (v1.1.74)。
 - [x] **注入作者身份标识**：在所有编译产物中强制锁定作者信息为“目目”，并在产物文件名中动态体现 (v1.1.74)。
 - [x] **修复 Actions 清理脚本环境问题**：解决了 `gh` CLI 因为缺少 Git 上下文导致的 `not a git repository` 编译报错，通过显式指定 `--repo` 锁定操作目标 (v1.1.73)。

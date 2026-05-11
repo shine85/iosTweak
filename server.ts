@@ -62,6 +62,11 @@ async function startServer() {
 - **%init 位置约束**：所有的 \`%init\` 宏指令必须且只能放置在 \`%ctor { ... }\` 构造块内部！绝对不要在外部全局直接调用 \`%init;\`，否则会引发 \`%init does not make sense outside a block\` 致命编译错误。
 - **Hook 语法约束**：在 Hook 带有参数的 Objective-C 方法时，**绝对禁止**在参数名称后面添加多余的右括号 \`)\`。例如正确写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window { ... }\`，错误写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window) { ... }\`（这会引发 \`expected function body after function declarator\` 编译错误）。
 - **C 函数规范约束**：严禁在 \`%ctor { ... }\` 块内部、或者其他任何函数体/Block 内部直接定义 C/C++ 辅助函数（例如 \`static inline void hookIfExists(...)\`）。局部嵌套定义函数会引发 \`function definition is not allowed here\` 致命错误！任何辅助函数的定义必须放置在文件顶层全局作用域（所有 \`%hook\` 或 \`%ctor\` 的外围）。
+- **常用辅助函数库 (Common Helpers)**：
+  - 如果你需要遍历恢复视图，**必须且只能**使用以下标准实现（放在文件顶部）：
+    \`static void forceRestoreSubViews(UIView *view) { if(!view) return; for(UIView *sub in view.subviews) { sub.hidden = NO; sub.alpha = 1.0; if(sub.subviews.count > 0) forceRestoreSubViews(sub); } }\`
+  - 获取 KeyWindow 的现代适配方法：
+    \`static UIWindow* get_keyWindow() { UIWindow *foundWindow = nil; if (@available(iOS 13.0, *)) { for (UIWindowScene* windowScene in [UIApplication sharedApplication].connectedScenes) { if (windowScene.activationState == UISceneActivationStateForegroundActive) { for (UIWindow *window in windowScene.windows) { if (window.isKeyWindow) { foundWindow = window; break; } } } if (foundWindow) break; } } if (!foundWindow) { foundWindow = [UIApplication sharedApplication].keyWindow; } return foundWindow; }\`
 - **对象属性点语法崩溃约束**：在 C 语言的 Hook 辅助函数、Block 回调或者被推断为 \`id\`（如 \`__unsafe_unretained id const\`）的作用域内，**绝对禁止使用点语法**读取专属属性（例如写出 \`self.view.hidden = YES\` 会导致 \`property 'view' not found on object of type 'id'\` 的致命报错）。遇到这种情况，你**必须强制进行显式前置接口转换**，例如写为 \`((UIViewController *)self).view.hidden = YES;\` 或者转化为消息发送语法 \`[[self view] setHidden:YES];\`。这是零容忍规定。
 - **类名传参安全防范**：在往自定义 C/C++ 辅助函数（如 \`hookIfExists(...)\`）传递目标类名时，如果参数是字符串，**必须带上双引号**写成 \`"ClassName"\`；如果参数是 Class，必须写成 \`objc_getClass("ClassName")\`。绝对禁止把裸的类名（如 \`GDTSplashAd\`）当作变量直接传参，这会导致 \`unexpected interface name: expected expression\` 报错阻断编译！
 - **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
