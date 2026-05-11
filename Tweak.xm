@@ -70,7 +70,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
             [cn containsString:@"CMAd"] || [cn containsString:@"CMSplash"] ||
             [cn containsString:@"LaunchAd"] || [cn containsString:@"CMLaunch"]) {
             NSLog(@"[CMAdBlock] Deep kill: %@", cn);
-            sub.hidden = YES;
+            [sub setHidden:YES];
             [sub removeFromSuperview];
             continue;
         }
@@ -105,14 +105,13 @@ static void killAllAdSubviewsDeep(UIView *root) {
 @interface CMLaunchAdView : UIView
 @end
 
-// 中国移动可能额外类
 @interface CMAdSplashView : UIView
 @end
 
 @interface CMLaunchAdController : UIViewController
 @end
 
-// 增强版视图控制器拦截
+// 增强版视图控制器拦截(使用消息语法避免类型推断错误)
 %hook UIViewController
 
 - (void)viewDidLoad {
@@ -122,7 +121,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
         [className containsString:@"LaunchAd"] || [className containsString:@"Advertising"] ||
         [className containsString:@"CMLaunch"]) {
         NSLog(@"[CMAdBlock] Blocked splash-like VC in viewDidLoad: %@", className);
-        if (self.presentingViewController) {
+        if ([self presentingViewController]) {
             [self dismissViewControllerAnimated:NO completion:nil];
         }
         [[self view] setHidden:YES];
@@ -139,7 +138,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
         [className containsString:@"LaunchAd"] || [className containsString:@"Advertising"] ||
         [className containsString:@"CMLaunch"]) {
         NSLog(@"[CMAdBlock] Blocked splash-like VC in viewWillAppear: %@", className);
-        if (self.presentingViewController) {
+        if ([self presentingViewController]) {
             [self dismissViewControllerAnimated:NO completion:nil];
         }
         [[self view] setHidden:YES];
@@ -156,7 +155,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
         [className containsString:@"LaunchAd"] || [className containsString:@"Advertising"] ||
         [className containsString:@"CMLaunch"]) {
         NSLog(@"[CMAdBlock] Blocked splash-like VC in viewDidAppear: %@", className);
-        if (self.presentingViewController) {
+        if ([self presentingViewController]) {
             [self dismissViewControllerAnimated:NO completion:nil];
         }
         [[self view] setHidden:YES];
@@ -168,7 +167,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
 
 %end
 
-// 广点通加强 + delegate 回调防卡死
+// 广点通加强
 %hook GDTSplashAd
 
 - (void)loadAdAndShowInWindow:(UIWindow *)window withBottomView:(UIView *)bottomView skipView:(UIView *)skipView {
@@ -234,15 +233,15 @@ static void killAllAdSubviewsDeep(UIView *root) {
 
 - (void)viewDidLoad {
     NSLog(@"[CMAdBlock] Blocked KSAdSplashViewController viewDidLoad");
-    if (self.presentingViewController) [self dismissViewControllerAnimated:NO completion:nil];
+    if ([self presentingViewController]) [self dismissViewControllerAnimated:NO completion:nil];
     [[self view] setHidden:YES];
     [[self view] removeFromSuperview];
-    %orig; // 允许部分初始化但立即移除
+    %orig;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     NSLog(@"[CMAdBlock] Blocked KSAdSplashViewController viewWillAppear");
-    if (self.presentingViewController) [self dismissViewControllerAnimated:NO completion:nil];
+    if ([self presentingViewController]) [self dismissViewControllerAnimated:NO completion:nil];
     [[self view] setHidden:YES];
     [[self view] removeFromSuperview];
 }
@@ -284,7 +283,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
 
 - (void)show {
     NSLog(@"[CMAdBlock] Blocked CMLaunchAdView show");
-    [(UIView *)self setHidden:YES];
+    [self setHidden:YES];
     [self removeFromSuperview];
 }
 
@@ -294,7 +293,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
 
 - (void)show {
     NSLog(@"[CMAdBlock] Blocked CMAdSplashView show");
-    self.hidden = YES;
+    [self setHidden:YES];
     [self removeFromSuperview];
 }
 
@@ -304,7 +303,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
 
 - (void)viewDidAppear:(BOOL)animated {
     NSLog(@"[CMAdBlock] Blocked CMLaunchAdController");
-    if (self.presentingViewController) [self dismissViewControllerAnimated:NO completion:nil];
+    if ([self presentingViewController]) [self dismissViewControllerAnimated:NO completion:nil];
     [[self view] setHidden:YES];
     [[self view] removeFromSuperview];
 }
