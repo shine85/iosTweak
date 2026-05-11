@@ -1,0 +1,46 @@
+name: "Actions 运行记录清理"
+
+on:
+  workflow_dispatch:
+    inputs:
+      days_to_keep:
+        description: '保留多少天以内的记录？(更早的将被永久删除)'
+        required: true
+        default: '7'
+
+jobs:
+  cleanup:
+    name: "执行清理任务"
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: "清理过期数据"
+        run: |
+          DAYS=${{ github.event.inputs.days_to_keep }}
+          # 计算截止日期 (ISO 8601 格式)
+          CUTOFF_DATE=$(date -d "$DAYS days ago" "+%Y-%m-%dT%H:%M:%SZ")
+          
+          echo "🚀 目标：删除 $CUTOFF_DATE 之前的 Actions 记录..."
+          
+          # 使用 GitHub CLI 获取列表并循环删除
+          # 限制查询 1000 条以防超时，生产力工具就要快准狠
+          gh run list --limit 1000 --created "<$CUTOFF_DATE" --json databaseId --jq '.[].databaseId' > runs_to_delete.txt
+          
+          COUNT=$(wc -l < runs_to_delete.txt)
+          
+          if [ "$COUNT" -eq "0" ]; then
+            echo "✅ 没发现可清理的陈年老药，环境很干净。"
+            exit 0
+          fi
+          
+          echo "⚠️ 发现 $COUNT 条过期记录，准备爆破..."
+          
+          while read -r RUN_ID; do
+            echo "正在删除 Run ID: $RUN_ID"
+            gh run delete "$RUN_ID"
+          done < runs_to_delete.txt
+          
+          echo "🏁 清理完成！"
+        env:
+          GH_TOKEN: ${{ github.token }}
