@@ -259,6 +259,12 @@ export default function App() {
 
   const handlePushToGithub = async () => {
     if (!generatedResult) return;
+    
+    const userVersion = prompt("请输入要云编译的插件版本号 (例如 1.0.0) \\n留空则基于之前版本加一或默认 1.0.x：");
+    if (userVersion === null) {
+      return; // cancelled
+    }
+    
     setIsPushing(true);
     try {
       let commitAppName = appStoreDetails?.trackName || appName;
@@ -276,7 +282,7 @@ export default function App() {
       }
 
       const bundleId = appStoreDetails?.bundleId;
-      await import('./services/aiService').then(m => m.pushToGithub(generatedResult, commitAppName, aiConfig, bundleId));
+      await import('./services/aiService').then(m => m.pushToGithub(generatedResult, commitAppName, aiConfig, bundleId, userVersion.trim()));
       alert(t('builder.pushSuccess'));
     } catch (error: any) {
       alert(`${t('builder.pushFailed')}${error.message}`);

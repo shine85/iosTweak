@@ -401,7 +401,7 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
 
   // API 路由：推送到 GitHub
   app.post("/api/github-push", async (req, res) => {
-    let { token, owner, repo, content, appName, bundleId } = req.body;
+    let { token, owner, repo, content, appName, bundleId, tweakVersion } = req.body;
 
     // 允许从环境变量读取 Token，如果前端没传
     token = token || process.env.GITHUB_TOKEN;
@@ -585,7 +585,17 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         }
         return newContent;
       });
-      await syncFile('control', (c) => c.replace(/^Name:.*$/m, `Name: ${appName}`).replace(/^Package:.*$/m, `Package: com.yourcompany.${finalSafePkg}`));
+      await syncFile('control', (c) => {
+        let updated = c.replace(/^Name:.*$/m, `Name: ${appName}`).replace(/^Package:.*$/m, `Package: com.yourcompany.${finalSafePkg}`);
+        if (tweakVersion) {
+          if (/^Version:.*$/m.test(updated)) {
+            updated = updated.replace(/^Version:.*$/m, `Version: ${tweakVersion}`);
+          } else {
+            updated += `\nVersion: ${tweakVersion}`;
+          }
+        }
+        return updated;
+      });
 
       // 1.5 同步 Plist 过滤器
       try {

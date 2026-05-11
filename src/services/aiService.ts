@@ -46,7 +46,7 @@ export async function generateHookScript(appName: string, config: AIConfig): Pro
   }
 }
 
-export async function pushToGithub(content: string, appName: string, config: AIConfig, bundleId?: string) {
+export async function pushToGithub(content: string, appName: string, config: AIConfig, bundleId?: string, tweakVersion?: string) {
   try {
     const [owner, repo] = (config.githubRepo || '').split('/');
     if (!owner || !repo || !config.githubToken) {
@@ -62,7 +62,8 @@ export async function pushToGithub(content: string, appName: string, config: AIC
         repo,
         content,
         appName,
-        bundleId
+        bundleId,
+        tweakVersion
       })
     });
     const data = await response.json();
