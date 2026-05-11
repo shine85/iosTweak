@@ -5,7 +5,15 @@
 #import <objc/message.h>
 #import <dispatch/dispatch.h>
 
-/* ---------- 辅助函数 ---------- */
+@class GDTSplashAd;
+@class CSJSplashAd;
+@class BUSplashAdView;
+@class BaiduMobAdSplash;
+@class KSAdSplashViewController;
+@class CtSplashManager;
+@class CTAdSplashManager;
+
+// 辅助函数 - 必须置于顶层
 static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     Class cls = objc_getClass(clsName);
     if (cls) {
@@ -13,7 +21,6 @@ static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     }
 }
 
-/* 递归搜索子视图中是否有标题含 “跳过” / “Skip” / “关闭” 的 UIButton */
 static BOOL hideSplashIfButtonFound(UIView *root) {
     for (UIView *sub in root.subviews) {
         if ([sub isKindOfClass:[UIButton class]]) {
@@ -102,9 +109,7 @@ static UIWindow *getKeyWindow(void) {
     UIApplication *app = [UIApplication sharedApplication];
     if (@available(iOS 13.0, *)) {
         for (UIWindow *win in app.windows) {
-            if (win.isKeyWindow) {
-                return win;
-            }
+            if (win.isKeyWindow) return win;
         }
         UIWindowScene *scene = (UIWindowScene *)[[[UIApplication sharedApplication] connectedScenes] anyObject];
         if (scene && [scene isKindOfClass:[UIWindowScene class]]) {
@@ -135,7 +140,6 @@ static void forceMainUIVisible(void) {
                 [rootView setBackgroundColor:[UIColor whiteColor]];
                 [rootView layoutIfNeeded];
                 
-                // 恢复主界面常见容器视图
                 for (UIView *sub in rootView.subviews) {
                     NSString *scls = NSStringFromClass([sub class]);
                     if (![scls containsString:@"Splash"] && ![scls containsString:@"Ad"] && 
@@ -147,7 +151,6 @@ static void forceMainUIVisible(void) {
                     }
                 }
                 
-                // 递归恢复子层级主内容
                 forceRestoreSubViews(rootView);
             }
         }
@@ -197,7 +200,7 @@ static IMP CtSplashManager_showSplashInWindow_orig = NULL;
 static IMP CTAdSplashManager_fetchSplash_orig = NULL;
 static IMP CTAdSplashManager_show_orig = NULL;
 
-/* ---------- Hook 实现(全部阻断) ---------- */
+/* ---------- Hook 实现 ---------- */
 static void GDTSplashAd_loadAdAndShowInWindow_hook(id self, SEL _cmd, UIWindow *window) { }
 static void GDTSplashAd_loadAd_hook(id self, SEL _cmd) { }
 
@@ -228,7 +231,7 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 %hook CtSplashManager %end
 %hook CTAdSplashManager %end
 
-/* ---------- UIViewController 关键点拦截(优化白屏) ---------- */
+/* ---------- UIViewController 拦截 ---------- */
 %hook UIViewController
 - (void)viewDidLoad {
     %orig;
@@ -274,7 +277,6 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
             });
         }
     } else {
-        // 优化白屏：增加多次恢复调用和更长延迟
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             hideAllAdViews();
             forceMainUIVisible();
@@ -307,7 +309,7 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 }
 %end
 
-/* 拦截 UIWindow 添加子视图 - 强化阻断广告 */
+/* 拦截 UIWindow */
 %hook UIWindow
 - (void)addSubview:(UIView *)view {
     if (!view) {
