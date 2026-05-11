@@ -45,7 +45,9 @@ static void aggressivelyKillSplashViews() {
             [className containsString:@"CSJSplash"] || 
             [className containsString:@"KSAd"] ||
             [className containsString:@"PAG"] ||
-            [className containsString:@"BaiduMobAd"]) {
+            [className containsString:@"BaiduMobAd"] ||
+            [className containsString:@"CMAd"] ||
+            [className containsString:@"CMSplash"]) {
             NSLog(@"[CMAdBlock] Aggressively removed splash view: %@", className);
             sub.hidden = YES;
             [sub removeFromSuperview];
@@ -71,7 +73,7 @@ static void aggressivelyKillSplashViews() {
 @interface PAGSplashRequest : NSObject
 @end
 
-// 增强版视图控制器拦截
+// 增强版视图控制器拦截(仅针对明确广告类)
 %hook UIViewController
 
 - (void)viewDidLoad {
@@ -205,22 +207,6 @@ static void aggressivelyKillSplashViews() {
 
 %end
 
-// 应用自定义广告管理器加强拦截(针对中国移动)
-%hook NSObject
-
-+ (instancetype)alloc {
-    NSString *className = NSStringFromClass(self);
-    if ([className containsString:@"Splash"] || [className containsString:@"AdManager"] || 
-        [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] ||
-        [className containsString:@"LaunchAdManager"] || [className containsString:@"MobAd"]) {
-        NSLog(@"[CMAdBlock] Blocked custom splash/ad manager alloc: %@", className);
-        return nil;
-    }
-    return %orig;
-}
-
-%end
-
 // 关键窗口广告视图强杀
 %hook UIWindow
 
@@ -228,7 +214,8 @@ static void aggressivelyKillSplashViews() {
     NSString *className = NSStringFromClass([view class]);
     if ([className containsString:@"Splash"] || [className containsString:@"AdView"] || 
         [className containsString:@"GDTSplash"] || [className containsString:@"BUSplash"] ||
-        [className containsString:@"CSJSplash"] || [className containsString:@"KSAd"]) {
+        [className containsString:@"CSJSplash"] || [className containsString:@"KSAd"] ||
+        [className containsString:@"CMAd"] || [className containsString:@"CMSplash"]) {
         NSLog(@"[CMAdBlock] Blocked addSubview of splash view: %@", className);
         return;
     }
@@ -245,11 +232,7 @@ static void aggressivelyKillSplashViews() {
           KSAdSplashViewController=objc_getClass("KSAdSplashViewController"),
           PAGSplashRequest=objc_getClass("PAGSplashRequest"));
     
-    // 延迟多次执行强杀逻辑，确保开屏被彻底移除
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        aggressivelyKillSplashViews();
-    });
-    
+    // 延迟执行强杀逻辑，避免早期初始化冲突
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressivelyKillSplashViews();
     });
@@ -258,5 +241,5 @@ static void aggressivelyKillSplashViews() {
         aggressivelyKillSplashViews();
     });
     
-    NSLog(@"[CMAdBlock] 中国移动营业厅去广告 Tweak 已加载 - 加强开屏拦截版 (cn.10086.app)");
+    NSLog(@"[CMAdBlock] 中国移动营业厅去广告 Tweak 已加载 - 修复闪退版 (cn.10086.app)");
 }
