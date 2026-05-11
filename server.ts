@@ -49,6 +49,7 @@ async function startServer() {
 - 视图层强杀与防白屏：当拦截 \`UIViewController\`（或各种 \`SplashViewController\`）展示广告的方法时，**不要**单纯把 \`view.hidden = YES\`，否则会导致底层黑屏或白屏。相反，应当判断该 VC 是否为模态视图（通过 \`self.presentingViewController\`），如果是，则调用 \`[self dismissViewControllerAnimated:NO completion:nil]\`；如果不是模态且该应用有主窗体控制器，尝试将其从 \`self.view.superview\` 移除，或者通过模拟广告倒计时回调、点击跳过回调来恢复底层的主界面业务。
 - 自动化跳过与防白屏 (CRITICAL)：针对激励视频或倒计时，强制修改倒计时为 0，并同步触发 delegate 的奖励回调。若你拦截了开屏广告展示（如 \`loadAdAndShowInWindow:\`）且未调用 \`%orig\`，应用极大概率全卡在等待回调的白屏！你**必须**向其 \`delegate\` 发送广告已关闭/结束的回调消息（如 \`splashAdClosed:\`, \`splashAdDidDismiss:\`），或者主动将该控件 \`removeFromSuperview\` 或直接隐藏，确保应用能正常进入主界面。
 - 针对特有应用（如“中国移动”）：分析并猜想其内部自身的 Splash 管理器（如 \`CMSplashManager\`, \`CMAdManager\`），拦截其拉取或渲染方法。
+- **终极大杀器（通用开屏去白屏兜底）**：除了 Hook 明确的类，你**必须**生成一段兼容性极强的通用逻辑。比如如果你不知道具体类名，可以 Hook \`-[UIApplication delegate]\` 或者强制遍历 Window：在 \`%ctor\` 中注册 \`UIApplicationDidBecomeActiveNotification\` 监听，在回调里或者用 GCD \`dispatch_after\` 延时 2 秒，遍历 \`[UIApplication sharedApplication].windows\`，如果发现除了主 Window 以外的、类名包含 \`Splash\`, \`Ad\`, \`AD\`, \`Launch\` 的 Window（或 \`windowLevel >= UIWindowLevelNormal\`），直接 \`window.hidden = YES\` 并将根视图移除，强制让底层的真正业务主窗体获得事件响应，绝对根治顽固类开屏（如中国移动等重度混淆App）。
 
 应用特定逻辑参考：
 - **TikTok/抖音**：Hook \`AWEFeedAdModel\`, \`BDASplashManager\`。
@@ -596,6 +597,15 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         }
         return updated;
       });
+
+      // 同步工作流文件
+      try {
+        let workflowContent = await fs.readFile(path.join(process.cwd(), '.github/workflows/build.yml'), 'utf-8');
+        const remoteWorkflow = await getFile('.github/workflows/build.yml');
+        await updateFile('.github/workflows/build.yml', workflowContent, `Sync build workflow`, remoteWorkflow?.sha);
+      } catch (e) {
+        console.warn("Workflow sync failed:", e);
+      }
 
       // 1.5 同步 Plist 过滤器
       try {
