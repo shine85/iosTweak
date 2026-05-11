@@ -46,8 +46,8 @@ async function startServer() {
 深度去广告与开屏拦截策略（极其关键）：
 - 开屏广告 (Splash Ads) 必须根除：中国区应用广泛使用穿山甲 (CSJ / BUAdSDK)、广点通 (GDT)、百度 (BaiduMobAd) 及快手 (KSAd) SDK。你必须强制生成通用的 Hook 逻辑，拦截这些基类的初始化和展示方法。
   - 例如 Hook \`GDTSplashAd\`, \`CSJSplashAd\`, \`BUSplashAdView\`, \`BaiduMobAdSplash\`, \`KSAdSplashViewController\` 等类的 \`loadAdAndShowInWindow:\`, \`showAdInWindow:\`, \`loadAd\` 等方法，并直接阻断（无需调用 %orig）。
-- 视图层强杀与防白屏：当拦截 `UIViewController`（或各种 `SplashViewController`）展示广告的方法时，**不要**单纯把 `view.hidden = YES`，否则会导致底层黑屏或白屏。相反，应当判断该 VC 是否为模态视图（通过 `self.presentingViewController`），如果是，则调用 `[self dismissViewControllerAnimated:NO completion:nil]`；如果不是模态且该应用有主窗体控制器，尝试将其从 `self.view.superview` 移除，或者通过模拟广告倒计时回调、点击跳过回调来恢复底层的主界面业务。
-- 自动化跳过与防白屏 (CRITICAL)：针对激励视频或倒计时，强制修改倒计时为 0，并同步触发 delegate 的奖励回调。若你拦截了开屏广告展示（如 `loadAdAndShowInWindow:`）且未调用 `%orig`，应用极大概率全卡在等待回调的白屏！你**必须**向其 `delegate` 发送广告已关闭/结束的回调消息（如 `splashAdClosed:`, `splashAdDidDismiss:`），或者主动将该控件 `removeFromSuperview` 或直接隐藏，确保应用能正常进入主界面。
+- 视图层强杀与防白屏：当拦截 \`UIViewController\`（或各种 \`SplashViewController\`）展示广告的方法时，**不要**单纯把 \`view.hidden = YES\`，否则会导致底层黑屏或白屏。相反，应当判断该 VC 是否为模态视图（通过 \`self.presentingViewController\`），如果是，则调用 \`[self dismissViewControllerAnimated:NO completion:nil]\`；如果不是模态且该应用有主窗体控制器，尝试将其从 \`self.view.superview\` 移除，或者通过模拟广告倒计时回调、点击跳过回调来恢复底层的主界面业务。
+- 自动化跳过与防白屏 (CRITICAL)：针对激励视频或倒计时，强制修改倒计时为 0，并同步触发 delegate 的奖励回调。若你拦截了开屏广告展示（如 \`loadAdAndShowInWindow:\`）且未调用 \`%orig\`，应用极大概率全卡在等待回调的白屏！你**必须**向其 \`delegate\` 发送广告已关闭/结束的回调消息（如 \`splashAdClosed:\`, \`splashAdDidDismiss:\`），或者主动将该控件 \`removeFromSuperview\` 或直接隐藏，确保应用能正常进入主界面。
 - 针对特有应用（如“中国移动”）：分析并猜想其内部自身的 Splash 管理器（如 \`CMSplashManager\`, \`CMAdManager\`），拦截其拉取或渲染方法。
 
 应用特定逻辑参考：
@@ -70,8 +70,8 @@ async function startServer() {
 - **对象属性点语法崩溃约束**：在 C 语言的 Hook 辅助函数、Block 回调或者被推断为 \`id\`（如 \`__unsafe_unretained id const\`）的作用域内，**绝对禁止使用点语法**读取专属属性（例如写出 \`self.view.hidden = YES\` 会导致 \`property 'view' not found on object of type 'id'\` 的致命报错）。遇到这种情况，你**必须强制进行显式前置接口转换**，例如写为 \`((UIViewController *)self).view.hidden = YES;\` 或者转化为消息发送语法 \`[[self view] setHidden:YES];\`。这是零容忍规定。
 - **类名传参安全防范**：在往自定义 C/C++ 辅助函数（如 \`hookIfExists(...)\`）传递目标类名时，如果参数是字符串，**必须带上双引号**写成 \`"ClassName"\`；如果参数是 Class，必须写成 \`objc_getClass("ClassName")\`。绝对禁止把裸的类名（如 \`GDTSplashAd\`）当作变量直接传参，这会导致 \`unexpected interface name: expected expression\` 报错阻断编译！
 - **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
-- **安全拦截与防白屏 (CRITICAL)**：严禁直接调用可能不存在的方法引发崩溃。如果阻断了广告的展示逻辑 `%orig`，必须处理 `delegate`。如果没有 `delegate`，尝试把包含广告的整个大 Window 隐藏并注销自己，例如使用 `rootViewController = nil; hidden = YES;` 等防白屏后压方案。如果有 `delegate`，可以使用安全调用如：
-    `if ([self.delegate respondsToSelector:@selector(splashAdClosed:)]) { [self.delegate splashAdClosed:self]; }`
+- **安全拦截与防白屏 (CRITICAL)**：严禁直接调用可能不存在的方法引发崩溃。如果阻断了广告的展示逻辑 \`%orig\`，必须处理 \`delegate\`。如果没有 \`delegate\`，尝试把包含广告的整个大 Window 隐藏并注销自己，例如可以使用 \`rootViewController = nil; hidden = YES;\` 等防白屏后压方案。如果有 \`delegate\`，可以使用安全调用如：
+    \`if ([self.delegate respondsToSelector:@selector(splashAdClosed:)]) { [self.delegate splashAdClosed:self]; }\`
 - **架构支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。
 - **基石依赖**：所有 Hook 必须确保引入相应的 Foundation 框架类型定义，使用 \`MSHookMessageEx\` 必须 \`#import <substrate.h>\`。
 
