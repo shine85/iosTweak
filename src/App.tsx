@@ -111,6 +111,10 @@ export default function App() {
   const [appStoreDetails, setAppStoreDetails] = useState<{url?: string, bundleId?: string, trackName?: string} | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);
+  
+  // Version Modal State
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [versionInput, setVersionInput] = useState('');
 
   useEffect(() => {
     if (!appName || appName.trim() === '') {
@@ -257,14 +261,14 @@ export default function App() {
     }
   };
 
-  const handlePushToGithub = async () => {
+  const handlePushToGithubClick = () => {
     if (!generatedResult) return;
-    
-    const userVersion = prompt("请输入要云编译的插件版本号 (例如 1.0.0) \\n留空则基于之前版本加一或默认 1.0.x：");
-    if (userVersion === null) {
-      return; // cancelled
-    }
-    
+    setVersionInput(''); // Reset input
+    setIsVersionModalOpen(true);
+  };
+
+  const executePushToGithub = async (userVersion: string) => {
+    setIsVersionModalOpen(false);
     setIsPushing(true);
     try {
       let commitAppName = appStoreDetails?.trackName || appName;
@@ -635,7 +639,7 @@ export default function App() {
                         </button>
                         {generatedResult && (
                           <button 
-                            onClick={handlePushToGithub}
+                            onClick={handlePushToGithubClick}
                             disabled={isPushing}
                             className="px-8 py-2 bg-[#007AFF] text-[12px] font-black text-white hover:bg-[#0062CC] transition-all border-2 border-[#141414] rounded-sm flex items-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)] active:translate-y-[1px] disabled:opacity-50"
                           >
@@ -1118,6 +1122,66 @@ jobs:
           onClose={() => setIsImportModalOpen(false)} 
           onImport={handleImportCode} 
         />
+
+        <AnimatePresence>
+          {isVersionModalOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+              onClick={() => setIsVersionModalOpen(false)}
+            >
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[#E4E3E0] border-4 border-[#141414] shadow-[8px_8px_0px_0px_rgba(20,20,20,1)] p-6 max-w-md w-full mx-4"
+              >
+                <div className="flex justify-between items-center mb-6 border-b-2 border-[#141414] pb-4">
+                  <h3 className="font-black italic text-xl tracking-tighter uppercase">编译版本配置</h3>
+                  <button onClick={() => setIsVersionModalOpen(false)} className="hover:bg-black/10 p-1 transition-colors rounded-sm">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <p className="text-sm font-serif opacity-80 leading-relaxed">请输入要云编译的插件版本号 (例如 <span className="font-mono bg-black/10 px-1">1.0.0</span>)。如果留空，默认将使用 <span className="font-mono bg-black/10 px-1">1.0.x</span> 自增版本号进行编译打包。</p>
+                  <div>
+                    <label className="text-[10px] font-mono opacity-50 uppercase tracking-widest block mb-2 font-bold">目标版本号 / Target Version</label>
+                    <input 
+                      type="text" 
+                      value={versionInput}
+                      onChange={(e) => setVersionInput(e.target.value)}
+                      placeholder="留空即默认 ..."
+                      className="w-full bg-white border-2 border-[#141414] px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#FFE100] shadow-[inset_2px_2px_0px_0px_rgba(0,0,0,0.05)] transition-all"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          executePushToGithub(versionInput);
+                        }
+                      }}
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="mt-8 flex justify-end gap-3 font-mono text-[11px] uppercase tracking-widest pt-4">
+                  <button 
+                    onClick={() => setIsVersionModalOpen(false)}
+                    className="px-6 py-2 border-2 border-[#141414] hover:bg-black/5 transition-colors font-bold rounded-sm"
+                  >
+                    取消
+                  </button>
+                  <button 
+                    onClick={() => executePushToGithub(versionInput)}
+                    className="px-6 py-2 border-2 border-[#141414] bg-[#FFE100] hover:bg-[#FFD100] transition-colors font-black flex items-center gap-2 shadow-[2px_2px_0px_0px_rgba(20,20,20,1)] active:translate-y-[2px] active:shadow-[0px_0px_0px_0px_rgba(20,20,20,1)] rounded-sm"
+                  >
+                    开始云编译 <Zap className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

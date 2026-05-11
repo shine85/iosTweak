@@ -88,7 +88,8 @@
 - [x] **上线去广告专项强化模块**：针对开屏广告和主流广告 SDK（穿山甲、优量汇等）建立了“爆头式”拦截指令集，强制 Hook 早期加载方法及代理回调 (v1.1.34)。
 - [x] **解决 `no known instance method` 编译崩溃**：升级后端 Prompt 指令，强制 AI 必须为所有 Hook 或调用的 Class 提供 `@interface` 补全方法签名 (Signature) (v1.1.33)。
 - [x] **根治 NSClassFromString 重定义冲突**：在 `server.ts` 后端增加了正则表达式强制过滤逻辑，自动剔除代码中错误的前向声明 (v1.1.32)。
-- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.80。
+- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.81。
+- [x] **优化“云编译自定义版本号”弹窗 UI**：移除了原生的浏览器 `prompt`，设计了一个与系统整体前卫、粗野主义设计风格一致的弹窗，带有高斯的毛玻璃背景模糊和定制的描边动画，极大地改善了用户体验 (v1.1.81)。
 - [x] **解决服务进程 `esbuild` 解析失败问题**：紧急修复了上一版 `server.ts` 去广告 Prompt 引导中未转义反引号引起的语法死锁，确保服务端可以正常编译并提供服务 (v1.1.80)。
 - [x] **上线“云编译自定义版本号”功能**：在点击“一键云编译”时，现在会弹出对话框要求输入插件的自定义版本号。该版本号会安全穿透 `server.ts` 并自动更新进云端 `control` 文件，同时在 Github Action 中强制提取给 `make package PACKAGE_VERSION=` 使用，实现了所见即所得的版本控制 (v1.1.79)。
 - [x] **修复插件注入后的白屏/黑屏卡板问题 (Anti-WhiteScreen)**：深入重构了 `server.ts` 的去广告 Prompt 约束。强制要求 AI 在阻断广告加载方法 (`loadAd` 等) 时必须触发对应的 Delegate (如 `splashAdClosed:`)；并在处理 `UIViewController` 的 `viewDidAppear:` 时绝对禁止直接使用 `view.hidden = YES`，必须使用安全的 `dismissViewControllerAnimated:` 使得根业务获得接管权，从而根治因广告关闭事件丢失导致的无限白屏死锁 (v1.1.78)。
