@@ -88,7 +88,9 @@
 - [x] **上线去广告专项强化模块**：针对开屏广告和主流广告 SDK（穿山甲、优量汇等）建立了“爆头式”拦截指令集，强制 Hook 早期加载方法及代理回调 (v1.1.34)。
 - [x] **解决 `no known instance method` 编译崩溃**：升级后端 Prompt 指令，强制 AI 必须为所有 Hook 或调用的 Class 提供 `@interface` 补全方法签名 (Signature) (v1.1.33)。
 - [x] **根治 NSClassFromString 重定义冲突**：在 `server.ts` 后端增加了正则表达式强制过滤逻辑，自动剔除代码中错误的前向声明 (v1.1.32)。
-- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.76。
+- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.78。
+- [x] **修复插件注入后的白屏/黑屏卡板问题 (Anti-WhiteScreen)**：深入重构了 `server.ts` 的去广告 Prompt 约束。强制要求 AI 在阻断广告加载方法 (`loadAd` 等) 时必须触发对应的 Delegate (如 `splashAdClosed:`)；并在处理 `UIViewController` 的 `viewDidAppear:` 时绝对禁止直接使用 `view.hidden = YES`，必须使用安全的 `dismissViewControllerAnimated:` 使得根业务获得接管权，从而根治因广告关闭事件丢失导致的无限白屏死锁 (v1.1.78)。
+- [x] **根治包版本号“假更新”问题**：在 CI 流程的 `make` 命令中强制注入 `PACKAGE_VERSION` 变量，彻底解决了 Theos 编译时忽略 `control` 文件版本声明导致的 v1.0 锁定故障 (v1.1.77)。
 - [x] **修复 Tweak 编译“未定义符号”报错**：在 `server.ts` 后端 Prompt 中注入了 `forceRestoreSubViews` 与 `get_keyWindow` 的标准实现指南，确保 AI 在生成复杂 UI 拦截逻辑时能自动补全缺失的辅助函数定义 (v1.1.76)。
 - [x] **上线插件版本“独立计数”算法**：插件的 `control` 版本号现在严格按照编译次数生成（如 `1.0.1`、`1.0.2`），不再受 IDE 系统版本号 (1.1.x) 干扰 (v1.1.75)。
 - [x] **强制作者身份注入 (Author Attribution)**：在 `control` 文件中强制注入作者信息 `目目`，确保在 Sileo/Cydia 安装后的展示完全符合预期 (v1.1.75)。
