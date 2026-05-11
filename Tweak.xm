@@ -51,7 +51,8 @@ static void aggressivelyKillSplashViews() {
             [className containsString:@"Launch"] ||
             [className containsString:@"Advertising"] ||
             [className containsString:@"CMLaunch"] ||
-            [className containsString:@"AdContainer"]) {
+            [className containsString:@"AdContainer"] ||
+            [className containsString:@"LaunchAd"]) {
             NSLog(@"[CMAdBlock] Aggressively removed splash view: %@", className);
             [sub setHidden:YES];
             [sub removeFromSuperview];
@@ -68,7 +69,8 @@ static void killAllAdSubviewsDeep(UIView *root) {
         NSString *cn = NSStringFromClass([sub class]);
         if ([cn containsString:@"Splash"] || [cn containsString:@"Ad"] || 
             [cn containsString:@"CMAd"] || [cn containsString:@"CMSplash"] ||
-            [cn containsString:@"LaunchAd"] || [cn containsString:@"CMLaunch"]) {
+            [cn containsString:@"LaunchAd"] || [cn containsString:@"CMLaunch"] ||
+            [cn containsString:@"Advertising"]) {
             NSLog(@"[CMAdBlock] Deep kill: %@", cn);
             [sub setHidden:YES];
             [sub removeFromSuperview];
@@ -111,7 +113,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
 @interface CMLaunchAdController : UIViewController
 @end
 
-// 增强版视图控制器拦截(使用消息语法避免类型推断错误)
+// 增强版视图控制器拦截
 %hook UIViewController
 
 - (void)viewDidLoad {
@@ -119,7 +121,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
     if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
         [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] ||
         [className containsString:@"LaunchAd"] || [className containsString:@"Advertising"] ||
-        [className containsString:@"CMLaunch"]) {
+        [className containsString:@"CMLaunch"] || [className containsString:@"LaunchScreen"]) {
         NSLog(@"[CMAdBlock] Blocked splash-like VC in viewDidLoad: %@", className);
         if ([self presentingViewController]) {
             [self dismissViewControllerAnimated:NO completion:nil];
@@ -136,7 +138,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
     if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
         [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] ||
         [className containsString:@"LaunchAd"] || [className containsString:@"Advertising"] ||
-        [className containsString:@"CMLaunch"]) {
+        [className containsString:@"CMLaunch"] || [className containsString:@"LaunchScreen"]) {
         NSLog(@"[CMAdBlock] Blocked splash-like VC in viewWillAppear: %@", className);
         if ([self presentingViewController]) {
             [self dismissViewControllerAnimated:NO completion:nil];
@@ -153,7 +155,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
     if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
         [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] ||
         [className containsString:@"LaunchAd"] || [className containsString:@"Advertising"] ||
-        [className containsString:@"CMLaunch"]) {
+        [className containsString:@"CMLaunch"] || [className containsString:@"LaunchScreen"]) {
         NSLog(@"[CMAdBlock] Blocked splash-like VC in viewDidAppear: %@", className);
         if ([self presentingViewController]) {
             [self dismissViewControllerAnimated:NO completion:nil];
@@ -320,7 +322,7 @@ static void killAllAdSubviewsDeep(UIView *root) {
         [className containsString:@"CSJSplash"] || [className containsString:@"KSAd"] ||
         [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] ||
         [className containsString:@"LaunchAd"] || [className containsString:@"CMLaunch"] ||
-        [className containsString:@"AdContainer"]) {
+        [className containsString:@"AdContainer"] || [className containsString:@"LaunchScreen"]) {
         NSLog(@"[CMAdBlock] Blocked addSubview of splash view: %@", className);
         return;
     }
@@ -336,7 +338,8 @@ static void killAllAdSubviewsDeep(UIView *root) {
     NSString *className = NSStringFromClass([viewControllerToPresent class]);
     if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
         [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] ||
-        [className containsString:@"LaunchAd"] || [className containsString:@"CMLaunch"]) {
+        [className containsString:@"LaunchAd"] || [className containsString:@"CMLaunch"] ||
+        [className containsString:@"LaunchScreen"]) {
         NSLog(@"[CMAdBlock] Blocked present splash VC: %@", className);
         return;
     }
@@ -358,38 +361,44 @@ static void killAllAdSubviewsDeep(UIView *root) {
           CMAdSplashView=objc_getClass("CMAdSplashView"),
           CMLaunchAdController=objc_getClass("CMLaunchAdController"));
     
-    // 极致多重强杀
+    // 极致多重强杀 + 更密集的早期执行
+    UIWindow *win = get_keyWindow();
     aggressivelyKillSplashViews();
-    killAllAdSubviewsDeep(get_keyWindow());
+    killAllAdSubviewsDeep(win);
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        aggressivelyKillSplashViews();
+        killAllAdSubviewsDeep(get_keyWindow());
+    });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressivelyKillSplashViews();
         killAllAdSubviewsDeep(get_keyWindow());
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressivelyKillSplashViews();
         killAllAdSubviewsDeep(get_keyWindow());
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressivelyKillSplashViews();
         killAllAdSubviewsDeep(get_keyWindow());
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressivelyKillSplashViews();
         killAllAdSubviewsDeep(get_keyWindow());
     });
     
-    // 重复定时器兜底
-    [NSTimer scheduledTimerWithTimeInterval:1.5 repeats:YES block:^(NSTimer * _Nonnull timer) {
-        UIWindow *win = get_keyWindow();
-        if (win) {
-            killAllAdSubviewsDeep(win);
-            forceRestoreSubViews(win);
+    // 更高频兜底定时器(前10秒密集)
+    [NSTimer scheduledTimerWithTimeInterval:0.8 repeats:YES block:^(NSTimer * _Nonnull timer) {
+        UIWindow *w = get_keyWindow();
+        if (w) {
+            killAllAdSubviewsDeep(w);
+            forceRestoreSubViews(w);
         }
     }];
     
-    NSLog(@"[CMAdBlock] 中国移动营业厅去广告 Tweak 已加载 - 开屏终极强化版 (cn.10086.app)");
+    NSLog(@"[CMAdBlock] 中国移动营业厅去广告 Tweak 已加载 - 开屏终极强化版 v2 (cn.10086.app)");
 }
