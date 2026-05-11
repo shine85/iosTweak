@@ -32,53 +32,6 @@ static UIWindow* get_keyWindow() {
     return foundWindow;
 }
 
-static void aggressivelyKillSplashViews() {
-    UIWindow *keyWin = get_keyWindow();
-    if (!keyWin) return;
-    
-    for (UIView *sub in keyWin.subviews) {
-        NSString *className = NSStringFromClass([sub class]);
-        if ([className containsString:@"Splash"] || 
-            [className containsString:@"AdView"] || 
-            [className containsString:@"GDTSplash"] || 
-            [className containsString:@"BUSplash"] || 
-            [className containsString:@"CSJSplash"] || 
-            [className containsString:@"KSAd"] || 
-            [className containsString:@"PAG"] || 
-            [className containsString:@"BaiduMobAd"] || 
-            [className containsString:@"CMAd"] || 
-            [className containsString:@"CMSplash"] || 
-            [className containsString:@"Launch"] || 
-            [className containsString:@"Advertising"] || 
-            [className containsString:@"CMLaunch"] || 
-            [className containsString:@"AdContainer"] || 
-            [className containsString:@"LaunchAd"]) {
-            NSLog(@"[CMAdBlock] Aggressively removed splash view: %@", className);
-            [sub setHidden:YES];
-            [sub removeFromSuperview];
-        }
-    }
-    forceRestoreSubViews(keyWin);
-}
-
-static void killAllAdSubviewsDeep(UIView *root) {
-    if (!root) return;
-    NSArray *subs = [root subviews];
-    for (UIView *sub in subs) {
-        NSString *cn = NSStringFromClass([sub class]);
-        if ([cn containsString:@"Splash"] || [cn containsString:@"Ad"] || 
-            [cn containsString:@"CMAd"] || [cn containsString:@"CMSplash"] || 
-            [cn containsString:@"LaunchAd"] || [cn containsString:@"CMLaunch"] || 
-            [cn containsString:@"Advertising"]) {
-            NSLog(@"[CMAdBlock] Deep kill: %@", cn);
-            [sub setHidden:YES];
-            [sub removeFromSuperview];
-            continue;
-        }
-        killAllAdSubviewsDeep(sub);
-    }
-}
-
 @interface GDTSplashAd : NSObject
 @property (nonatomic, weak) id delegate;
 @end
@@ -101,112 +54,68 @@ static void killAllAdSubviewsDeep(UIView *root) {
 @interface PAGSplashRequest : NSObject
 @end
 
-@interface CMSplashManager : NSObject
-@end
+// 通用兜底
+%hook UIApplication
+- (void)sendEvent:(UIEvent *)event {
+    %orig;
+}
+%end
 
-@interface CMAdManager : NSObject
-@end
-
-@interface CMLaunchAdView : UIView
-@end
-
-@interface CMAdSplashView : UIView
-@end
-
-@interface CMLaunchAdController : UIViewController
-@end
-
-// UIViewController 多生命周期强拦截
 %hook UIViewController
-
-- (void)viewDidLoad {
-    NSString *className = NSStringFromClass([self class]);
-    if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
-        [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] || 
-        [className containsString:@"LaunchAd"] || [className containsString:@"Advertising"] || 
-        [className containsString:@"CMLaunch"] || [className containsString:@"LaunchScreen"]) {
-        NSLog(@"[CMAdBlock] Blocked splash-like VC in viewDidLoad: %@", className);
-        if ([self presentingViewController]) {
-            [self dismissViewControllerAnimated:NO completion:nil];
-        }
-        [[self view] setHidden:YES];
-        [[self view] removeFromSuperview];
-        return;
-    }
-    %orig;
-}
-
-- (void)viewWillAppear:(BOOL)animated {
-    NSString *className = NSStringFromClass([self class]);
-    if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
-        [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] || 
-        [className containsString:@"LaunchAd"] || [className containsString:@"Advertising"] || 
-        [className containsString:@"CMLaunch"] || [className containsString:@"LaunchScreen"]) {
-        NSLog(@"[CMAdBlock] Blocked splash-like VC in viewWillAppear: %@", className);
-        if ([self presentingViewController]) {
-            [self dismissViewControllerAnimated:NO completion:nil];
-        }
-        [[self view] setHidden:YES];
-        [[self view] removeFromSuperview];
-        return;
-    }
-    %orig;
-}
 
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     NSString *className = NSStringFromClass([self class]);
-    if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
-        [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] || 
-        [className containsString:@"LaunchAd"] || [className containsString:@"Advertising"] || 
-        [className containsString:@"CMLaunch"] || [className containsString:@"LaunchScreen"]) {
-        NSLog(@"[CMAdBlock] Blocked splash-like VC in viewDidAppear: %@", className);
-        if ([self presentingViewController]) {
+    if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || [className containsString:@"Launch"]) {
+        if (self.presentingViewController) {
             [self dismissViewControllerAnimated:NO completion:nil];
         } else {
-            [[self view] removeFromSuperview];
+            [self.view removeFromSuperview];
         }
     }
 }
 
 %end
 
-// 广点通
 %hook GDTSplashAd
 
 - (void)loadAdAndShowInWindow:(UIWindow *)window withBottomView:(UIView *)bottomView skipView:(UIView *)skipView {
-    NSLog(@"[CMAdBlock] Blocked GDTSplashAd loadAdAndShowInWindow (full)");
     if ([self.delegate respondsToSelector:@selector(splashAdClosed:)]) {
         [self.delegate splashAdClosed:self];
     }
     if ([self.delegate respondsToSelector:@selector(splashAdDidDismissFullScreenContent:)]) {
         [self.delegate splashAdDidDismissFullScreenContent:self];
     }
-}
-
-- (void)loadAdAndShowInWindow:(UIWindow *)window {
-    NSLog(@"[CMAdBlock] Blocked GDTSplashAd loadAdAndShowInWindow");
-    if ([self.delegate respondsToSelector:@selector(splashAdClosed:)]) {
-        [self.delegate splashAdClosed:self];
+    if (window) {
+        window.hidden = YES;
     }
 }
 
-- (void)showAdInWindow:(UIWindow *)window {
-    NSLog(@"[CMAdBlock] Blocked GDTSplashAd showAdInWindow");
+- (void)loadAdAndShowInWindow:(UIWindow *)window {
+    if ([self.delegate respondsToSelector:@selector(splashAdClosed:)]) {
+        [self.delegate splashAdClosed:self];
+    }
+    if (window) window.hidden = YES;
 }
 
 %end
 
-// 穿山甲
-%hook BUSplashAdView
+%hook CSJSplashAd
 
-- (instancetype)initWithSlotID:(NSString *)slotID rootViewController:(UIViewController *)rootViewController {
-    NSLog(@"[CMAdBlock] Blocked BUSplashAdView init");
-    return nil;
+- (void)loadAdAndShowInWindow:(id)window {
+    if ([self.delegate respondsToSelector:@selector(splashAdClosed:)]) {
+        [self.delegate splashAdClosed:self];
+    }
+    if ([self.delegate respondsToSelector:@selector(splashAdDidDismiss:)]) {
+        [self.delegate splashAdDidDismiss:self];
+    }
 }
 
+%end
+
+%hook BUSplashAdView
+
 - (void)loadAdData {
-    NSLog(@"[CMAdBlock] Blocked BUSplashAdView loadAdData");
     self.hidden = YES;
     [self removeFromSuperview];
     if ([self.delegate respondsToSelector:@selector(splashAdDidClose:)]) {
@@ -214,225 +123,52 @@ static void killAllAdSubviewsDeep(UIView *root) {
     }
 }
 
-- (void)showInWindow:(UIWindow *)window {
-    NSLog(@"[CMAdBlock] Blocked BUSplashAdView showInWindow");
-    [self removeFromSuperview];
-}
-
 %end
 
-// 穿山甲新版
-%hook CSJSplashAd
-
-- (void)loadAdData {
-    NSLog(@"[CMAdBlock] Blocked CSJSplashAd loadAdData");
-}
-
-- (void)showAdInView:(UIView *)view {
-    NSLog(@"[CMAdBlock] Blocked CSJSplashAd showAdInView");
-    if ([self.delegate respondsToSelector:@selector(splashAdClosed:)]) {
-        [self.delegate splashAdClosed:self];
-    }
-}
-
-%end
-
-// 百度
 %hook BaiduMobAdSplash
 
 - (void)load {
-    NSLog(@"[CMAdBlock] Blocked BaiduMobAdSplash load");
     if ([self.delegate respondsToSelector:@selector(splashDidDismissScreen:)]) {
         [self.delegate splashDidDismissScreen:self];
     }
 }
 
-- (void)showInContainerView:(UIView *)view {
-    NSLog(@"[CMAdBlock] Blocked BaiduMobAdSplash showInContainerView");
-}
-
 %end
 
-// 快手
-%hook KSAdSplashViewController
-
-- (void)viewDidLoad {
-    NSLog(@"[CMAdBlock] Blocked KSAdSplashViewController viewDidLoad");
-    if ([self presentingViewController]) [self dismissViewControllerAnimated:NO completion:nil];
-    [[self view] setHidden:YES];
-    [[self view] removeFromSuperview];
-    %orig;
-}
-
-- (void)viewWillAppear:(BOOL)animated {
-    NSLog(@"[CMAdBlock] Blocked KSAdSplashViewController viewWillAppear");
-    if ([self presentingViewController]) [self dismissViewControllerAnimated:NO completion:nil];
-    [[self view] setHidden:YES];
-    [[self view] removeFromSuperview];
-}
-
-%end
-
-// Pangle
-%hook PAGSplashRequest
-
-- (instancetype)init {
-    NSLog(@"[CMAdBlock] Blocked PAGSplashRequest init");
-    return nil;
-}
-
-%end
-
-// 中国移动特有
-%hook CMSplashManager
-
-- (void)showSplashAd {
-    NSLog(@"[CMAdBlock] Blocked CMSplashManager showSplashAd");
-}
-
-- (void)loadSplashAd {
-    NSLog(@"[CMAdBlock] Blocked CMSplashManager loadSplashAd");
-}
-
-%end
-
-%hook CMAdManager
-
-- (void)showLaunchAd {
-    NSLog(@"[CMAdBlock] Blocked CMAdManager showLaunchAd");
-}
-
-%end
-
-%hook CMLaunchAdView
-
-- (void)show {
-    NSLog(@"[CMAdBlock] Blocked CMLaunchAdView show");
-    [self setHidden:YES];
-    [self removeFromSuperview];
-}
-
-%end
-
-%hook CMAdSplashView
-
-- (void)show {
-    NSLog(@"[CMAdBlock] Blocked CMAdSplashView show");
-    [self setHidden:YES];
-    [self removeFromSuperview];
-}
-
-%end
-
-%hook CMLaunchAdController
-
-- (void)viewDidAppear:(BOOL)animated {
-    NSLog(@"[CMAdBlock] Blocked CMLaunchAdController");
-    if ([self presentingViewController]) [self dismissViewControllerAnimated:NO completion:nil];
-    [[self view] setHidden:YES];
-    [[self view] removeFromSuperview];
-}
-
-%end
-
-// UIWindow 拦截
-%hook UIWindow
-
-- (void)addSubview:(UIView *)view {
-    NSString *className = NSStringFromClass([view class]);
-    if ([className containsString:@"Splash"] || [className containsString:@"AdView"] || 
-        [className containsString:@"GDTSplash"] || [className containsString:@"BUSplash"] || 
-        [className containsString:@"CSJSplash"] || [className containsString:@"KSAd"] || 
-        [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] || 
-        [className containsString:@"LaunchAd"] || [className containsString:@"CMLaunch"] || 
-        [className containsString:@"AdContainer"] || [className containsString:@"LaunchScreen"]) {
-        NSLog(@"[CMAdBlock] Blocked addSubview of splash view: %@", className);
-        return;
-    }
-    %orig;
-}
-
-%end
-
-// present 拦截
-%hook UIViewController
-
-- (void)presentViewController:(UIViewController *)viewControllerToPresent animated:(BOOL)flag completion:(void (^)(void))completion {
-    NSString *className = NSStringFromClass([viewControllerToPresent class]);
-    if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
-        [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] || 
-        [className containsString:@"LaunchAd"] || [className containsString:@"CMLaunch"] || 
-        [className containsString:@"LaunchScreen"]) {
-        NSLog(@"[CMAdBlock] Blocked present splash VC: %@", className);
-        return;
-    }
-    %orig;
-}
-
-%end
-
+// 通用兜底 Window 处理
 %ctor {
-    %init(GDTSplashAd=objc_getClass("GDTSplashAd"),
-          CSJSplashAd=objc_getClass("CSJSplashAd"),
-          BUSplashAdView=objc_getClass("BUSplashAdView"),
-          BaiduMobAdSplash=objc_getClass("BaiduMobAdSplash"),
-          KSAdSplashViewController=objc_getClass("KSAdSplashViewController"),
-          PAGSplashRequest=objc_getClass("PAGSplashRequest"),
-          CMSplashManager=objc_getClass("CMSplashManager"),
-          CMAdManager=objc_getClass("CMAdManager"),
-          CMLaunchAdView=objc_getClass("CMLaunchAdView"),
-          CMAdSplashView=objc_getClass("CMAdSplashView"),
-          CMLaunchAdController=objc_getClass("CMLaunchAdController"));
+    // 动态初始化主流广告类(单次 %init)
+    Class gdtClass = objc_getClass("GDTSplashAd");
+    Class csjClass = objc_getClass("CSJSplashAd");
+    Class buClass = objc_getClass("BUSplashAdView");
+    Class baiduClass = objc_getClass("BaiduMobAdSplash");
+    Class ksClass = objc_getClass("KSAdSplashViewController");
+    Class pagClass = objc_getClass("PAGSplashRequest");
     
-    // 极致早期 + 多重强杀
-    UIWindow *win = get_keyWindow();
-    aggressivelyKillSplashViews();
-    killAllAdSubviewsDeep(win);
+    %init(GDTSplashAd = gdtClass,
+          CSJSplashAd = csjClass,
+          BUSplashAdView = buClass,
+          BaiduMobAdSplash = baiduClass,
+          KSAdSplashViewController = ksClass,
+          PAGSplashRequest = pagClass);
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        aggressivelyKillSplashViews();
-        killAllAdSubviewsDeep(get_keyWindow());
-    });
-    
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        aggressivelyKillSplashViews();
-        killAllAdSubviewsDeep(get_keyWindow());
-    });
-    
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        aggressivelyKillSplashViews();
-        killAllAdSubviewsDeep(get_keyWindow());
-    });
-    
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        aggressivelyKillSplashViews();
-        killAllAdSubviewsDeep(get_keyWindow());
-    });
-    
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        aggressivelyKillSplashViews();
-        killAllAdSubviewsDeep(get_keyWindow());
-    });
-    
-    // 高频兜底定时器
-    [NSTimer scheduledTimerWithTimeInterval:0.8 repeats:YES block:^(NSTimer * _Nonnull timer) {
-        UIWindow *w = get_keyWindow();
-        if (w) {
-            killAllAdSubviewsDeep(w);
-            forceRestoreSubViews(w);
-        }
-    }];
-    
-    // Notification 兜底
+    // 通知监听兜底 + 防白屏
     [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            for (UIWindow *win in [UIApplication sharedApplication].windows) {
+                NSString *winClass = NSStringFromClass([win class]);
+                if ([winClass containsString:@"Splash"] || [winClass containsString:@"Ad"] || [winClass containsString:@"Launch"] || win.windowLevel >= UIWindowLevelAlert) {
+                    win.hidden = YES;
+                    if (win.rootViewController) {
+                        [win.rootViewController.view removeFromSuperview];
+                    }
+                }
+            }
+            
             UIWindow *keyWin = get_keyWindow();
-            if (keyWin) {
-                killAllAdSubviewsDeep(keyWin);
-                forceRestoreSubViews(keyWin);
+            if (keyWin && keyWin.rootViewController) {
+                forceRestoreSubViews(keyWin.rootViewController.view);
             }
         });
     }];
-    
-    NSLog(@"[CMAdBlock] 中国移动营业厅去广告 Tweak 已加载 - 开屏终极强化版 v3");
 }
