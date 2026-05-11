@@ -13,15 +13,18 @@ static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     }
 }
 
-/* 递归搜索子视图中是否有标题含 “跳过” / “Skip” 的 UIButton */
+/* 递归搜索子视图中是否有标题含 “跳过” / “Skip” / “关闭” 的 UIButton */
 static BOOL hideSplashIfButtonFound(UIView *root) {
     for (UIView *sub in root.subviews) {
         if ([sub isKindOfClass:[UIButton class]]) {
             NSString *title = ((UIButton *)sub).currentTitle;
-            if (title && ([title containsString:@"跳过"] || [title containsString:@"Skip"] || [title containsString:@"关闭"])) {
+            if (title && ([title containsString:@"跳过"] || [title containsString:@"Skip"] || [title containsString:@"关闭"] || [title containsString:@"取消"])) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [sub setHidden:NO];
                     if (sub.superview) [sub.superview setHidden:NO];
+                    if ([sub respondsToSelector:@selector(sendActionsForControlEvents:)]) {
+                        [sub sendActionsForControlEvents:UIControlEventTouchUpInside];
+                    }
                 });
                 return YES;
             }
@@ -34,8 +37,8 @@ static BOOL hideSplashIfButtonFound(UIView *root) {
 }
 
 static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt) {
-    const NSInteger maxAttempts = 15;
-    const double interval = 0.35;
+    const NSInteger maxAttempts = 20;
+    const double interval = 0.3;
     if (attempt >= maxAttempts) return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
@@ -58,16 +61,20 @@ static void hideWindowAdViewsIfNeeded(UIView *view) {
                         [cls containsString:@"TelecomSplash"] || [cls containsString:@"CtSplash"] ||
                         [cls containsString:@"CTAd"] || [cls containsString:@"ChinaTelecom"] ||
                         [cls containsString:@"Popup"] || [cls containsString:@"Dialog"] ||
-                        [cls containsString:@"Alert"] || [cls containsString:@"Promotion"];
+                        [cls containsString:@"Alert"] || [cls containsString:@"Promotion"] ||
+                        [cls containsString:@"Modal"] || [cls containsString:@"Center"] ||
+                        [cls containsString:@"FullScreen"] || [cls containsString:@"Interstitial"];
         
-        BOOL isCentralPopup = isAdView && 
-                             (v.frame.size.width > 200 && v.frame.size.height > 200) &&
-                             (CGRectGetMidX(v.frame) > CGRectGetWidth(view.bounds)*0.3 && 
-                              CGRectGetMidX(v.frame) < CGRectGetWidth(view.bounds)*0.7);
+        BOOL isCentralPopup = (v.frame.size.width > 250 && v.frame.size.height > 250) &&
+                             (CGRectGetMidX(v.frame) > CGRectGetWidth(view.bounds)*0.25 && 
+                              CGRectGetMidX(v.frame) < CGRectGetWidth(view.bounds)*0.75) &&
+                             (CGRectGetMidY(v.frame) > CGRectGetHeight(view.bounds)*0.25 && 
+                              CGRectGetMidY(v.frame) < CGRectGetHeight(view.bounds)*0.75);
         
         if (isAdView || isCentralPopup) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [v setHidden:YES];
+                [v setAlpha:0.0];
                 [v removeFromSuperview];
             });
         } else {
@@ -78,7 +85,8 @@ static void hideWindowAdViewsIfNeeded(UIView *view) {
                 ![cls containsString:@"UIWindow"] &&
                 ![cls containsString:@"UITabBar"] &&
                 ![cls containsString:@"UINavigationBar"] &&
-                ![cls containsString:@"UITransitionView"]) {
+                ![cls containsString:@"UITransitionView"] &&
+                ![cls containsString:@"UINavigationItem"]) {
                 hideWindowAdViewsIfNeeded(v);
             }
         }
@@ -192,7 +200,8 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
                 [clsName containsString:@"Launch"] || [clsName containsString:@"CTSplash"] ||
                 [clsName containsString:@"CTAd"] || [clsName containsString:@"TelecomSplash"] ||
                 [clsName containsString:@"CtSplashView"] || [clsName containsString:@"ChinaTelecom"] ||
-                [clsName containsString:@"Popup"] || [clsName containsString:@"Dialog"];
+                [clsName containsString:@"Popup"] || [clsName containsString:@"Dialog"] ||
+                [clsName containsString:@"Promotion"];
     
     if (isAd) {
         [[self view] setHidden:YES];
@@ -214,7 +223,8 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
                 [clsName containsString:@"Launch"] || [clsName containsString:@"CTSplash"] ||
                 [clsName containsString:@"CTAd"] || [clsName containsString:@"TelecomSplash"] ||
                 [clsName containsString:@"CtSplashView"] || [clsName containsString:@"ChinaTelecom"] ||
-                [clsName containsString:@"Popup"] || [clsName containsString:@"Dialog"];
+                [clsName containsString:@"Popup"] || [clsName containsString:@"Dialog"] ||
+                [clsName containsString:@"Promotion"];
     
     if (isAd) {
         [[self view] setHidden:YES];
@@ -228,18 +238,23 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
         }
     } else {
         /* 非广告页面 - 进入APP后重点清理中间弹窗广告 */
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             hideAllAdViews();
             forceMainUIVisible();
             scheduleSplashSkipCheck([self view], 0);
         });
         
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             hideAllAdViews();
             forceMainUIVisible();
         });
         
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            hideAllAdViews();
+            forceMainUIVisible();
+        });
+        
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             hideAllAdViews();
         });
     }
@@ -250,7 +265,8 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
     NSString *clsName = NSStringFromClass([self class]);
     BOOL isAd = [clsName containsString:@"Splash"] || [clsName containsString:@"Ad"] || 
                 [clsName containsString:@"Launch"] || [clsName containsString:@"CTSplash"] ||
-                [clsName containsString:@"Telecom"] || [clsName containsString:@"Popup"];
+                [clsName containsString:@"Telecom"] || [clsName containsString:@"Popup"] ||
+                [clsName containsString:@"Dialog"];
     if (isAd) {
         [[self view] setHidden:YES];
         [[self view] setAlpha:0.0];
@@ -271,7 +287,8 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
                        [cls containsString:@"CSJSplash"] || [cls containsString:@"BUSplash"] ||
                        [cls containsString:@"CtSplash"] || [cls containsString:@"TelecomSplash"] ||
                        [cls containsString:@"ChinaTelecom"] || [cls containsString:@"Popup"] ||
-                       [cls containsString:@"Dialog"] || [cls containsString:@"Promotion"];
+                       [cls containsString:@"Dialog"] || [cls containsString:@"Promotion"] ||
+                       [cls containsString:@"Modal"] || [cls containsString:@"CenterView"];
     
     if (isAdSubview) {
         return; // 阻断添加
@@ -326,13 +343,18 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
     hookIfExists("CTAdSplashManager", @selector(fetchSplash), (IMP)CTAdSplashManager_fetchSplash_hook, &CTAdSplashManager_fetchSplash_orig);
     hookIfExists("CTAdSplashManager", @selector(show:), (IMP)CTAdSplashManager_show_hook, &CTAdSplashManager_show_orig);
 
-    /* 针对电信进入APP后中间弹窗广告的多次清理 */
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    /* 针对电信进入APP后中间弹窗广告的多次密集清理 */
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllAdViews();
         forceMainUIVisible();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        hideAllAdViews();
+        forceMainUIVisible();
+    });
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllAdViews();
         forceMainUIVisible();
     });
