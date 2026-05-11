@@ -148,7 +148,7 @@ static void forceMainUIVisible(void) {
                 }
                 
                 // 递归恢复子层级主内容
-                [self forceRestoreSubViews:rootView];
+                forceRestoreSubViews(rootView);
             }
         }
     });
