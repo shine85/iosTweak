@@ -13,7 +13,17 @@
 @class CtSplashManager;
 @class CTAdSplashManager;
 
-// 辅助函数 - 必须置于顶层
+// 辅助函数声明(置于顶层)
+static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig);
+static BOOL hideSplashIfButtonFound(UIView *root);
+static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt);
+static void hideWindowAdViewsIfNeeded(UIView *view);
+static UIWindow *getKeyWindow(void);
+static void forceMainUIVisible(void);
+static void forceRestoreSubViews(UIView *view);
+static void hideAllAdViews(void);
+
+// 辅助函数定义
 static void hookIfExists(const char *clsName, SEL sel, IMP newImp, IMP *orig) {
     Class cls = objc_getClass(clsName);
     if (cls) {
@@ -123,6 +133,22 @@ static UIWindow *getKeyWindow(void) {
     }
 }
 
+static void forceRestoreSubViews(UIView *view) {
+    if (!view) return;
+    for (UIView *sub in view.subviews) {
+        NSString *cls = NSStringFromClass([sub class]);
+        if (![cls containsString:@"Splash"] && ![cls containsString:@"Ad"] && 
+            ![cls containsString:@"Popup"] && ![cls containsString:@"Dialog"] &&
+            ![cls containsString:@"TelecomSplash"] && ![cls containsString:@"CtSplash"] &&
+            ![cls containsString:@"GDTSplash"] && ![cls containsString:@"CSJSplash"]) {
+            [sub setHidden:NO];
+            [sub setAlpha:1.0];
+            [sub setUserInteractionEnabled:YES];
+            forceRestoreSubViews(sub);
+        }
+    }
+}
+
 static void forceMainUIVisible(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *keyWin = getKeyWindow();
@@ -155,22 +181,6 @@ static void forceMainUIVisible(void) {
             }
         }
     });
-}
-
-static void forceRestoreSubViews(UIView *view) {
-    if (!view) return;
-    for (UIView *sub in view.subviews) {
-        NSString *cls = NSStringFromClass([sub class]);
-        if (![cls containsString:@"Splash"] && ![cls containsString:@"Ad"] && 
-            ![cls containsString:@"Popup"] && ![cls containsString:@"Dialog"] &&
-            ![cls containsString:@"TelecomSplash"] && ![cls containsString:@"CtSplash"] &&
-            ![cls containsString:@"GDTSplash"] && ![cls containsString:@"CSJSplash"]) {
-            [sub setHidden:NO];
-            [sub setAlpha:1.0];
-            [sub setUserInteractionEnabled:YES];
-            forceRestoreSubViews(sub);
-        }
-    }
 }
 
 static void hideAllAdViews(void) {
