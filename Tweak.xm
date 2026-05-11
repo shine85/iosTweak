@@ -80,8 +80,8 @@ static void aggressivelyKillSplashViews() {
         [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] ||
         [className containsString:@"LaunchAd"]) {
         NSLog(@"[CMAdBlock] Blocked splash-like VC in viewDidLoad: %@", className);
-        self.view.hidden = YES;
-        [self.view removeFromSuperview];
+        ((UIViewController *)self).view.hidden = YES;
+        [((UIViewController *)self).view removeFromSuperview];
         [self dismissViewControllerAnimated:NO completion:nil];
         return;
     }
@@ -94,8 +94,8 @@ static void aggressivelyKillSplashViews() {
         [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] ||
         [className containsString:@"LaunchAd"]) {
         NSLog(@"[CMAdBlock] Blocked splash-like VC in viewWillAppear: %@", className);
-        self.view.hidden = YES;
-        [self.view removeFromSuperview];
+        ((UIViewController *)self).view.hidden = YES;
+        [((UIViewController *)self).view removeFromSuperview];
         [self dismissViewControllerAnimated:NO completion:nil];
         return;
     }
@@ -108,8 +108,8 @@ static void aggressivelyKillSplashViews() {
         [className containsString:@"CMAd"] || [className containsString:@"CMSplash"] ||
         [className containsString:@"LaunchAd"]) {
         NSLog(@"[CMAdBlock] Blocked splash-like VC in viewDidAppear: %@", className);
-        self.view.hidden = YES;
-        [self.view removeFromSuperview];
+        ((UIViewController *)self).view.hidden = YES;
+        [((UIViewController *)self).view removeFromSuperview];
         [self dismissViewControllerAnimated:NO completion:nil];
         return;
     }
@@ -183,13 +183,13 @@ static void aggressivelyKillSplashViews() {
 
 - (void)viewDidLoad {
     NSLog(@"[CMAdBlock] Blocked KSAdSplashViewController viewDidLoad");
-    self.view.hidden = YES;
+    ((UIViewController *)self).view.hidden = YES;
     [self dismissViewControllerAnimated:NO completion:nil];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     NSLog(@"[CMAdBlock] Blocked KSAdSplashViewController viewWillAppear");
-    self.view.hidden = YES;
+    ((UIViewController *)self).view.hidden = YES;
     [self dismissViewControllerAnimated:NO completion:nil];
 }
 
