@@ -19,8 +19,8 @@ static BOOL hideSplashIfButtonFound(UIView *root);
 static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt);
 static void hideWindowAdViewsIfNeeded(UIView *view);
 static UIWindow *getKeyWindow(void);
-static void forceMainUIVisible(void);
 static void forceRestoreSubViews(UIView *view);
+static void forceMainUIVisible(void);
 static void hideAllAdViews(void);
 
 // 辅助函数定义
@@ -54,8 +54,8 @@ static BOOL hideSplashIfButtonFound(UIView *root) {
 }
 
 static void scheduleSplashSkipCheck(UIView *root, NSInteger attempt) {
-    const NSInteger maxAttempts = 20;
-    const double interval = 0.35;
+    const NSInteger maxAttempts = 30;
+    const double interval = 0.25;
     if (attempt >= maxAttempts) return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
@@ -74,13 +74,14 @@ static void hideWindowAdViewsIfNeeded(UIView *view) {
                         [cls containsString:@"BUSplash"] || [cls containsString:@"BaiduMobAd"] ||
                         [cls containsString:@"KSAd"] || [cls containsString:@"CTSplash"] ||
                         [cls containsString:@"CtSplash"] || [cls containsString:@"CTAd"] ||
-                        [cls containsString:@"TelecomSplash"] || [cls containsString:@"ChinaTelecomSplash"];
+                        [cls containsString:@"TelecomSplash"] || [cls containsString:@"ChinaTelecomSplash"] ||
+                        [cls containsString:@"Promotion"] || [cls containsString:@"Dialog"];
         
-        BOOL isCentralPopup = (v.frame.size.width > 280 && v.frame.size.height > 280) &&
-                             (CGRectGetMidX(v.frame) > CGRectGetWidth(view.bounds)*0.2 && 
-                              CGRectGetMidX(v.frame) < CGRectGetWidth(view.bounds)*0.8) &&
-                             (CGRectGetMidY(v.frame) > CGRectGetHeight(view.bounds)*0.2 && 
-                              CGRectGetMidY(v.frame) < CGRectGetHeight(view.bounds)*0.8);
+        BOOL isCentralPopup = (v.frame.size.width > 200 && v.frame.size.height > 200) &&
+                             (CGRectGetMidX(v.frame) > CGRectGetWidth(view.bounds)*0.15 && 
+                              CGRectGetMidX(v.frame) < CGRectGetWidth(view.bounds)*0.85) &&
+                             (CGRectGetMidY(v.frame) > CGRectGetHeight(view.bounds)*0.15 && 
+                              CGRectGetMidY(v.frame) < CGRectGetHeight(view.bounds)*0.85);
         
         if (isAdView || isCentralPopup) {
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -132,7 +133,8 @@ static void forceRestoreSubViews(UIView *view) {
         if (![cls containsString:@"Splash"] && ![cls containsString:@"Ad"] && 
             ![cls containsString:@"Popup"] && ![cls containsString:@"Dialog"] &&
             ![cls containsString:@"TelecomSplash"] && ![cls containsString:@"CtSplash"] &&
-            ![cls containsString:@"GDTSplash"] && ![cls containsString:@"CSJSplash"]) {
+            ![cls containsString:@"GDTSplash"] && ![cls containsString:@"CSJSplash"] &&
+            ![cls containsString:@"Promotion"]) {
             [sub setHidden:NO];
             [sub setAlpha:1.0];
             [sub setUserInteractionEnabled:YES];
@@ -159,6 +161,8 @@ static void forceMainUIVisible(void) {
                     [rootView setBackgroundColor:[UIColor whiteColor]];
                     [rootView setUserInteractionEnabled:YES];
                     [rootView layoutIfNeeded];
+                    [rootView setNeedsLayout];
+                    [rootView layoutSubviews];
                     
                     for (UIView *sub in rootView.subviews) {
                         NSString *scls = NSStringFromClass([sub class]);
@@ -168,6 +172,7 @@ static void forceMainUIVisible(void) {
                             [sub setHidden:NO];
                             [sub setAlpha:1.0];
                             [sub setUserInteractionEnabled:YES];
+                            [sub layoutIfNeeded];
                         }
                     }
                     forceRestoreSubViews(rootView);
@@ -233,7 +238,7 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
 %hook CtSplashManager %end
 %hook CTAdSplashManager %end
 
-/* ---------- UIViewController 拦截(优化白屏) ---------- */
+/* ---------- UIViewController 拦截(针对白屏强化) ---------- */
 %hook UIViewController
 - (void)viewDidLoad {
     %orig;
@@ -275,24 +280,28 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
             });
         }
     } else {
-        // 针对电信APP白屏优化：多次强制恢复主界面
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             hideAllAdViews();
             forceMainUIVisible();
             if ([self view]) scheduleSplashSkipCheck([self view], 0);
         });
         
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             hideAllAdViews();
             forceMainUIVisible();
         });
         
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             hideAllAdViews();
             forceMainUIVisible();
         });
         
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            hideAllAdViews();
+            forceMainUIVisible();
+        });
+        
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             hideAllAdViews();
             forceMainUIVisible();
         });
@@ -309,6 +318,17 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
     if (isAd) {
         [[self view] setHidden:YES];
         [[self view] setAlpha:0.0];
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    %orig;
+    NSString *clsName = NSStringFromClass([self class]);
+    if (![clsName containsString:@"Splash"] && ![clsName containsString:@"Ad"] && 
+        ![clsName containsString:@"Popup"] && ![clsName containsString:@"Dialog"]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            forceMainUIVisible();
+        });
     }
 }
 %end
@@ -380,23 +400,33 @@ static void CTAdSplashManager_show_hook(id self, SEL _cmd, UIWindow *window) { }
     hookIfExists("CTAdSplashManager", @selector(fetchSplash), (IMP)CTAdSplashManager_fetchSplash_hook, &CTAdSplashManager_fetchSplash_orig);
     hookIfExists("CTAdSplashManager", @selector(show:), (IMP)CTAdSplashManager_show_hook, &CTAdSplashManager_show_orig);
 
-    // 针对进入APP白屏增加更早、更频繁的恢复
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    // 针对电信APP白屏问题：更早、更密集的恢复调用
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllAdViews();
         forceMainUIVisible();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllAdViews();
         forceMainUIVisible();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        hideAllAdViews();
+        forceMainUIVisible();
+    });
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllAdViews();
         forceMainUIVisible();
     });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        hideAllAdViews();
+        forceMainUIVisible();
+    });
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         hideAllAdViews();
         forceMainUIVisible();
     });
