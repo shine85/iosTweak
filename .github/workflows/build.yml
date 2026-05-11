@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.71)
+name: iOS Tweak Build (FORCE_v1.1.74)
 
 on:
   push:
@@ -16,7 +16,10 @@ jobs:
       contents: write
     env:
       # 强制刷新标识
-      FORCE_BUILD_ID: "1.1.71"
+      FORCE_BUILD_ID: "1.1.74"
+      # 基于 GitHub 编译次数生成动态版本号 (例如 1.1.125)
+      DYNAMIC_VERSION: "1.1.${{ github.run_number }}"
+      AUTHOR_NAME: "目目"
 
     steps:
       - name: "1. 检出代码"
@@ -114,12 +117,24 @@ jobs:
           fi
 
           TWEAK_NAME=$(grep -i "^TWEAK_NAME" Makefile | cut -d'=' -f2 | sed -e 's/^[[:space:]]*//' | tr -d '\n\r')
-          # 提取当前项目的版本号
-          TWEAK_VERSION=$(grep "^  \"version\":" package.json | awk -F": " '{print $2}' | sed 's/[",]//g' | xargs)
+          # 动态从环境变量读取编译版本号
+          TWEAK_VERSION="${DYNAMIC_VERSION}"
           VER_SUFFIX="v${TWEAK_VERSION}"
           
+          # 更新或创建 control 文件，注入版本与作者信息
           if [ -f control ]; then
             sed -i "s/^Version:.*/Version: ${TWEAK_VERSION}/" control
+            sed -i "s/^Author:.*/Author: ${AUTHOR_NAME}/" control
+            sed -i "s/^Maintainer:.*/Maintainer: ${AUTHOR_NAME}/" control
+          else
+            echo "Package: com.mumu.studio.tweak" > control
+            echo "Name: ${{ env.APP_NAME }}" >> control
+            echo "Version: ${TWEAK_VERSION}" >> control
+            echo "Architecture: iphoneos-arm" >> control
+            echo "Description: 实时编译产物，由云端自动化系统生成。" >> control
+            echo "Author: ${AUTHOR_NAME}" >> control
+            echo "Maintainer: ${AUTHOR_NAME}" >> control
+            echo "Section: Tweaks" >> control
           fi
           
           # 1. Rootless 编译

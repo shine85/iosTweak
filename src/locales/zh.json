@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "iOS 插件",
-    "version": "v1.1.72-稳定版",
+    "version": "v1.1.74-稳定版",
     "admin": "管理员",
     "logout": "登出系统",
     "status": "系统状态",

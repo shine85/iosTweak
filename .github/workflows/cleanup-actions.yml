@@ -25,7 +25,7 @@ jobs:
           
           # 使用 GitHub CLI 获取列表并循环删除
           # 限制查询 1000 条以防超时，生产力工具就要快准狠
-          gh run list --limit 1000 --created "<$CUTOFF_DATE" --json databaseId --jq '.[].databaseId' > runs_to_delete.txt
+          gh run list --repo ${{ github.repository }} --limit 1000 --created "<$CUTOFF_DATE" --json databaseId --jq '.[].databaseId' > runs_to_delete.txt
           
           COUNT=$(wc -l < runs_to_delete.txt)
           
@@ -38,7 +38,7 @@ jobs:
           
           while read -r RUN_ID; do
             echo "正在删除 Run ID: $RUN_ID"
-            gh run delete "$RUN_ID"
+            gh run delete "$RUN_ID" --repo ${{ github.repository }}
           done < runs_to_delete.txt
           
           echo "🏁 清理完成！"
