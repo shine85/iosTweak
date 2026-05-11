@@ -23,7 +23,7 @@ static BOOL hideSplashIfButtonFound(UIView *root) {
                     [sub setHidden:NO];
                     if (sub.superview) [sub.superview setHidden:NO];
                     if ([sub respondsToSelector:@selector(sendActionsForControlEvents:)]) {
-                        [sub sendActionsForControlEvents:UIControlEventTouchUpInside];
+                        [(UIControl *)sub sendActionsForControlEvents:UIControlEventTouchUpInside];
                     }
                 });
                 return YES;
@@ -93,6 +93,26 @@ static void hideWindowAdViewsIfNeeded(UIView *view) {
     }
 }
 
+static UIWindow *getKeyWindow(void) {
+    UIApplication *app = [UIApplication sharedApplication];
+    if (@available(iOS 13.0, *)) {
+        for (UIWindow *win in app.windows) {
+            if (win.isKeyWindow) {
+                return win;
+            }
+        }
+        UIWindowScene *scene = (UIWindowScene *)[[[UIApplication sharedApplication] connectedScenes] anyObject];
+        if (scene && [scene isKindOfClass:[UIWindowScene class]]) {
+            for (UIWindow *win in scene.windows) {
+                if (win.isKeyWindow) return win;
+            }
+        }
+        return app.windows.firstObject;
+    } else {
+        return [app keyWindow];
+    }
+}
+
 static void forceMainUIVisible(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIApplication *app = [UIApplication sharedApplication];
@@ -116,7 +136,7 @@ static void forceMainUIVisible(void) {
             }
         }
         
-        UIWindow *keyWin = [app keyWindow];
+        UIWindow *keyWin = getKeyWindow();
         if (keyWin) {
             [keyWin setHidden:NO];
             [keyWin setAlpha:1.0];
@@ -138,7 +158,7 @@ static void hideAllAdViews(void) {
     for (UIWindow *win in app.windows) {
         hideWindowAdViewsIfNeeded(win);
     }
-    UIWindow *keyWin = [app keyWindow];
+    UIWindow *keyWin = getKeyWindow();
     if (keyWin) {
         hideWindowAdViewsIfNeeded(keyWin);
     }
