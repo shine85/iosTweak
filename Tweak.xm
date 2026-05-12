@@ -2,34 +2,59 @@
 #import <UIKit/UIKit.h>
 #import <substrate.h>
 
-@interface UIView (Tweak)
-@property (nonatomic, strong) id delegate;
+@interface UIViewController (AdHook)
+@property (nonatomic, weak) id delegate;
 @end
 
-@interface UIViewController (Tweak)
-@property (nonatomic, strong) id delegate;
+@interface UIView (AdHook)
 @end
 
+@interface UIWindow (AdHook)
+@end
+
+// 主流广告 SDK 开屏类声明
 @interface GDTSplashAd : NSObject
-@end
-
-@interface BUSplashAd : NSObject
+@property (nonatomic, weak) id delegate;
+- (void)loadAdAndShowInWindow:(UIWindow *)window;
+- (void)showAdInWindow:(UIWindow *)window;
 @end
 
 @interface CSJSplashAd : NSObject
+@property (nonatomic, weak) id delegate;
+@end
+
+@interface BUSplashAdView : UIView
+@property (nonatomic, weak) id delegate;
 @end
 
 @interface BaiduMobAdSplash : NSObject
+@property (nonatomic, weak) id delegate;
 @end
 
 @interface KSAdSplashViewController : UIViewController
+@property (nonatomic, weak) id delegate;
 @end
 
 @interface PAGSplashRequest : NSObject
 @end
 
-// 通用辅助函数 - 顶层定义
-static UIWindow* get_keyWindow() {
+// 应用可能特有类(基于常见命名推测)
+@interface CMSplashManager : NSObject
+@end
+
+@interface CMSplashViewController : UIViewController
+@property (nonatomic, weak) id delegate;
+@end
+
+@interface CMSplashAd : NSObject
+@property (nonatomic, weak) id delegate;
+@end
+
+@interface BiddingSplashAd : NSObject
+@property (nonatomic, weak) id delegate;
+@end
+
+static UIWindow* get_keyWindow(void) {
     UIWindow *foundWindow = nil;
     if (@available(iOS 13.0, *)) {
         for (UIWindowScene* windowScene in [UIApplication sharedApplication].connectedScenes) {
@@ -50,19 +75,15 @@ static UIWindow* get_keyWindow() {
     return foundWindow;
 }
 
-static void forceRemoveAdWindow() {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        for (UIWindow *window in [UIApplication sharedApplication].windows) {
-            NSString *className = NSStringFromClass([window class]);
-            if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
-                [className containsString:@"Launch"] || window.windowLevel >= UIWindowLevelNormal + 1) {
-                if (window != get_keyWindow()) {
-                    window.hidden = YES;
-                    [window.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
-                }
-            }
+static void forceRemoveAdWindow(void) {
+    for (UIWindow *win in [UIApplication sharedApplication].windows) {
+        NSString *className = NSStringFromClass([win class]);
+        if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
+            [className containsString:@"Launch"] || win.windowLevel >= UIWindowLevelNormal + 1) {
+            win.hidden = YES;
+            [win.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
         }
-    });
+    }
 }
 
 static void notifyAdClosed(id adObject) {
@@ -74,10 +95,11 @@ static void notifyAdClosed(id adObject) {
             @selector(splashAdClosed:),
             @selector(splashAdDidDismiss:),
             @selector(splashAdDidDismissFullScreenContent:),
+            @selector(splashAdDidClose:),
             @selector(splashDidDismissScreen:),
-            @selector(splashAdDidClose:)
+            @selector(splashAdViewDidClose:)
         };
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < sizeof(selectors)/sizeof(SEL); i++) {
             if ([delegate respondsToSelector:selectors[i]]) {
                 [delegate performSelector:selectors[i] withObject:adObject];
                 break;
@@ -87,63 +109,38 @@ static void notifyAdClosed(id adObject) {
 #pragma clang diagnostic pop
 }
 
-// 通用兜底 - UIApplicationDidBecomeActive
-%hook UIApplication
-- (void)sendEvent:(UIEvent *)event {
-    %orig;
-}
-%end
-
-%ctor {
-    %init;
-    
-    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification 
-                                                      object:nil 
-                                                       queue:[NSOperationQueue mainQueue] 
-                                                  usingBlock:^(NSNotification *note) {
-        forceRemoveAdWindow();
-    }];
-}
-
-// 开屏 SDK Hook
 %hook GDTSplashAd
-- (void)loadAdAndShowInWindow:(id)window {
+- (void)loadAdAndShowInWindow:(UIWindow *)window {
     notifyAdClosed(self);
     forceRemoveAdWindow();
 }
-- (void)showAdInWindow:(id)window {
+- (void)showAdInWindow:(UIWindow *)window {
     notifyAdClosed(self);
-    forceRemoveAdWindow();
-}
-%end
-
-%hook BUSplashAd
-- (void)loadAdData {
-    notifyAdClosed(self);
-    forceRemoveAdWindow();
-}
-- (void)showSplashViewInRootViewController:(UIViewController *)viewController {
-    notifyAdClosed(self);
-    if (viewController.presentingViewController) {
-        [viewController dismissViewControllerAnimated:NO completion:nil];
-    }
     forceRemoveAdWindow();
 }
 %end
 
 %hook CSJSplashAd
-- (void)loadAdAndShowInWindow:(id)window {
+- (void)loadAdAndShowInWindow:(UIWindow *)window {
     notifyAdClosed(self);
     forceRemoveAdWindow();
 }
 %end
 
-%hook BaiduMobAdSplash
-- (void)load {
+%hook BUSplashAdView
+- (instancetype)initWithFrame:(CGRect)frame {
+    return nil;
+}
+- (void)loadAdData {
     notifyAdClosed(self);
     forceRemoveAdWindow();
+    [(UIView *)self setHidden:YES];
+    [self removeFromSuperview];
 }
-- (void)showInContainer:(id)container {
+%end
+
+%hook BaiduMobAdSplash
+- (void)loadAd {
     notifyAdClosed(self);
     forceRemoveAdWindow();
 }
@@ -151,39 +148,30 @@ static void notifyAdClosed(id adObject) {
 
 %hook KSAdSplashViewController
 - (void)viewDidAppear:(BOOL)animated {
-    %orig;
-    if (self.presentingViewController) {
-        [self dismissViewControllerAnimated:NO completion:nil];
-    }
-    forceRemoveAdWindow();
+    [self dismissViewControllerAnimated:NO completion:nil];
 }
 %end
 
-%hook PAGSplashRequest
-- (instancetype)init {
-    return nil;
-}
-%end
-
-// 中国移动可能自定义类(基于常见命名推测，精准拦截)
 %hook CMSplashManager
-- (instancetype)init {
++ (instancetype)sharedInstance {
     return nil;
-}
-- (void)loadSplashAd {
-    // 阻断加载
 }
 %end
 
 %hook CMSplashViewController
-- (void)viewDidLoad {
-    %orig;
-    if (self.presentingViewController) {
-        [self dismissViewControllerAnimated:NO completion:nil];
-    }
-    forceRemoveAdWindow();
+- (instancetype)init {
+    return nil;
 }
-- (instancetype)initWithNibName:(id)nib bundle:(id)bundle {
+- (instancetype)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
+    return nil;
+}
+- (void)viewDidLoad {
+    [self dismissViewControllerAnimated:NO completion:nil];
+}
+%end
+
+%hook CMSplashAd
+- (instancetype)init {
     return nil;
 }
 %end
@@ -194,17 +182,38 @@ static void notifyAdClosed(id adObject) {
 }
 %end
 
-// 通用视图层防护(仅限明确广告特征，防误杀)
-%hook UIView
-- (void)didMoveToWindow {
-    %orig;
-    NSString *className = NSStringFromClass([self class]);
-    if ([className containsString:@"Splash"] || [className containsString:@"AdView"] || 
-        [className containsString:@"GDTSplash"] || [className containsString:@"BUSplash"] || 
-        [className containsString:@"KSAd"]) {
-        [(UIView *)self setHidden:YES];
-        [self removeFromSuperview];
-        forceRemoveAdWindow();
-    }
+%hook PAGSplashRequest
+- (instancetype)init {
+    return nil;
 }
 %end
+
+%hook UIViewController
+- (void)presentViewController:(UIViewController *)viewControllerToPresent animated:(BOOL)flag completion:(void (^)(void))completion {
+    NSString *vcClass = NSStringFromClass([viewControllerToPresent class]);
+    if ([vcClass containsString:@"Splash"] || [vcClass containsString:@"Ad"]) {
+        if (completion) completion();
+        return;
+    }
+    %orig;
+}
+%end
+
+%ctor {
+    %init(GDTSplashAd=objc_getClass("GDTSplashAd"),
+          CSJSplashAd=objc_getClass("CSJSplashAd"),
+          BUSplashAdView=objc_getClass("BUSplashAdView"),
+          BaiduMobAdSplash=objc_getClass("BaiduMobAdSplash"),
+          KSAdSplashViewController=objc_getClass("KSAdSplashViewController"),
+          CMSplashManager=objc_getClass("CMSplashManager"),
+          CMSplashViewController=objc_getClass("CMSplashViewController"),
+          CMSplashAd=objc_getClass("CMSplashAd"),
+          BiddingSplashAd=objc_getClass("BiddingSplashAd"),
+          PAGSplashRequest=objc_getClass("PAGSplashRequest"));
+    
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:nil usingBlock:^(NSNotification *note) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            forceRemoveAdWindow();
+        });
+    }];
+}
