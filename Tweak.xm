@@ -105,6 +105,7 @@ static void notifyAdDismiss(id adObject) {
                 @selector(splashAdDidClose:),
                 @selector(splashDidDismissScreen:),
                 @selector(splashAdViewDidDismissScreen:),
+                @selector(splashAdDidDismiss:),
                 nil
             };
             for (int i = 0; selectors[i] != nil; i++) {
@@ -130,6 +131,7 @@ static void killSplashWindow() {
                           [className containsString:@"KSAd"] ||
                           [className containsString:@"PAG"] ||
                           [className containsString:@"CMAd"] ||
+                          [className containsString:@"CMSplash"] ||
                           window.windowLevel >= UIWindowLevelNormal + 1;
         
         if (isAdWindow) {
@@ -211,6 +213,12 @@ static void restoreMainUI() {
     [self dismissViewControllerAnimated:NO completion:nil];
     killSplashWindow();
 }
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    NSLog(@"[AdHook] Blocked KSAdSplashViewController viewWillAppear");
+    killSplashWindow();
+}
 %end
 
 %hook PAGSplashAd
@@ -233,6 +241,7 @@ static void restoreMainUI() {
 - (void)showSplashAd {
     NSLog(@"[AdHook] Blocked CMSplashManager");
     killSplashWindow();
+    restoreMainUI();
 }
 %end
 
@@ -277,9 +286,20 @@ static void restoreMainUI() {
         }
         killSplashWindow();
     } else {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             restoreMainUI();
         });
+    }
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    NSString *selfClass = NSStringFromClass([self class]);
+    if ([selfClass containsString:@"Splash"] || [selfClass containsString:@"GDTSplash"] ||
+        [selfClass containsString:@"CSJSplash"] || [selfClass containsString:@"CMSplash"] ||
+        [selfClass containsString:@"CMAd"]) {
+        NSLog(@"[AdHook] Blocked splash viewWillAppear: %@", selfClass);
+        killSplashWindow();
     }
 }
 %end
@@ -291,11 +311,11 @@ static void restoreMainUI() {
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             killSplashWindow();
             restoreMainUI();
         });
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             killSplashWindow();
             restoreMainUI();
         });
@@ -314,7 +334,12 @@ static void restoreMainUI() {
           CMSplashManager=objc_getClass("CMSplashManager"),
           CMAdSplashView=objc_getClass("CMAdSplashView"));
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        killSplashWindow();
+        restoreMainUI();
+    });
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
     });
@@ -324,5 +349,5 @@ static void restoreMainUI() {
         restoreMainUI();
     });
     
-    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 加强防白屏版");
+    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 加强版");
 }
