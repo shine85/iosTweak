@@ -64,14 +64,25 @@ static void forceRestoreSubViews(UIView *view) {
     view.hidden = NO;
     view.alpha = 1.0;
     view.userInteractionEnabled = YES;
-    view.frame = [UIScreen mainScreen].bounds;
+    if (CGRectIsEmpty(view.frame) || view.frame.size.width < 10) {
+        view.frame = [UIScreen mainScreen].bounds;
+    }
     [view setNeedsLayout];
     [view layoutIfNeeded];
     [view setNeedsDisplay];
+    
+    // 额外增强：确保背景不透明
+    if ([view isKindOfClass:[UIView class]] && view.backgroundColor == nil) {
+        view.backgroundColor = [UIColor whiteColor];
+    }
+    
     for(UIView *sub in view.subviews) {
         sub.hidden = NO;
         sub.alpha = 1.0;
         sub.userInteractionEnabled = YES;
+        if (CGRectIsEmpty(sub.frame) || sub.frame.size.width < 10) {
+            sub.frame = view.bounds;
+        }
         [sub setNeedsLayout];
         [sub layoutIfNeeded];
         [sub setNeedsDisplay];
@@ -176,33 +187,37 @@ static void forceShowMainContent() {
         forceRestoreSubViews(mainView);
         aggressiveKillAdViews(mainView);
         
-        // 额外处理 navigation/tab 控制器
-        if ([rootVC isKindOfClass:[UINavigationController class]]) {
-            UINavigationController *nav = (UINavigationController *)rootVC;
-            if (nav.visibleViewController && nav.visibleViewController.view) {
-                forceRestoreSubViews(nav.visibleViewController.view);
-            }
-        } else if ([rootVC isKindOfClass:[UITabBarController class]]) {
+        // 重点强化 TabBar + 白屏修复
+        if ([rootVC isKindOfClass:[UITabBarController class]]) {
             UITabBarController *tab = (UITabBarController *)rootVC;
+            tab.tabBar.hidden = NO;
+            tab.tabBar.alpha = 1.0;
             if (tab.selectedViewController && tab.selectedViewController.view) {
-                forceRestoreSubViews(tab.selectedViewController.view);
+                UIView *contentView = tab.selectedViewController.view;
+                contentView.hidden = NO;
+                contentView.alpha = 1.0;
+                contentView.frame = CGRectMake(0, 0, tab.view.bounds.size.width, tab.view.bounds.size.height - tab.tabBar.frame.size.height);
+                forceRestoreSubViews(contentView);
             }
-            // 特别处理底部导航栏已显示但内容白屏的情况
             for (UIViewController *vc in tab.viewControllers) {
                 if (vc.view) {
                     forceRestoreSubViews(vc.view);
                 }
             }
+        } else if ([rootVC isKindOfClass:[UINavigationController class]]) {
+            UINavigationController *nav = (UINavigationController *)rootVC;
+            if (nav.visibleViewController && nav.visibleViewController.view) {
+                forceRestoreSubViews(nav.visibleViewController.view);
+            }
         }
         
-        // 递归恢复所有子控制器视图(重点修复白屏只有底部导航栏)
+        // 递归恢复所有子控制器视图
         for (UIViewController *child in rootVC.childViewControllers) {
             if (child.view) {
                 forceRestoreSubViews(child.view);
             }
         }
         
-        // 更深层递归查找所有呈现的控制器
         UIViewController *current = rootVC;
         while (current.presentedViewController) {
             current = current.presentedViewController;
@@ -215,10 +230,10 @@ static void forceShowMainContent() {
         [mainView layoutIfNeeded];
         [mainView setNeedsDisplay];
         
-        NSLog(@"[AdHook] Force restored main rootViewController content - anti white screen enhanced");
+        NSLog(@"[AdHook] Force restored main content with enhanced tabbar fix");
     }
     
-    // 全局遍历所有 window 恢复(强力防白屏)
+    // 全局遍历恢复
     for (UIWindow *win in [UIApplication sharedApplication].windows) {
         if (win.rootViewController && win.rootViewController.view) {
             forceRestoreSubViews(win.rootViewController.view);
@@ -329,7 +344,6 @@ static void killSplashWindow() {
 }
 %end
 
-// 中国移动特定加强
 %hook CMSplashAd
 - (void)loadAdAndShowInWindow:(UIWindow *)window {
     NSLog(@"[AdHook] Blocked CMSplashAd");
@@ -386,7 +400,6 @@ static void killSplashWindow() {
         }
         killSplashWindow();
     } else {
-        // 非广告 VC 出现时强化恢复主界面(重点修复白屏)
         if ([selfClass containsString:@"Main"] || [selfClass containsString:@"Home"] || 
             [selfClass containsString:@"Root"] || [selfClass containsString:@"Tab"] || 
             [selfClass containsString:@"Nav"] || [selfClass containsString:@"ViewController"]) {
@@ -431,7 +444,7 @@ static void killSplashWindow() {
         forceShowMainContent();
     }];
     
-    // 更密集的早期清理 + 强力防白屏(针对只有底部导航栏的白屏问题)
+    // 针对只有底部导航栏的白屏问题加强恢复频率和深度
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
@@ -467,5 +480,5 @@ static void killSplashWindow() {
         restoreMainUI();
     });
     
-    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 强化防白屏版 v4");
+    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 强化防白屏版 v5");
 }
