@@ -73,6 +73,7 @@ static void forceRestoreSubViews(UIView *view) {
         sub.userInteractionEnabled = YES;
         [sub setNeedsLayout];
         [sub layoutIfNeeded];
+        [sub setNeedsDisplay];
         if(sub.subviews.count > 0) forceRestoreSubViews(sub);
     }
 }
@@ -160,22 +161,42 @@ static void notifyAdDismiss(id adObject) {
 #pragma clang diagnostic pop
 }
 
-static void restoreMainUI() {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *keyWin = get_keyWindow();
-        if (keyWin && keyWin.rootViewController && keyWin.rootViewController.view) {
-            UIView *mainView = keyWin.rootViewController.view;
-            forceRestoreSubViews(mainView);
-            mainView.hidden = NO;
-            mainView.alpha = 1.0;
-            mainView.userInteractionEnabled = YES;
-            [mainView setNeedsLayout];
-            [mainView layoutIfNeeded];
-            [mainView setNeedsDisplay];
-            aggressiveKillAdViews(mainView);
+static void forceShowMainContent() {
+    UIWindow *keyWin = get_keyWindow();
+    if (keyWin && keyWin.rootViewController) {
+        UIViewController *rootVC = keyWin.rootViewController;
+        UIView *mainView = rootVC.view;
+        
+        mainView.hidden = NO;
+        mainView.alpha = 1.0;
+        mainView.userInteractionEnabled = YES;
+        mainView.frame = [UIScreen mainScreen].bounds;
+        
+        forceRestoreSubViews(mainView);
+        aggressiveKillAdViews(mainView);
+        
+        // 额外处理 navigation/tab 控制器
+        if ([rootVC isKindOfClass:[UINavigationController class]]) {
+            UINavigationController *nav = (UINavigationController *)rootVC;
+            forceRestoreSubViews(nav.visibleViewController.view);
+        } else if ([rootVC isKindOfClass:[UITabBarController class]]) {
+            UITabBarController *tab = (UITabBarController *)rootVC;
+            forceRestoreSubViews(tab.selectedViewController.view);
         }
         
-        // 额外遍历所有 window 恢复主界面
+        [mainView setNeedsLayout];
+        [mainView layoutIfNeeded];
+        [mainView setNeedsDisplay];
+        
+        NSLog(@"[AdHook] Force restored main rootViewController content");
+    }
+}
+
+static void restoreMainUI() {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        forceShowMainContent();
+        
+        // 遍历所有 window
         for (UIWindow *win in [UIApplication sharedApplication].windows) {
             if (win.rootViewController && win.rootViewController.view) {
                 forceRestoreSubViews(win.rootViewController.view);
@@ -193,25 +214,36 @@ static void killSplashWindow() {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressiveKillAdWindows();
         restoreMainUI();
+        forceShowMainContent();
     });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressiveKillAdWindows();
         restoreMainUI();
+        forceShowMainContent();
     });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressiveKillAdWindows();
         restoreMainUI();
+        forceShowMainContent();
     });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressiveKillAdWindows();
         restoreMainUI();
+        forceShowMainContent();
     });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressiveKillAdWindows();
+        restoreMainUI();
+        forceShowMainContent();
+    });
+    
+    // 更长延迟兜底
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        forceShowMainContent();
         restoreMainUI();
     });
 }
@@ -328,6 +360,13 @@ static void killSplashWindow() {
             [[self view] removeFromSuperview];
         }
         killSplashWindow();
+    } else {
+        // 非广告 VC 出现时也尝试恢复主界面
+        if ([selfClass containsString:@"Main"] || [selfClass containsString:@"Home"] || [selfClass containsString:@"Root"]) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                forceShowMainContent();
+            });
+        }
     }
 }
 %end
@@ -349,33 +388,39 @@ static void killSplashWindow() {
                                                   usingBlock:^(NSNotification *note) {
         killSplashWindow();
         restoreMainUI();
+        forceShowMainContent();
     }];
     
-    // 更密集的早期清理 + 防白屏恢复
+    // 密集早期清理 + 防白屏
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
+        forceShowMainContent();
     });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
+        forceShowMainContent();
     });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
+        forceShowMainContent();
     });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
+        forceShowMainContent();
     });
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
+        forceShowMainContent();
     });
     
-    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 强化防白屏版");
+    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 强化防白屏版 v2");
 }
