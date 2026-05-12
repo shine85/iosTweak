@@ -32,6 +32,7 @@ static UIWindow* get_keyWindow() {
     return foundWindow;
 }
 
+// 广告SDK接口声明
 @interface GDTSplashAd : NSObject
 @property (nonatomic, weak) id delegate;
 @end
@@ -48,13 +49,6 @@ static UIWindow* get_keyWindow() {
 @property (nonatomic, weak) id delegate;
 @end
 
-@interface KSAdSplashViewController : UIViewController
-@end
-
-@interface PAGSplashRequest : NSObject
-@end
-
-// 中国移动手机营业厅特定类(增强针对性)
 @interface CMSplashAdManager : NSObject
 @property (nonatomic, weak) id delegate;
 @end
@@ -181,13 +175,10 @@ static UIWindow* get_keyWindow() {
 
 // 通用兜底 Window 处理
 %ctor {
-    // 动态初始化主流广告类(单次 %init)
     Class gdtClass = objc_getClass("GDTSplashAd");
     Class csjClass = objc_getClass("CSJSplashAd");
     Class buClass = objc_getClass("BUSplashAdView");
     Class baiduClass = objc_getClass("BaiduMobAdSplash");
-    Class ksClass = objc_getClass("KSAdSplashViewController");
-    Class pagClass = objc_getClass("PAGSplashRequest");
     Class cmSplashClass = objc_getClass("CMSplashAdManager");
     Class cmAdViewClass = objc_getClass("CMAdSplashView");
     Class cmLaunchClass = objc_getClass("CMLaunchAdViewController");
@@ -196,15 +187,13 @@ static UIWindow* get_keyWindow() {
           CSJSplashAd = csjClass,
           BUSplashAdView = buClass,
           BaiduMobAdSplash = baiduClass,
-          KSAdSplashViewController = ksClass,
-          PAGSplashRequest = pagClass,
           CMSplashAdManager = cmSplashClass,
           CMAdSplashView = cmAdViewClass,
           CMLaunchAdViewController = cmLaunchClass);
     
-    // 通知监听兜底 + 防白屏(针对中国移动加强延时与清理)
+    // 通知监听兜底 + 防白屏(针对中国移动加强)
     [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             for (UIWindow *win in [UIApplication sharedApplication].windows) {
                 NSString *winClass = NSStringFromClass([win class]);
                 if ([winClass containsString:@"Splash"] || [winClass containsString:@"Ad"] || 
