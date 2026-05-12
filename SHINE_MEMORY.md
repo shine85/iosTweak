@@ -89,7 +89,8 @@
 - [x] **解决 `no known instance method` 编译崩溃**：升级后端 Prompt 指令，强制 AI 必须为所有 Hook 或调用的 Class 提供 `@interface` 补全方法签名 (Signature) (v1.1.33)。
 - [x] **根治 NSClassFromString 重定义冲突**：在 `server.ts` 后端增加了正则表达式强制过滤逻辑，自动剔除代码中错误的前向声明 (v1.1.32)。
 - [x] **终极去广告兜底策略强化**：针对如中国移动手机营业厅等深度混淆应用，去广告代码如果因找不到类名而失效，我们在 `server.ts` 中强制 AI 生成基于 `UIApplicationDidBecomeActiveNotification` 的兜底遍历方案，根据 Window 数量和关键字强杀广告层，保证去广告 100% 成功 (v1.1.83)。
-- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.84。
+- [x] **修复去广告动态推断导致的 `id const` 属性读取致命崩溃**：日志显示在 Hook 某些动态推断为 `id` 的实例时，直接写 `self.delegate` 会报错 `property not found on object of type '__unsafe_unretained id const'`。在服务端 Prompt 中彻底下放终极禁止规则：严禁使用 `self.delegate` 和 `self.hidden`，强制全部转换为 `[self performSelector:@selector(delegate)]`，并将 `self` 显式转换为 `UIView*` 或 `UIViewController*` 再操作 `hidden`，完全根治因动态推断引起的去广告大段白屏拦截器编译崩溃！(v1.1.85)。
+- [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.85。
 - [x] **修复由于 TrollFools 内部通过 Mach-O 读取导致的 0.dylib 解析问题**：TrollFools 获取注入的版本号，并不是取决于文件后缀，而是读取了二进制文件 `Mach-O` 头内的 `LC_ID_DYLIB` 中的 `current_version`！通过在云编译的 GitHub Action 流程中自动化向 Makefile 注入 `-Wl,-current_version,x.y.z`，彻底解决了 TrollFools 版本号丢失问题，实现了所见即所得！(v1.1.84)
 - [x] **修复去广告编译 property not found 问题**：在后端的 Prompt 中继续增加了针对 Theos 的严格校验，要求在类的 `@interface` 补全阶段，必须显式的使其继承自 `UIView` 或者显式提供属性定义，防止出现 `hidden` 找不到的致命编译中断！(v1.1.84)
 - [x] **进一步修复 TrollFools 版本号显示截断问题**：发现 TrollFools 不仅会因 `.` 截断扩展名，还会因为底层清除 `_rootless` 等标签的逻辑而从 `_` 处截断名称（导致 `v0_1` 被截断为 `0`）。因此工作流产物版本分隔符已从 `_` 更改为连字符 `-`（例如 `v0-1`），实现 TrollFools/Sileo/产物三端版本号一致 (v1.1.83)。

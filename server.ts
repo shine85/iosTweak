@@ -72,8 +72,14 @@ async function startServer() {
 - **对象属性点语法崩溃约束**：在 C 语言的 Hook 辅助函数、Block 回调或者被推断为 \`id\`（如 \`__unsafe_unretained id const\`）的作用域内，**绝对禁止使用点语法**读取专属属性（例如写出 \`self.view.hidden = YES\` 会导致 \`property 'view' not found on object of type 'id'\` 的致命报错）。遇到这种情况，你**必须强制进行显式前置接口转换**，例如写为 \`((UIViewController *)self).view.hidden = YES;\` 或者转化为消息发送语法 \`[[self view] setHidden:YES];\`。这是零容忍规定。
 - **类名传参安全防范**：在往自定义 C/C++ 辅助函数（如 \`hookIfExists(...)\`）传递目标类名时，如果参数是字符串，**必须带上双引号**写成 \`"ClassName"\`；如果参数是 Class，必须写成 \`objc_getClass("ClassName")\`。绝对禁止把裸的类名（如 \`GDTSplashAd\`）当作变量直接传参，这会导致 \`unexpected interface name: expected expression\` 报错阻断编译！
 - **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
-- **安全拦截与防白屏 (CRITICAL)**：严禁直接调用可能不存在的方法引发崩溃。如果阻断了广告的展示逻辑 \`%orig\`，必须处理 \`delegate\`。如果没有 \`delegate\`，尝试把包含广告的整个大 Window 隐藏并注销自己，例如可以使用 \`rootViewController = nil; hidden = YES;\` 等防白屏后压方案。如果有 \`delegate\`，可以使用安全调用如：
-    \`if ([self.delegate respondsToSelector:@selector(splashAdClosed:)]) { [self.delegate splashAdClosed:self]; }\`
+- **安全拦截与防白屏 (CRITICAL)**：严禁直接调用可能不存在的方法引发崩溃。如果阻断了广告的展示逻辑 \`%orig\`，必须处理 \`delegate\`。如果有 \`delegate\`，**绝对禁止直接写 \`self.delegate\` 或 \`self.hidden\`**（会引发 \`property not found on object of type '__unsafe_unretained id const'\` 致命编译错误！）对于 \`delegate\` 你**必须**使用 \`[self performSelector:@selector(delegate)]\` 提取。对于 \`hidden\`，必须强转：\`[(UIView*)self setHidden:YES];\`。最安全的做法是：
+    \`#pragma clang diagnostic push\`
+    \`#pragma clang diagnostic ignored "-Warc-performSelector-leaks"\`
+    \`if ([self respondsToSelector:@selector(delegate)]) { id delegate = [self performSelector:@selector(delegate)]; if ([delegate respondsToSelector:@selector(splashAdClosed:)]) { [delegate performSelector:@selector(splashAdClosed:) withObject:self]; } else if ([delegate respondsToSelector:@selector(splashAdDidDismissFullScreenContent:)]) { [delegate performSelector:@selector(splashAdDidDismissFullScreenContent:) withObject:self]; } else if ([delegate respondsToSelector:@selector(splashAdDidClose:)]) { [delegate performSelector:@selector(splashAdDidClose:) withObject:self]; } else if ([delegate respondsToSelector:@selector(splashDidDismissScreen:)]) { [delegate performSelector:@selector(splashDidDismissScreen:) withObject:self]; } }\`
+    \`#pragma clang diagnostic pop\`
+    \`if ([self isKindOfClass:[UIView class]]) { [(UIView *)self setHidden:YES]; }\`
+    \`else if ([self isKindOfClass:[UIViewController class]]) { [((UIViewController *)self).view setHidden:YES]; }\`
+    如果没有 \`delegate\` 或无效，将其所在的整个界面大 Window 强杀（提取 \`self.window\` 或遍历），将根视图设为空并注销，强制底层大窗体获取焦点。
 - **架构支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。
 - **基石依赖**：所有 Hook 必须确保引入相应的 Foundation 框架类型定义，使用 \`MSHookMessageEx\` 必须 \`#import <substrate.h>\`。
 
