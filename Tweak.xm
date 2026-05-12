@@ -66,7 +66,9 @@ static void aggressiveKillAdViews(UIView *rootView) {
             [className containsString:@"Launch"] || [className containsString:@"GDTSplash"] ||
             [className containsString:@"CSJSplash"] || [className containsString:@"BU"] ||
             [className containsString:@"KSAd"] || [className containsString:@"PAG"] ||
-            [className containsString:@"CMAd"] || [className containsString:@"MobileAd"]) {
+            [className containsString:@"CMAd"] || [className containsString:@"MobileAd"] ||
+            [className containsString:@"CMSplash"] || [className containsString:@"ChinaMobile"] ||
+            [className containsString:@"MobileHall"] || [className containsString:@"AdView"]) {
             sub.hidden = YES;
             [sub removeFromSuperview];
             NSLog(@"[AdHook] Aggressive killed ad subview: %@", className);
@@ -77,20 +79,34 @@ static void aggressiveKillAdViews(UIView *rootView) {
     }
 }
 
-static void killSplashWindow() {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        for (UIWindow *window in [UIApplication sharedApplication].windows) {
-            NSString *className = NSStringFromClass([window class]);
-            if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
-                [className containsString:@"Launch"] || [className containsString:@"GDTSplash"] ||
-                [className containsString:@"CSJSplash"] || [className containsString:@"BUAd"] ||
-                window.windowLevel >= UIWindowLevelNormal + 1) {
-                window.hidden = YES;
-                [window.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
-                NSLog(@"[AdHook] Killed splash window: %@", className);
-            }
+static void aggressiveKillAdWindows() {
+    for (UIWindow *window in [UIApplication sharedApplication].windows) {
+        NSString *className = NSStringFromClass([window class]);
+        if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
+            [className containsString:@"Launch"] || [className containsString:@"GDTSplash"] ||
+            [className containsString:@"CSJSplash"] || [className containsString:@"BUAd"] ||
+            [className containsString:@"KSAd"] || [className containsString:@"PAG"] ||
+            [className containsString:@"CM"] || window.windowLevel >= UIWindowLevelNormal + 1) {
+            window.hidden = YES;
+            [window.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
+            NSLog(@"[AdHook] Killed splash window: %@", className);
         }
+    }
+}
+
+static void killSplashWindow() {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        aggressiveKillAdWindows();
         
+        UIWindow *keyWin = get_keyWindow();
+        if (keyWin && keyWin.rootViewController && keyWin.rootViewController.view) {
+            aggressiveKillAdViews(keyWin.rootViewController.view);
+            forceRestoreSubViews(keyWin.rootViewController.view);
+        }
+    });
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        aggressiveKillAdWindows();
         UIWindow *keyWin = get_keyWindow();
         if (keyWin && keyWin.rootViewController && keyWin.rootViewController.view) {
             aggressiveKillAdViews(keyWin.rootViewController.view);
@@ -155,6 +171,7 @@ static void notifyAdDismiss(id adObject) {
     NSLog(@"[AdHook] Blocked BUSplashAdView loadAdData");
     notifyAdDismiss(self);
     [(UIView *)self setHidden:YES];
+    [self removeFromSuperview];
     killSplashWindow();
 }
 %end
@@ -188,7 +205,8 @@ static void notifyAdDismiss(id adObject) {
     NSString *vcClass = NSStringFromClass([viewControllerToPresent class]);
     if ([vcClass containsString:@"Splash"] || [vcClass containsString:@"Ad"] || [vcClass containsString:@"Launch"] || 
         [vcClass containsString:@"GDTSplash"] || [vcClass containsString:@"CSJSplash"] || 
-        [vcClass containsString:@"BU"] || [vcClass containsString:@"KSAd"] || [vcClass containsString:@"PAG"]) {
+        [vcClass containsString:@"BU"] || [vcClass containsString:@"KSAd"] || [vcClass containsString:@"PAG"] ||
+        [vcClass containsString:@"CM"] || [vcClass containsString:@"Mobile"]) {
         NSLog(@"[AdHook] Blocked present splash VC: %@", vcClass);
         notifyAdDismiss(viewControllerToPresent);
         killSplashWindow();
@@ -203,9 +221,13 @@ static void notifyAdDismiss(id adObject) {
     NSString *selfClass = NSStringFromClass([self class]);
     if ([selfClass containsString:@"Splash"] || [selfClass containsString:@"Ad"] || 
         [selfClass containsString:@"Launch"] || [selfClass containsString:@"GDTSplash"] ||
-        [selfClass containsString:@"CSJSplash"]) {
+        [selfClass containsString:@"CSJSplash"] || [selfClass containsString:@"CM"]) {
         NSLog(@"[AdHook] Detected splash VC appear: %@", selfClass);
-        [self dismissViewControllerAnimated:NO completion:nil];
+        if (self.presentingViewController) {
+            [self dismissViewControllerAnimated:NO completion:nil];
+        } else {
+            [[self view] removeFromSuperview];
+        }
         killSplashWindow();
     }
 }
@@ -226,22 +248,22 @@ static void notifyAdDismiss(id adObject) {
         killSplashWindow();
     }];
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        killSplashWindow();
         UIWindow *keyWin = get_keyWindow();
         if (keyWin) {
             aggressiveKillAdViews(keyWin.rootViewController.view);
             forceRestoreSubViews(keyWin.rootViewController.view);
         }
-        NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载并执行多重兜底清理");
     });
     
-    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 增强版");
+    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 加强版");
 }
