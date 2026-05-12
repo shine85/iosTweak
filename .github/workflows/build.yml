@@ -1,4 +1,4 @@
-name: iOS Tweak Build (FORCE_v1.1.90)
+name: iOS Tweak Build (FORCE_v1.1.89)
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       contents: write
     env:
       # 强制刷新标识
-      FORCE_BUILD_ID: "1.1.90"
+      FORCE_BUILD_ID: "1.1.89"
       # 基于 GitHub 编译次数生成独立的插件版本号 (例如 1.0.42，与 IDE 版本号解耦)
       TWEAK_BASE_VERSION: "1.0"
       DYNAMIC_VERSION: "1.0.${{ github.run_number }}"
