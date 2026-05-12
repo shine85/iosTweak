@@ -178,31 +178,41 @@ static void forceShowMainContent() {
         // 额外处理 navigation/tab 控制器
         if ([rootVC isKindOfClass:[UINavigationController class]]) {
             UINavigationController *nav = (UINavigationController *)rootVC;
-            forceRestoreSubViews(nav.visibleViewController.view);
+            if (nav.visibleViewController && nav.visibleViewController.view) {
+                forceRestoreSubViews(nav.visibleViewController.view);
+            }
         } else if ([rootVC isKindOfClass:[UITabBarController class]]) {
             UITabBarController *tab = (UITabBarController *)rootVC;
-            forceRestoreSubViews(tab.selectedViewController.view);
+            if (tab.selectedViewController && tab.selectedViewController.view) {
+                forceRestoreSubViews(tab.selectedViewController.view);
+            }
+        }
+        
+        // 递归恢复所有子控制器视图(针对白屏只有底部导航栏的情况)
+        for (UIViewController *child in rootVC.childViewControllers) {
+            if (child.view) {
+                forceRestoreSubViews(child.view);
+            }
         }
         
         [mainView setNeedsLayout];
         [mainView layoutIfNeeded];
         [mainView setNeedsDisplay];
         
-        NSLog(@"[AdHook] Force restored main rootViewController content");
+        NSLog(@"[AdHook] Force restored main rootViewController content - anti white screen");
+    }
+    
+    // 额外全局遍历恢复(强力防白屏)
+    for (UIWindow *win in [UIApplication sharedApplication].windows) {
+        if (win.rootViewController && win.rootViewController.view) {
+            forceRestoreSubViews(win.rootViewController.view);
+        }
     }
 }
 
 static void restoreMainUI() {
     dispatch_async(dispatch_get_main_queue(), ^{
         forceShowMainContent();
-        
-        // 遍历所有 window
-        for (UIWindow *win in [UIApplication sharedApplication].windows) {
-            if (win.rootViewController && win.rootViewController.view) {
-                forceRestoreSubViews(win.rootViewController.view);
-            }
-        }
-        
         aggressiveKillAdWindows();
     });
 }
@@ -241,7 +251,6 @@ static void killSplashWindow() {
         forceShowMainContent();
     });
     
-    // 更长延迟兜底
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         forceShowMainContent();
         restoreMainUI();
@@ -361,12 +370,27 @@ static void killSplashWindow() {
         }
         killSplashWindow();
     } else {
-        // 非广告 VC 出现时也尝试恢复主界面
-        if ([selfClass containsString:@"Main"] || [selfClass containsString:@"Home"] || [selfClass containsString:@"Root"]) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        // 非广告 VC 出现时强化恢复主界面(重点修复白屏)
+        if ([selfClass containsString:@"Main"] || [selfClass containsString:@"Home"] || 
+            [selfClass containsString:@"Root"] || [selfClass containsString:@"Tab"] || 
+            [selfClass containsString:@"Nav"]) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                 forceShowMainContent();
             });
         }
+    }
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    NSString *selfClass = NSStringFromClass([self class]);
+    if (![selfClass containsString:@"Splash"] && ![selfClass containsString:@"Ad"] && 
+        ![selfClass containsString:@"Launch"] && ![selfClass containsString:@"GDTSplash"] &&
+        ![selfClass containsString:@"CSJSplash"] && ![selfClass containsString:@"CM"] && 
+        ![selfClass containsString:@"CMSplash"]) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            forceShowMainContent();
+        });
     }
 }
 %end
@@ -391,36 +415,36 @@ static void killSplashWindow() {
         forceShowMainContent();
     }];
     
-    // 密集早期清理 + 防白屏
+    // 更密集的早期清理 + 强力防白屏
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
         forceShowMainContent();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
         forceShowMainContent();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
         forceShowMainContent();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
         forceShowMainContent();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
         forceShowMainContent();
     });
     
-    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 强化防白屏版 v2");
+    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 强化防白屏版 v3");
 }
