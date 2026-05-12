@@ -46,11 +46,11 @@ async function startServer() {
 深度去广告与开屏拦截策略（极其关键）：
 - 开屏广告 (Splash Ads) 必须根除：中国区应用广泛使用穿山甲 (CSJ / BUAdSDK)、广点通 (GDT)、百度 (BaiduMobAd) 及快手 (KSAd) SDK。你必须强制生成通用的 Hook 逻辑，拦截这些基类的初始化和展示方法。
   - 例如 Hook \`GDTSplashAd\`, \`CSJSplashAd\`, \`BUSplashAdView\`, \`BaiduMobAdSplash\`, \`KSAdSplashViewController\` 等类的 \`loadAdAndShowInWindow:\`, \`showAdInWindow:\`, \`loadAd\` 等方法，并直接阻断（无需调用 %orig）。
-- 视图层强杀与防白屏：当拦截 \`UIViewController\`（或各种 \`SplashViewController\`）展示广告的方法时，**不要**单纯把 \`view.hidden = YES\`，否则会导致底层黑屏或白屏。相反，应当判断该 VC 是否为模态视图（通过显式强转 \`((UIViewController *)self).presentingViewController\`），如果是，则调用 \`[self dismissViewControllerAnimated:NO completion:nil]\`；如果不是模态且该应用有主窗体控制器，尝试将其从 \`((UIViewController *)self).view.superview\` 移除，或者通过模拟广告倒计时回调、点击跳过回调来恢复底层的主界面业务。
-- 自动化跳过与防白屏 (CRITICAL)：针对激励视频或倒计时，强制修改倒计时为 0，并同步触发 delegate 的奖励回调。若你拦截了开屏广告展示（如 \`loadAdAndShowInWindow:\`）且未调用 \`%orig\`，应用极大概率全卡在等待回调的白屏！你**必须**向其 \`delegate\` 发送广告已关闭/结束的回调消息（如 \`splashAdClosed:\`, \`splashAdDidDismiss:\`），或者主动将该控件 \`removeFromSuperview\` 或直接隐藏，确保应用能正常进入主界面。
-- 针对特有应用（例如“中国移动”）：分析并猜想其内部广告类（如 \`CMSplashManager\`, \`CMSplashViewController\`, \`CMSplashAd\`, \`BiddingSplashAd\`），**强制拦截这些广告类的初始化方法（如 \`init\`, \`initWithFrame:\`）并直接返回 nil，或者 Hook 其所有加载/展示相关函数**。仅通过类名去精准打杀，千万不要使用短前缀（如 \`CM\`）去大规模遍历 View。
-- **终极大杀器（通用开屏去白屏兜底）**：除了 Hook 明确的类，你**必须**生成一段兼容性极强的通用逻辑。比如如果你不知道具体类名，可以 Hook \`-[UIApplication delegate]\` 或者强制遍历 Window：在 \`%ctor\` 中注册 \`UIApplicationDidBecomeActiveNotification\` 监听，在回调里或者用 GCD \`dispatch_after\` 延时 2 秒，遍历 \`[UIApplication sharedApplication].windows\`，如果发现除了主 Window 以外的、类名包含 \`Splash\`, \`Ad\`, \`AD\`, \`Launch\` 的 Window（或 \`windowLevel >= UIWindowLevelNormal\`），直接 \`window.hidden = YES\` 并将根视图移除，强制让底层的真正业务主窗体获得事件响应，绝对根治顽固类开屏。
-- **视图查杀绝对防误伤约束 (CRITICAL)**：遇到防白屏需求时，**绝对禁止**在遍历普通层级的所有子视图（如 \`rootView.subviews\`）时使用过于宽泛的类名模糊匹配！你决不能使用类似 \`[className containsString:@"CM"]\`, \`[className containsString:@"ChinaMobile"]\`, \`[className containsString:@"Home"]\` 这种带有应用特定短前缀或中性词的判断来大规模移除 View。如果这么做，你必定会把应用的底层业务控制台和整页首页彻底抛弃，导致应用彻底白屏（“只剩下底部导航栏，其他全白”）。对于普通 View 拦截，你只被允许使用业界已知广告 SDK 标志（如 \`CSJ\`, \`GDT\`, \`BUAd\`, \`KSAd\`, \`PAG\`）或特征如 \`Splash\`, \`AdView\`，并**强烈推荐配合 UIWindow 判断兜底**，宁可保留部分视图，也绝不造成业务层误杀！
+- **视图层强杀与防白屏**：当拦截 \`UIViewController\` 展示广告的方法时，**必须显式强转** \`((UIViewController *)self)\`。例如 \`if (((UIViewController *)self).presentingViewController) { [((UIViewController *)self) dismissViewControllerAnimated:NO completion:nil]; }\`。或者尝试将其从 \`((UIViewController *)self).view.superview\` 移除。严禁未强转直接调用 \`self.presentingViewController\`。
+- **自动化跳过与防白屏 (CRITICAL)**：若拦截了开屏广告展示且未调用 \`%orig\`，应用极大概率卡白屏！你**必须**向其 \`delegate\` 发送广告已关闭的回调消息。另外对于 \`%ctor\`，你应该尽早触发拦截，例如在 \`%ctor\` 中立即准备并调用类似 \`killSplashWindow()\` 的函数清理残余，强制触发 \`splashAdClosed:\` 回调等。
+- 针对特有应用（例如“中国移动”）：强烈关注内部专用广告类（如 \`CMSplashManager\`, \`CMSplashViewController\`, \`CMSplashAd\`, \`BiddingSplashAd\`, \`CMAdSplashView\`）。**强制拦截这些类的 \`init\`, \`initWithFrame:\`, \`loadAd\` 并直接返回 nil 或阻断**。这比稍后移除视图更有效。
+- **终极大杀器（通用开屏防白屏兜底）**：双重保险拦截：第一重兜底：直接全局 Hook \`UIWindow\` 的 \`makeKeyAndVisible\`、\`becomeKeyWindow\` 和 \`setHidden:\`，如果 \`NSStringFromClass([self class])\` 包含 \`SplashWindow\`, \`AdWindow\`, \`PAGWindow\`, \`CSJWindow\` 等广告 SDK 私有 Window，直接调用 \`%orig(YES)\` 隐藏并阻断。第二重兜底：全局 Hook \`UIViewController\` 的 \`viewWillAppear:\` 和 \`viewDidAppear:\`，判断 \`NSStringFromClass([self class])\` 包含 \`Splash\`, \`Bidding\`, \`SplashAd\`, \`AdViewController\`, \`CMAd\` 等字眼，直接 \`((UIViewController *)self).view.hidden = YES;\`并处理 dismiss。
+- **视图查杀绝对防误伤约束 (CRITICAL)**：**绝对禁止**拦截或遍历带 \`CM\`、\`ChinaMobile\` 或 \`Home\` 等中立/短前缀的普通视图，如果这么做你会引发应用页面级白屏误杀异常。只精确匹配完整的 SDK 类或带有 \`Splash\`, \`AdView\` 的明确类！
 
 应用特定逻辑参考：
 - **TikTok/抖音**：Hook \`AWEFeedAdModel\`, \`BDASplashManager\`。
@@ -60,8 +60,8 @@ async function startServer() {
 
 代码实现 (Logos)：
 - **单次 Hook 初始化约束**：在同一个 %group (或未命名默认组) 中，绝对不允许出现超过一次的 \`%init\` 操作。若需动态解析尚未加载的类，必须使用带赋值的语法，例如 \`%init(ClassA=objc_getClass("ClassA"), ClassB=objc_getClass("ClassB"));\`。**绝对严禁**使用 \`%init(ClassName);\` 这种只传名字不赋值的写法，因为这会被 Logos 误解析为初始化一个名叫 ClassName 的 \`%group\`，从而引发 \`%init for an undefined %group\` 致命错误！
-- **未知类初始化防崩约束**：对于每一个你在 \`%init(ClassA=...)\` 里列出的类，你在文件内部**必须**要有确切的 \`%hook ClassA\` 到 \`%end\` 的代码块（哪怕它里面什么都不拦截是个空块！）如果只有 \`%init\` 缺少了对应的 \`%hook\` 块，Logos 会将其视为错误抛出 \`tried to set expression for unknown class\` 警告并导致整个编译直接致命中断。不要贪图写一堆防备性的 init 而没有后续的 hook 代码！
-- **成员属性与 @interface 编译约束 (CRITICAL)**：若你在 \`%hook\` 代码块内部使用了 \`self.hidden\`, \`self.view\`, \`self.delegate\`, \`self.window\`, \`self.presentingViewController\` 或者调用了 \`[self dismissViewControllerAnimated:]\`, \`[self removeFromSuperview]\` 等任何系统 UIView 或 UIViewController 才有的属性和方法，**你必须在文件的顶部为该类提供正确的 \`@interface\` 声明，并强制让其继承自 \`UIView\` 或 \`UIViewController\`！绝对禁止只使用 \`@class\` 前向声明敷衍！** 例：\`@interface SplashView : UIView @property (nonatomic, weak) id delegate; @end\`。如果该类明明是 controller 但是你没声明父类，它就不认识 \`self.presentingViewController\`，从而报出 \`property cannot be found in forward class object\` 导致编译中断致命错误。
+- **未知类初始化防崩约束**：对于每一个你在 \`%init\` 中初始化的未知类，必须提供对应的 \`%hook\` 并在文件上方硬性声明其 \`@interface ClassName : UIViewController @end\` 或 \`UIView\`，这是防止 \`forward declaration\` 编译失败的关键！
+- **成员属性与 @interface 编译约束 (CRITICAL)**：即使是已知框架未被直接包含头文件，或者任何动态 hook 类对象，如果你用了 \`self.presentingViewController\` 或 \`self.view\`，必须将其强转：\`((UIViewController *)self)\` 或者用 \`[self performSelector:]\`，并在顶部为每一个可能用到的类编写 \`@interface\` 且必须指定父类如 \`UIView\`/\`UIViewController\`。绝对不要只写一个 \`@class\`！
 - **%init 位置约束**：所有的 \`%init\` 宏指令必须且只能放置在 \`%ctor { ... }\` 构造块内部！绝对不要在外部全局直接调用 \`%init;\`，否则会引发 \`%init does not make sense outside a block\` 致命编译错误。
 - **Hook 语法约束**：在 Hook 带有参数的 Objective-C 方法时，**绝对禁止**在参数名称后面添加多余的右括号 \`)\`。例如正确写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window { ... }\`，错误写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window) { ... }\`（这会引发 \`expected function body after function declarator\` 编译错误）。
 - **C 函数规范约束**：严禁在 \`%ctor { ... }\` 块内部、或者其他任何函数体/Block 内部直接定义 C/C++ 辅助函数（例如 \`static inline void hookIfExists(...)\`）。局部嵌套定义函数会引发 \`function definition is not allowed here\` 致命错误！任何辅助函数的定义必须放置在文件顶层全局作用域（所有 \`%hook\` 或 \`%ctor\` 的外围）。
@@ -69,8 +69,8 @@ async function startServer() {
   - 如果你需要遍历恢复视图，**必须且只能**使用以下标准实现（放在文件顶部）：
     \`static void forceRestoreSubViews(UIView *view) { if(!view) return; for(UIView *sub in view.subviews) { sub.hidden = NO; sub.alpha = 1.0; if(sub.subviews.count > 0) forceRestoreSubViews(sub); } }\`
   - 获取 KeyWindow 的现代适配方法：
-    \`static UIWindow* get_keyWindow() { UIWindow *foundWindow = nil; if (@available(iOS 13.0, *)) { for (UIWindowScene* windowScene in [UIApplication sharedApplication].connectedScenes) { if (windowScene.activationState == UISceneActivationStateForegroundActive) { for (UIWindow *window in windowScene.windows) { if (window.isKeyWindow) { foundWindow = window; break; } } } if (foundWindow) break; } } if (!foundWindow) { foundWindow = [UIApplication sharedApplication].keyWindow; } return foundWindow; }\`
-- **对象属性点语法崩溃约束**：在 C 语言的 Hook 辅助函数、Block 回调或者被推断为 \`id\`（如 \`__unsafe_unretained id const\`）的作用域内，**绝对禁止使用点语法**读取专属属性（例如写出 \`self.view.hidden = YES\` 或者 \`self.presentingViewController\` 会导致 \`property not found on object of type 'id'\` 的致命报错）。遇到这种情况，你**必须强制进行显式前置接口转换**，例如写为 \`((UIViewController *)self).view.hidden = YES;\` 、 \`((UIViewController *)self).presentingViewController\` 或者转化为消息发送语法 \`[[self view] setHidden:YES];\`。这是零容忍规定。
+    \`static UIWindow* get_keyWindow() { UIWindow *foundWindow = nil; if (@available(iOS 13.0, *)) { for (UIWindowScene* windowScene in [UIApplication sharedApplication].connectedScenes) { if (windowScene.activationState == UISceneActivationStateForegroundActive) { for (UIWindow *window in windowScene.windows) { if (window.isKeyWindow) { foundWindow = window; break; } } } if (foundWindow) break; } } if (!foundWindow) { foundWindow = [[UIApplication sharedApplication] valueForKey:@"keyWindow"]; } return foundWindow; }\`
+- **对象属性点语法崩溃约束**：在被推断为 \`id const\` 的作用域内，**绝对禁止使用点语法**读取属性（如 \`self.presentingViewController\` 会导致各种找不到的问题）。你**必须强制进行显式前置接口转换**，例如写为 \`((UIViewController *)self).presentingViewController\` 或是 \`((UIViewController *)self).view.hidden = YES;\`。
 - **类名传参安全防范**：在往自定义 C/C++ 辅助函数（如 \`hookIfExists(...)\`）传递目标类名时，如果参数是字符串，**必须带上双引号**写成 \`"ClassName"\`；如果参数是 Class，必须写成 \`objc_getClass("ClassName")\`。绝对禁止把裸的类名（如 \`GDTSplashAd\`）当作变量直接传参，这会导致 \`unexpected interface name: expected expression\` 报错阻断编译！
 - **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
 - **安全拦截与防白屏 (CRITICAL)**：严禁直接调用可能不存在的方法引发崩溃。如果阻断了广告的展示逻辑 \`%orig\`，必须处理 \`delegate\`。如果有 \`delegate\`，**绝对禁止直接写 \`self.delegate\` 或 \`self.hidden\`**（会引发 \`property not found on object of type '__unsafe_unretained id const'\` 致命编译错误！）对于 \`delegate\` 你**必须**使用 \`[self performSelector:@selector(delegate)]\` 提取。对于 \`hidden\`，必须强转：\`[(UIView*)self setHidden:YES];\`。最安全的做法是：
@@ -81,7 +81,7 @@ async function startServer() {
     \`if ([self isKindOfClass:[UIView class]]) { [(UIView *)self setHidden:YES]; }\`
     \`else if ([self isKindOfClass:[UIViewController class]]) { [((UIViewController *)self).view setHidden:YES]; }\`
     如果没有 \`delegate\` 或无效，将其所在的整个界面大 Window 强杀（提取 \`self.window\` 或遍历），将根视图设为空并注销，强制底层大窗体获取焦点。
-- **架构支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。
+- **架构与版本注入支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。同时**必须配置版本号注入**，即在 Makefile 中加入 \`$(TWEAK_NAME)_LDFLAGS += -Wl,-current_version,1.0.0\`（1.0.0 可以替换为你设定的版本或宏）。这非常重要，否则 TrollFools 无法识别注入版本！
 - **基石依赖**：所有 Hook 必须确保引入相应的 Foundation 框架类型定义，使用 \`MSHookMessageEx\` 必须 \`#import <substrate.h>\`。
 
 防御对抗：
@@ -265,8 +265,9 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
       });
       
       // Auto-cast self.view to avoid "property 'view' not found on object of type 'id'"
-      // This matches self.view that is NOT preceded by a closing parenthesis (like a typecast).
-      newCode = newCode.replace(/(?<!\)\s*)self\.view/g, '((UIViewController *)self).view');
+      newCode = newCode.replace(/(?<!\)\s*)self\.view(?=[^A-Za-z0-9_])/g, '((UIViewController *)self).view');
+      newCode = newCode.replace(/(?<!\)\s*)self\.presentingViewController/g, '((UIViewController *)self).presentingViewController');
+      newCode = newCode.replace(/(?<!\)\s*)self\.removeFromSuperview/g, '[(UIView *)self removeFromSuperview]');
       
       return '```objective-c\n' + newCode.trim() + '\n```';
     });
