@@ -57,6 +57,8 @@ static void handleAdDismiss(id self) {
                 @selector(splashAdDidClose:),
                 @selector(splashDidDismissScreen:),
                 @selector(splashAdViewDidDismiss:),
+                @selector(splashAdDidClick:),
+                @selector(splashAdSuccessToLoad:),
                 nil
             };
             for (int i = 0; selectors[i] != nil; i++) {
@@ -112,25 +114,37 @@ static void handleAdDismiss(id self) {
 - (id)init { return nil; }
 %end
 
-// 应用特定猜测类
+// 中国移动专属加强
 %hook CMSplashManager
 - (id)init { return nil; }
 - (void)loadSplashAd { handleAdDismiss(self); }
+- (void)showSplashAd { handleAdDismiss(self); }
 %end
 
 %hook CMSplashViewController
 - (id)init { return nil; }
-- (void)viewDidLoad { handleAdDismiss(self); }
+- (void)viewDidLoad { 
+    %orig;
+    handleAdDismiss(self); 
+}
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    handleAdDismiss(self);
+}
 %end
 
 %hook CMSplashAd
 - (id)init { return nil; }
+- (void)loadAd { handleAdDismiss(self); }
+- (void)showInWindow:(id)window { handleAdDismiss(self); }
 %end
 
 %hook BiddingSplashAd
 - (id)init { return nil; }
+- (void)loadAd { handleAdDismiss(self); }
 %end
 
+// 额外通用开屏拦截
 %hook UIWindow
 - (void)makeKeyAndVisible {
     %orig;
@@ -138,15 +152,32 @@ static void handleAdDismiss(id self) {
 %end
 
 static void checkAndKillSplashWindows() {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         for (UIWindow *window in [UIApplication sharedApplication].windows) {
+            if (window == get_keyWindow()) continue;
             NSString *className = NSStringFromClass([window class]);
             if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
-                [className containsString:@"Launch"] || window.windowLevel >= UIWindowLevelNormal + 1) {
-                if (window != get_keyWindow()) {
-                    window.hidden = YES;
+                [className containsString:@"Launch"] || [className containsString:@"CMSplash"] ||
+                window.windowLevel >= UIWindowLevelNormal + 1) {
+                window.hidden = YES;
+                if (window.rootViewController) {
                     [window.rootViewController.view removeFromSuperview];
                     window.rootViewController = nil;
+                }
+            }
+        }
+    });
+    
+    // 二次加强检查
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        for (UIWindow *window in [UIApplication sharedApplication].windows) {
+            if (window == get_keyWindow()) continue;
+            NSString *className = NSStringFromClass([window class]);
+            if ([className containsString:@"Splash"] || [className containsString:@"Ad"] || 
+                [className containsString:@"CMSplash"] || window.windowLevel > UIWindowLevelNormal) {
+                window.hidden = YES;
+                if (window.rootViewController && window.rootViewController.view) {
+                    [window.rootViewController.view removeFromSuperview];
                 }
             }
         }
@@ -171,4 +202,9 @@ static void checkAndKillSplashWindows() {
                                                   usingBlock:^(NSNotification *note) {
         checkAndKillSplashWindows();
     }];
+    
+    // 额外早期执行
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        checkAndKillSplashWindows();
+    });
 }
