@@ -132,6 +132,7 @@ static void killSplashWindow() {
                           [className containsString:@"PAG"] ||
                           [className containsString:@"CMAd"] ||
                           [className containsString:@"CMSplash"] ||
+                          [className containsString:@"AdWindow"] ||
                           window.windowLevel >= UIWindowLevelNormal + 1;
         
         if (isAdWindow) {
@@ -231,7 +232,7 @@ static void restoreMainUI() {
 
 %hook CMSplashAd
 - (void)loadAdAndShowInWindow:(UIWindow *)window {
-    NSLog(@"[AdHook] Blocked CMSplashAd");
+    NSLog(@"[AdHook] Blocked CMSplashAd - 中国移动专杀");
     notifyAdDismiss(self);
     killSplashWindow();
 }
@@ -239,7 +240,7 @@ static void restoreMainUI() {
 
 %hook CMSplashManager
 - (void)showSplashAd {
-    NSLog(@"[AdHook] Blocked CMSplashManager");
+    NSLog(@"[AdHook] Blocked CMSplashManager - 中国移动专杀");
     killSplashWindow();
     restoreMainUI();
 }
@@ -247,7 +248,7 @@ static void restoreMainUI() {
 
 %hook CMAdSplashView
 - (void)loadAdData {
-    NSLog(@"[AdHook] Blocked CMAdSplashView");
+    NSLog(@"[AdHook] Blocked CMAdSplashView - 中国移动专杀");
     [(UIView *)self setHidden:YES];
     [self removeFromSuperview];
     notifyAdDismiss(self);
@@ -286,7 +287,7 @@ static void restoreMainUI() {
         }
         killSplashWindow();
     } else {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             restoreMainUI();
         });
     }
@@ -311,11 +312,15 @@ static void restoreMainUI() {
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             killSplashWindow();
             restoreMainUI();
         });
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            killSplashWindow();
+            restoreMainUI();
+        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             killSplashWindow();
             restoreMainUI();
         });
@@ -334,20 +339,25 @@ static void restoreMainUI() {
           CMSplashManager=objc_getClass("CMSplashManager"),
           CMAdSplashView=objc_getClass("CMAdSplashView"));
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
     });
     
-    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 加强版");
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        killSplashWindow();
+        restoreMainUI();
+    });
+    
+    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 超强加强版");
 }
