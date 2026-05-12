@@ -94,7 +94,9 @@ static void aggressiveKillAdViews(UIView *rootView) {
 }
 
 static void aggressiveKillAdWindows() {
+    UIWindow *keyWin = get_keyWindow();
     for (UIWindow *window in [[UIApplication sharedApplication].windows copy]) {
+        if (window == keyWin) continue;
         NSString *className = NSStringFromClass([window class]);
         BOOL isAdWindow = [className containsString:@"Splash"] || [className containsString:@"Ad"] || 
                          [className containsString:@"Launch"] || [className containsString:@"GDTSplash"] ||
@@ -103,7 +105,7 @@ static void aggressiveKillAdWindows() {
                          [className containsString:@"CM"] || [className containsString:@"CMSplash"] ||
                          window.windowLevel >= UIWindowLevelNormal + 1;
         
-        if (isAdWindow && window != get_keyWindow()) {
+        if (isAdWindow) {
             window.hidden = YES;
             [window.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
             NSLog(@"[AdHook] Killed splash window: %@", className);
@@ -152,23 +154,25 @@ static void restoreMainUI() {
             [mainView layoutIfNeeded];
             aggressiveKillAdViews(mainView);
         }
+        aggressiveKillAdWindows();
     });
 }
 
 static void killSplashWindow() {
     aggressiveKillAdWindows();
+    restoreMainUI();
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressiveKillAdWindows();
         restoreMainUI();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressiveKillAdWindows();
         restoreMainUI();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         aggressiveKillAdWindows();
         restoreMainUI();
     });
@@ -251,8 +255,10 @@ static void killSplashWindow() {
     NSString *selfClass = NSStringFromClass([self class]);
     if ([selfClass containsString:@"Splash"] || [selfClass containsString:@"Ad"] || 
         [selfClass containsString:@"Launch"] || [selfClass containsString:@"GDTSplash"] ||
-        [selfClass containsString:@"CSJSplash"] || [selfClass containsString:@"CM"] || [selfClass containsString:@"CMSplash"]) {
+        [selfClass containsString:@"CSJSplash"] || [selfClass containsString:@"CM"] || 
+        [selfClass containsString:@"CMSplash"] || [selfClass containsString:@"MobileHall"]) {
         NSLog(@"[AdHook] Detected splash VC appear: %@", selfClass);
+        notifyAdDismiss(self);
         if (self.presentingViewController) {
             [self dismissViewControllerAnimated:NO completion:nil];
         } else {
@@ -279,20 +285,25 @@ static void killSplashWindow() {
         restoreMainUI();
     }];
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
     });
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         killSplashWindow();
         restoreMainUI();
     });
     
-    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 强化防黑屏版");
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        killSplashWindow();
+        restoreMainUI();
+    });
+    
+    NSLog(@"[AdHook] 中国移动手机营业厅去开屏广告 Tweak 已加载 - 强化无白屏版");
 }
