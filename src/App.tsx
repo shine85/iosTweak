@@ -204,6 +204,17 @@ export default function App() {
     
     const result = await generateHookScript(target, aiConfig);
     
+    if (result.error) {
+       const errorMsg: Message = {
+         role: 'assistant',
+         content: `生成出错: ${result.error}`,
+         timestamp: Date.now()
+       };
+       setMessages(prev => [...prev, errorMsg]);
+       setIsGenerating(false);
+       return;
+    }
+    
     const aiMsg: Message = {
       role: 'assistant',
       content: result.explanation || "代码生成完成。",
@@ -239,6 +250,17 @@ export default function App() {
     setIsModifying(true);
     try {
       const result = await modifyHookScript(appName, generatedResult, promptSnapshot, aiConfig);
+      
+      if (result.error) {
+         const errorMsg: Message = {
+           role: 'assistant',
+           content: `修改出错: ${result.error}`,
+           timestamp: Date.now()
+         };
+         setMessages(prev => [...prev, errorMsg]);
+         setIsModifying(false);
+         return;
+      }
       
       const aiMsg: Message = {
         role: 'assistant',

@@ -102,6 +102,7 @@
 - [x] **终极绝杀与防白屏零容忍体系强化**：再次明确系统设计红线。在强杀各种带有广告关键字的窗体时，务必要求必须 `resignKeyWindow` 确保主窗体复位；在清理带代理（`delegate`）的控制器展示时必须全量且严谨的注入生命周期或者阻断回调（如 `splashAdClosed:`）避免界面假死；以及编译层面严格通过 `performSelector:` 以及强制 `(UIViewController*)` 转换消除一切点语法读取。实现从编译、注入、到运行各生命周期阶段对黑屏白屏的零容忍死守 (v1.1.95)
 - [x] 系统级版本号同步：建立了跨 `package.json`、语言包、登录 UI 及 GitHub Actions 的版本号联动机制，当前已同步至 v1.1.96。
 - [x] **修复由于 TrollFools 内部通过 Mach-O 读取导致的 0.dylib 解析问题**：TrollFools 获取注入的版本号，并不是取决于文件后缀，而是读取了二进制文件 `Mach-O` 头内的 `LC_ID_DYLIB` 中的 `current_version`！通过在云编译的 GitHub Action 流程中自动化向 Makefile 注入 `-Wl,-current_version,x.y.z`，彻底解决了 TrollFools 版本号丢失问题，实现了所见即所得！(v1.1.84)
+- [x] **修复 OpenAI 兼容接口 BaseURL 拼接 404 错误**：当用户传入包含 `/chat/completions` 的 `baseUrl` 时，此前会重复拼接导致请求失败并报错 404。我们在 `server.ts` 中增强了对 `baseUrl` 的校验，如已包含目标端点，则自动修正或截取，以优雅适应不同服务商提供的基础 URL (v1.1.96)。
 - [x] **修复去广告编译 property not found 问题**：在后端的 Prompt 中继续增加了针对 Theos 的严格校验，要求在类的 `@interface` 补全阶段，必须显式的使其继承自 `UIView` 或者显式提供属性定义，防止出现 `hidden` 找不到的致命编译中断！(v1.1.84)
 - [x] **进一步修复 TrollFools 版本号显示截断问题**：发现 TrollFools 不仅会因 `.` 截断扩展名，还会因为底层清除 `_rootless` 等标签的逻辑而从 `_` 处截断名称（导致 `v0_1` 被截断为 `0`）。因此工作流产物版本分隔符已从 `_` 更改为连字符 `-`（例如 `v0-1`），实现 TrollFools/Sileo/产物三端版本号一致 (v1.1.83)。
 - [x] **优化“云编译自定义版本号”弹窗 UI**：移除了原生的浏览器 `prompt`，设计了一个与系统整体前卫、粗野主义设计风格一致的弹窗，带有高斯的毛玻璃背景模糊和定制的描边动画，极大地改善了用户体验 (v1.1.81)。

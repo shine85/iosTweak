@@ -238,41 +238,52 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
   });
 
   function cleanupLogosCode(text: string): string {
-    return text.replace(/```objective-c([\s\S]*?)```/gi, (match, code) => {
-      // Extract all hooked classes
-      const hookMatches = [...code.matchAll(/%hook\s+([a-zA-Z0-9_]+)/g)];
-      const hookedClasses = new Set(hookMatches.map((m: any) => m[1]));
+    // If the text is wrapped in markdown, extract it first
+    let innerCode = text;
+    let hasWrapper = false;
+    const match = text.match(/```(?:objective-c|objc)?\s*\n([\s\S]*?)```/im) || text.match(/```\s*\n([\s\S]*?)```/im);
+    if (match) {
+        innerCode = match[1];
+        hasWrapper = true;
+    }
 
-      // Clean up %init(...)
-      let newCode = code.replace(/%init\s*\(([\s\S]*?)\)\s*;/g, (initMatch: string, initContent: string) => {
-        if (!initContent.includes('=')) {
-          return initMatch;
-        }
-        
-        const parts = initContent.split(',').map((p: string) => p.trim());
-        const validParts = parts.filter((part: string) => {
-           const classNameMatch = part.match(/^([a-zA-Z0-9_]+)\s*=/);
-           if (classNameMatch) {
-              const className = classNameMatch[1];
-              return hookedClasses.has(className);
-           }
-           return true; 
-        });
-        
-        if (validParts.length > 0) {
-           return '%init(' + validParts.join(', ') + ');';
-        } else {
-           return '// 被 WebUI 自动过滤: 移除了未提供 %hook 的无意义 %init 赋值防报错';
-        }
+    // Extract all hooked classes
+    const hookMatches = [...innerCode.matchAll(/%hook\s+([a-zA-Z0-9_]+)/g)];
+    const hookedClasses = new Set(hookMatches.map((m: any) => m[1]));
+
+    // Clean up %init(...)
+    let newCode = innerCode.replace(/%init\s*\(([\s\S]*?)\)\s*;/g, (initMatch: string, initContent: string) => {
+      if (!initContent.includes('=')) {
+        return initMatch;
+      }
+      
+      const parts = initContent.split(',').map((p: string) => p.trim());
+      const validParts = parts.filter((part: string) => {
+         const classNameMatch = part.match(/^([a-zA-Z0-9_]+)\s*=/);
+         if (classNameMatch) {
+            const className = classNameMatch[1];
+            return hookedClasses.has(className);
+         }
+         return true; 
       });
       
-      // Auto-cast self.view to avoid "property 'view' not found on object of type 'id'"
-      newCode = newCode.replace(/(?<!\)\s*)self\.view(?=[^A-Za-z0-9_])/g, '((UIViewController *)self).view');
-      newCode = newCode.replace(/(?<!\)\s*)self\.presentingViewController/g, '((UIViewController *)self).presentingViewController');
-      newCode = newCode.replace(/(?<!\)\s*)self\.removeFromSuperview/g, '[(UIView *)self removeFromSuperview]');
-      
-      return '```objective-c\n' + newCode.trim() + '\n```';
+      if (validParts.length > 0) {
+         return '%init(' + validParts.join(', ') + ');';
+      } else {
+         return '// 被 WebUI 自动过滤: 移除了未提供 %hook 的无意义 %init 赋值防报错';
+      }
     });
+    
+    // Auto-cast self.view
+    newCode = newCode.replace(/(?<!\)\s*)self\.view(?=[^A-Za-z0-9_])/g, '((UIViewController *)self).view');
+    newCode = newCode.replace(/(?<!\)\s*)self\.presentingViewController/g, '((UIViewController *)self).presentingViewController');
+    newCode = newCode.replace(/(?<!\)\s*)self\.removeFromSuperview/g, '[(UIView *)self removeFromSuperview]');
+    
+    // Note: since our app expects the bare code to render in ReactMarkdown, we just return the raw code.
+    // Ensure we don't accidentally re-wrap if it didn't have one, or strip it if the frontend needs but wait!
+    // The frontend wraps it itself: {`\`\`\`objective-c\n${generatedResult}\n\`\`\``}
+    // So we MUST return unwrapped raw code here.
+    return newCode.trim();
   }
 
   async function handleAIRequest(prompt: string, config: any, res: any) {
@@ -293,9 +304,33 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         contents: prompt
       });
       const resultText = response.text || "";
-      res.json({ explanation: "生成成功", code: cleanupLogosCode(resultText) });
+      
+      let extraction = resultText;
+      let exp = "生成完毕";
+      
+      // Split explanation and code block
+      const parts = resultText.split(/```(?:objective-c|objectivec|objc|c|cpp|c\+\+)?\n/i);
+      if (parts.length > 1) {
+        exp = parts[0].trim();
+        const codePart = parts[1].split('```')[0];
+        extraction = codePart;
+      } else {
+        const anyBlock = resultText.split(/```[a-zA-Z]*\n/i);
+        if (anyBlock.length > 1) {
+           exp = anyBlock[0].trim();
+           extraction = anyBlock[1].split('```')[0];
+        } else {
+           exp = resultText.trim();
+        }
+      }
+      
+      // Make sure we extract code part correctly from markdown
+      let cleaned = cleanupLogosCode(extraction.trim());
+      
+      res.json({ explanation: exp || "代码生成完成。", code: cleaned });
     } else {
-      const resp = await fetch(`${baseUrl}/chat/completions`, {
+      const fetchUrl = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
+      const resp = await fetch(fetchUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -304,8 +339,7 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         body: JSON.stringify({
           model: modelName,
           messages: [{ role: 'user', content: prompt }],
-          stream: false,
-          response_format: { type: "json_object" }
+          stream: false
         })
       });
       
@@ -320,21 +354,29 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
       }
 
       const content = data.choices[0]?.message?.content || "";
-      let result;
-      try {
-        let jsonStr = content.trim();
-        if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-        result = JSON.parse(jsonStr);
-      } catch (e) {
-        const codeMatch = content.match(/```(?:obj-cpp|objective-c|cpp)?\s*([\s\S]*?)```/);
-        result = {
-          explanation: content.split('```')[0].trim() || "生成完毕",
-          code: codeMatch ? codeMatch[1].trim() : content.trim()
-        };
+      
+      let extraction = content;
+      let exp = "生成完毕";
+      
+      // Split explanation and code block (same logic as Gemini)
+      const parts = content.split(/```(?:objective-c|objectivec|objc|c|cpp|c\+\+)?\n/i);
+      if (parts.length > 1) {
+        exp = parts[0].trim();
+        const codePart = parts[1].split('```')[0];
+        extraction = codePart;
+      } else {
+        const anyBlock = content.split(/```[a-zA-Z]*\n/i);
+        if (anyBlock.length > 1) {
+           exp = anyBlock[0].trim();
+           extraction = anyBlock[1].split('```')[0];
+        } else {
+           exp = content.trim();
+        }
       }
+      
+      let cleaned = cleanupLogosCode(extraction.trim());
 
-      if (result.code) result.code = cleanupLogosCode(result.code);
-      res.json(result);
+      res.json({ explanation: exp || "代码生成完成。", code: cleaned });
     }
   }
 
@@ -354,7 +396,8 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         // Gemini 的 SDK 列表获取复杂，这里返回常用模型列表
         res.json({ models: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'] });
       } else {
-        const response = await fetch(`${baseUrl}/models`, {
+        const fetchUrl = baseUrl.endsWith('/chat/completions') ? baseUrl.replace(/\/chat\/completions$/, '/models') : `${baseUrl}/models`;
+        const response = await fetch(fetchUrl, {
           headers: { 'Authorization': `Bearer ${apiKey}` }
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -390,7 +433,8 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
         });
         res.json({ success: true, message: response.text || "Connection OK" });
       } else {
-        const response = await fetch(`${baseUrl}/chat/completions`, {
+        const fetchUrl = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
+        const response = await fetch(fetchUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
