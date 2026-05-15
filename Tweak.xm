@@ -6,7 +6,7 @@
 /* ---------- 动态类声明 ---------- */
 @interface GDTSplashAd : NSObject @end
 @interface CSJSplashAd : NSObject @end
-@interface BUSplashAdView : NSObject @end
+@interface BUSplashAdView : UIView @end
 @interface BaiduMobAdSplash : NSObject @end
 @interface KSAdSplashViewController : UIViewController @end
 @interface CMSplashManager : NSObject @end
@@ -51,7 +51,9 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
     id delegate = [instance performSelector:@selector(delegate)];
-    if (!delegate) { #pragma clang diagnostic pop; return; }
+    if (!delegate) {
+        return;
+    }
     const struct { SEL sel; const char *name; } callbacks[] = {
         {@selector(splashAdClosed:), "splashAdClosed:"},
         {@selector(splashAdDidDismissFullScreenContent:), "splashAdDidDismissFullScreenContent:"},
@@ -71,16 +73,18 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
 %ctor {
     UIWindow *keyW = get_keyWindow();
     if (keyW) {
-        for (UIWindow *w in keyW.windowScene.windows) {
-            NSString *name = NSStringFromClass([w class]);
-            if ([name containsString:@"Splash"] ||
-                [name containsString:@"AdWindow"] ||
-                [name containsString:@"PAGWindow"] ||
-                [name containsString:@"CSJWindow"]) {
-                w.hidden = YES;
+        if (@available(iOS 13.0,*)) {
+            for (UIWindow *w in keyW.windowScene.windows) {
+                NSString *name = NSStringFromClass([w class]);
+                if ([name containsString:@"Splash"] ||
+                    [name containsString:@"AdWindow"] ||
+                    [name containsString:@"PAGWindow"] ||
+                    [name containsString:@"CSJWindow"] ||
+                    [name containsString:@"CSJSplash"]) {
+                    w.hidden = YES;
+                }
             }
         }
-        /* 强制主窗口取得焦点 */
         [keyW setHidden:NO];
         [keyW makeKeyAndVisible];
     }
