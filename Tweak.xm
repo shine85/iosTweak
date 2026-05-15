@@ -20,53 +20,39 @@
 @interface PAGInterstitialAd : NSObject @end
 @class GADAdError;     /* 前向声明 */
 
-/* ---------- 公共工具函数 ---------- */
-#pragma mark - 视图恢复
+/* ---------- 工具函数 ---------- */
 static void forceRestoreSubViews(UIView *view) {
     if (!view) return;
     for (UIView *sub in view.subviews) {
-        [sub setHidden:NO];
-        [sub setAlpha:1.0];
-        if (sub.subviews.count > 0) forceRestoreSubViews(sub);
+        sub.hidden = NO;
+        sub.alpha = 1.0;
+        if (sub.subviews.count) forceRestoreSubViews(sub);
     }
 }
 
-#pragma mark - 获取 keyWindow
 static UIWindow* get_keyWindow(void) {
-    UIWindow *foundWindow = nil;
-    if (@available(iOS 13.0, *)) {
+    UIWindow *found = nil;
+    if (@available(iOS 13.0,*)) {
         for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
             if (scene.activationState == UISceneActivationStateForegroundActive) {
-                for (UIWindow *window in scene.windows) {
-                    if (window.isKeyWindow) {
-                        foundWindow = window;
-                        break;
-                    }
+                for (UIWindow *w in scene.windows) {
+                    if (w.isKeyWindow) { found = w; break; }
                 }
             }
-            if (foundWindow) break;
+            if (found) break;
         }
     }
-    if (!foundWindow) {
-        foundWindow = [[UIApplication sharedApplication] valueForKey:@"keyWindow"];
-    }
-    return foundWindow;
+    if (!found) found = [[UIApplication sharedApplication] valueForKey:@"keyWindow"];
+    return found;
 }
 
-#pragma mark - 统一委托回调
 static void dispatchDelegateCallback(id instance, SEL selector) {
     if (![instance respondsToSelector:selector]) return;
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
     id delegate = [instance performSelector:@selector(delegate)];
-    if (!delegate) {
-        #pragma clang diagnostic pop
-        return;
-    }
-    const struct {
-        SEL sel;
-        const char *name;
-    } callbacks[] = {
+    if (!delegate) { #pragma clang diagnostic pop; return; }
+    const struct { SEL sel; const char *name; } callbacks[] = {
         {@selector(splashAdClosed:), "splashAdClosed:"},
         {@selector(splashAdDidDismissFullScreenContent:), "splashAdDidDismissFullScreenContent:"},
         {@selector(splashAdDidClose:), "splashAdDidClose:"},
@@ -81,57 +67,56 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
     #pragma clang diagnostic pop
 }
 
-#pragma mark - Ctor
+/* ---------- 预处理 ---------- */
 %ctor {
-    // 预先清理可能残留的开屏窗口，避免容错
     UIWindow *keyW = get_keyWindow();
     if (keyW) {
-        for (UIWindow *win in keyW.windowScene.windows) {
-            NSString *className = NSStringFromClass([win class]);
-            if ([className containsString:@"Splash"] ||
-                [className containsString:@"AdWindow"] ||
-                [className containsString:@"PAGWindow"] ||
-                [className containsString:@"CSJWindow"]) {
-                [win setHidden:YES];
+        for (UIWindow *w in keyW.windowScene.windows) {
+            NSString *name = NSStringFromClass([w class]);
+            if ([name containsString:@"Splash"] ||
+                [name containsString:@"AdWindow"] ||
+                [name containsString:@"PAGWindow"] ||
+                [name containsString:@"CSJWindow"]) {
+                w.hidden = YES;
             }
         }
+        /* 强制主窗口取得焦点 */
+        [keyW setHidden:NO];
+        [keyW makeKeyAndVisible];
     }
 }
 
 /* ---------- Core Hook  ---------- */
 %hook UIWindow
 - (void)makeKeyAndVisible {
-    NSString *className = NSStringFromClass([self class]);
-    if ([className containsString:@"Splash"] ||
-        [className containsString:@"AdWindow"] ||
-        [className containsString:@"PAGWindow"] ||
-        [className containsString:@"CSJWindow"]) {
+    NSString *name = NSStringFromClass([self class]);
+    if ([name containsString:@"Splash"] ||
+        [name containsString:@"AdWindow"] ||
+        [name containsString:@"PAGWindow"] ||
+        [name containsString:@"CSJWindow"]) {
         [self setHidden:YES];
         return;
     }
     %orig;
 }
 - (void)becomeKeyWindow {
-    NSString *className = NSStringFromClass([self class]);
-    if ([className containsString:@"Splash"] ||
-        [className containsString:@"AdWindow"] ||
-        [className containsString:@"PAGWindow"] ||
-        [className containsString:@"CSJWindow"]) {
+    NSString *name = NSStringFromClass([self class]);
+    if ([name containsString:@"Splash"] ||
+        [name containsString:@"AdWindow"] ||
+        [name containsString:@"PAGWindow"] ||
+        [name containsString:@"CSJWindow"]) {
         [self setHidden:YES];
         return;
     }
     %orig;
 }
 - (void)setHidden:(BOOL)hidden {
-    NSString *className = NSStringFromClass([self class]);
-    if ([className containsString:@"Splash"] ||
-        [className containsString:@"AdWindow"] ||
-        [className containsString:@"PAGWindow"] ||
-        [className containsString:@"CSJWindow"]) {
-        if (!hidden) {
-            %orig(YES);
-            return;
-        }
+    NSString *name = NSStringFromClass([self class]);
+    if ([name containsString:@"Splash"] ||
+        [name containsString:@"AdWindow"] ||
+        [name containsString:@"PAGWindow"] ||
+        [name containsString:@"CSJWindow"]) {
+        if (!hidden) { %orig(YES); return; }
     }
     %orig(hidden);
 }
@@ -139,27 +124,31 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
 
 %hook UIViewController
 - (void)viewWillAppear:(BOOL)animated {
-    Class klass = [self class];
-    NSString *className = NSStringFromClass(klass);
-    if ([className containsString:@"Splash"] ||
-        [className containsString:@"Bidding"] ||
-        [className containsString:@"AdViewController"] ||
-        [className containsString:@"CMAd"]) {
-        UIView *vcView = ((UIViewController *)self).view;
-        if (vcView) [vcView setHidden:YES];
+    Class cls = [self class];
+    NSString *name = NSStringFromClass(cls);
+    if ([name containsString:@"Splash"] ||
+        [name containsString:@"Bidding"] ||
+        [name containsString:@"AdViewController"] ||
+        [name containsString:@"CMAd"]) {
+        ((UIViewController *)self).view.hidden = YES;
         return;
     }
     %orig(animated);
 }
 - (void)viewDidAppear:(BOOL)animated {
-    Class klass = [self class];
-    NSString *className = NSStringFromClass(klass);
-    if ([className containsString:@"Splash"] ||
-        [className containsString:@"Bidding"] ||
-        [className containsString:@"AdViewController"] ||
-        [className containsString:@"CMAd"]) {
-        UIView *vcView = ((UIViewController *)self).view;
-        if (vcView) [vcView setHidden:YES];
+    Class cls = [self class];
+    NSString *name = NSStringFromClass(cls);
+    if ([name containsString:@"Splash"] ||
+        [name containsString:@"Bidding"] ||
+        [name containsString:@"AdViewController"] ||
+        [name containsString:@"CMAd"]) {
+        UIViewController *vc = (UIViewController *)self;
+        if (vc.presentingViewController) {
+            [vc.presentingViewController dismissViewControllerAnimated:NO completion:nil];
+        } else {
+            vc.view.hidden = YES;
+        }
+        dispatchDelegateCallback(self, @selector(splashAdClosed:));
         return;
     }
     %orig(animated);
@@ -167,60 +156,44 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
 %end
 
 %hook GDTSplashAd
-- (void)loadAdAndShowInWindow:(UIWindow *)window {
-    dispatchDelegateCallback(self, @selector(splashAdClosed:));
-}
-- (void)showAdInWindow:(UIWindow *)window {
-    dispatchDelegateCallback(self, @selector(splashAdClosed:));
-}
+- (void)loadAdAndShowInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
+- (void)showAdInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
 %end
 
 %hook CSJSplashAd
-- (void)loadAdAndShowInWindow:(UIWindow *)window {
-    dispatchDelegateCallback(self, @selector(splashAdClosed:));
-}
-- (void)showAdInWindow:(UIWindow *)window {
-    dispatchDelegateCallback(self, @selector(splashAdClosed:));
-}
+- (void)loadAdAndShowInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
+- (void)showAdInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
 %end
 
 %hook BUSplashAdView
 - (void)loadAd { }
-- (void)showInWindow:(UIWindow *)window {
-    dispatchDelegateCallback(self, @selector(splashAdClosed:));
-}
+- (void)showInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
 %end
 
 %hook BaiduMobAdSplash
 - (void)loadAd { }
-- (void)showInWindow:(UIWindow *)window {
-    dispatchDelegateCallback(self, @selector(splashAdClosed:));
-}
+- (void)showInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
 %end
 
 %hook KSAdSplashViewController
 - (void)dismissViewControllerAnimated:(BOOL)flag completion:(void (^)(void))completion {
-    dispatchDelegateCallback(self, @selector(splashAdClosed:));
+    dispatchDelegateCallback(self,@selector(splashAdClosed:));
 }
 %end
 
 %hook CMSplashManager
-- (instancetype)init {
-    return nil;
-}
+- (instancetype)init { return nil; }
 %end
 
 %hook CMSplashViewController
-- (instancetype)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
-    return nil;
-}
+- (instancetype)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil { return nil; }
 - (instancetype)init { return nil; }
 - (void)viewDidLoad { }
 %end
 
 %hook CMSplashAd
 - (void)loadAd { }
-- (void)show { dispatchDelegateCallback(self, @selector(splashAdClosed:)); }
+- (void)show { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
 %end
 
 %hook BiddingSplashAd
