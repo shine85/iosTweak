@@ -305,29 +305,35 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
       });
       const resultText = response.text || "";
       
+      let exp = "代码生成完成。";
       let extraction = resultText;
-      let exp = "生成完毕";
       
-      // Split explanation and code block
-      const parts = resultText.split(/```(?:objective-c|objectivec|objc|c|cpp|c\+\+)?\n/i);
-      if (parts.length > 1) {
-        exp = parts[0].trim();
-        const codePart = parts[1].split('```')[0];
-        extraction = codePart;
-      } else {
-        const anyBlock = resultText.split(/```[a-zA-Z]*\n/i);
-        if (anyBlock.length > 1) {
-           exp = anyBlock[0].trim();
-           extraction = anyBlock[1].split('```')[0];
-        } else {
-           exp = resultText.trim();
-        }
+      let parts = resultText.split(/```(?:objective-c|objectivec|objc|c|cpp|c\+\+)?\n/i);
+      if (parts.length < 2) {
+        parts = resultText.split(/```[a-zA-Z]*\n/i);
       }
       
-      // Make sure we extract code part correctly from markdown
+      if (parts.length > 1) {
+        const beforeCode = parts[0].trim();
+        const afterSplit = parts[1].split('```');
+        const codePart = afterSplit[0];
+        const afterCode = afterSplit.slice(1).join('```').trim();
+        
+        if (beforeCode) {
+          exp = beforeCode;
+          if (afterCode) {
+            exp += '\n\n' + afterCode;
+          }
+        } else if (afterCode) {
+          exp = afterCode;
+        }
+        
+        extraction = codePart;
+      }
+      
       let cleaned = cleanupLogosCode(extraction.trim());
       
-      res.json({ explanation: exp || "代码生成完成。", code: cleaned });
+      res.json({ explanation: exp, code: cleaned });
     } else {
       const fetchUrl = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
       const resp = await fetch(fetchUrl, {
@@ -355,28 +361,35 @@ Language: 所有输出、代码注释及逻辑分析均使用中文。
 
       const content = data.choices[0]?.message?.content || "";
       
+      let exp = "代码生成完成。";
       let extraction = content;
-      let exp = "生成完毕";
       
-      // Split explanation and code block (same logic as Gemini)
-      const parts = content.split(/```(?:objective-c|objectivec|objc|c|cpp|c\+\+)?\n/i);
+      let parts = content.split(/```(?:objective-c|objectivec|objc|c|cpp|c\+\+)?\n/i);
+      if (parts.length < 2) {
+        parts = content.split(/```[a-zA-Z]*\n/i);
+      }
+      
       if (parts.length > 1) {
-        exp = parts[0].trim();
-        const codePart = parts[1].split('```')[0];
-        extraction = codePart;
-      } else {
-        const anyBlock = content.split(/```[a-zA-Z]*\n/i);
-        if (anyBlock.length > 1) {
-           exp = anyBlock[0].trim();
-           extraction = anyBlock[1].split('```')[0];
-        } else {
-           exp = content.trim();
+        const beforeCode = parts[0].trim();
+        const afterSplit = parts[1].split('```');
+        const codePart = afterSplit[0];
+        const afterCode = afterSplit.slice(1).join('```').trim();
+        
+        if (beforeCode) {
+          exp = beforeCode;
+          if (afterCode) {
+            exp += '\n\n' + afterCode;
+          }
+        } else if (afterCode) {
+          exp = afterCode;
         }
+        
+        extraction = codePart;
       }
       
       let cleaned = cleanupLogosCode(extraction.trim());
 
-      res.json({ explanation: exp || "代码生成完成。", code: cleaned });
+      res.json({ explanation: exp, code: cleaned });
     }
   }
 
