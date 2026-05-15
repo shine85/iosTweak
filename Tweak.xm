@@ -18,6 +18,7 @@
 @interface GADInterstitialAd : NSObject @end
 @interface PAGAppOpenAd : NSObject @end
 @interface PAGInterstitialAd : NSObject @end
+@class GADAdError;     /* 前向声明 */
 
 /* ---------- 公共工具函数 ---------- */
 #pragma mark - 视图恢复
@@ -55,9 +56,13 @@ static UIWindow* get_keyWindow(void) {
 #pragma mark - 统一委托回调
 static void dispatchDelegateCallback(id instance, SEL selector) {
     if (![instance respondsToSelector:selector]) return;
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
     id delegate = [instance performSelector:@selector(delegate)];
-    if (!delegate) return;
-    // 尝试多种常见的 Ad 关闭回调
+    if (!delegate) {
+        #pragma clang diagnostic pop
+        return;
+    }
     const struct {
         SEL sel;
         const char *name;
@@ -73,11 +78,12 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
             break;
         }
     }
+    #pragma clang diagnostic pop
 }
 
 #pragma mark - Ctor
 %ctor {
-    // 预先清理一遍可能残留的开屏窗口，避免容错
+    // 预先清理可能残留的开屏窗口，避免容错
     UIWindow *keyW = get_keyWindow();
     if (keyW) {
         for (UIWindow *win in keyW.windowScene.windows) {
