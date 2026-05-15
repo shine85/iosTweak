@@ -51,9 +51,7 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
     id delegate = [instance performSelector:@selector(delegate)];
-    if (!delegate) {
-        return;
-    }
+    if (!delegate) { return; }
     const struct { SEL sel; const char *name; } callbacks[] = {
         {@selector(splashAdClosed:), "splashAdClosed:"},
         {@selector(splashAdDidDismissFullScreenContent:), "splashAdDidDismissFullScreenContent:"},
@@ -69,28 +67,47 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
     #pragma clang diagnostic pop
 }
 
-/* ---------- 预处理 ---------- */
-%ctor {
-    UIWindow *keyW = get_keyWindow();
-    if (keyW) {
-        if (@available(iOS 13.0,*)) {
-            for (UIWindow *w in keyW.windowScene.windows) {
-                NSString *name = NSStringFromClass([w class]);
-                if ([name containsString:@"Splash"] ||
-                    [name containsString:@"AdWindow"] ||
-                    [name containsString:@"PAGWindow"] ||
-                    [name containsString:@"CSJWindow"] ||
-                    [name containsString:@"CSJSplash"]) {
-                    w.hidden = YES;
-                }
-            }
+/* ---------- 销毁开屏窗口 ---------- */
+static void killSplashWindow(void) {
+    NSArray *windows = nil;
+    if (@available(iOS 13.0,*)) {
+        NSMutableArray *tmp = [NSMutableArray array];
+        for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            [tmp addObjectsFromArray:scene.windows];
         }
-        [keyW setHidden:NO];
-        [keyW makeKeyAndVisible];
+        windows = [tmp copy];
+    } else {
+        windows = [UIApplication sharedApplication].windows;
+    }
+    for (UIWindow *w in windows) {
+        NSString *name = NSStringFromClass([w class]);
+        if ([name containsString:@"Splash"] ||
+            [name containsString:@"AdWindow"] ||
+            [name containsString:@"PAGWindow"] ||
+            [name containsString:@"CSJWindow"] ||
+            [name containsString:@"CSJSplash"] ||
+            [name containsString:@"KSAdSplashWindow"] ||
+            [name containsString:@"GDTWindow"]) {
+            [w setHidden:YES];
+        }
     }
 }
 
-/* ---------- Core Hook  ---------- */
+/* ---------- 预处理 ---------- */
+%ctor {
+    killSplashWindow();
+    UIWindow *keyW = get_keyWindow();
+    if (keyW) {
+        // 确保业务主窗口可见
+        if (![keyW isKeyWindow]) {
+            [keyW makeKeyAndVisible];
+        }
+        // 再次遍历隐藏潜在的广告窗口
+        killSplashWindow();
+    }
+}
+
+/* ---------- Core Hook ---------- */
 %hook UIWindow
 - (void)makeKeyAndVisible {
     NSString *name = NSStringFromClass([self class]);
