@@ -1,12 +1,12 @@
 //  Tweak.xm
 //  Anti‑Ad Surge – 2026‑05‑16
 //
-/*  本文件已完成对中国移动等应用开屏广告的全景拦截。  
-    • 统一全局窗口和视图层拦截，保证无误杀。  
-    • 针对 CSJ/BU/GDT/KS/Baidu/AdMob/PAG SDK 的加载与展示方法强制返回。  
-    • 对中国移动专属广告类 ``CMSplash*`` 全面兜底。  
-    • 在隐藏窗口后即刻保证主业务窗口可见，防止白屏。  
-    • 所有 delegate 回调均通过安全的 performSelector 伪造，避免崩溃。 */
+//  本文件已完成对中国移动等应用开屏广告的全景拦截。  
+//  • 统一全局窗口和视图层拦截，保证无误杀。  
+//  • 针对 CSJ/BU/GDT/KS/Baidu/AdMob/PAG SDK 的加载与展示方法强制返回。  
+//  • 对中国移动专属广告类 ``CMSplash*`` 全面兜底。  
+//  • 在隐藏窗口后即刻保证主业务窗口可见，防止白屏。  
+//  • 所有 delegate 回调均通过安全的 performSelector 伪造，避免崩溃。 
 
 #import <substrate.h>
 #import <UIKit/UIKit.h>
