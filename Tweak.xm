@@ -1,4 +1,3 @@
-// Tweak.xm
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <substrate.h>
@@ -11,6 +10,9 @@ static void forceRestoreSubViews(UIView *view) {
         if (sub.subviews.count > 0) forceRestoreSubViews(sub);
     }
 }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
 
 @interface UIWindow : UIView @end
 @interface UIApplication : UIResponder @end
@@ -29,7 +31,6 @@ static ZXHTData *adData = nil;
 @interface KSAdSplashViewController : UIViewController @end
 @interface PAGLAppOpenAd : NSObject @end
 @interface ABUSplashAd : NSObject @end
-
 @interface GDTUnifiedInterstitialAd : NSObject @end
 @interface BUInterstitialAd : NSObject @end
 @interface BUNativeExpressInterstitialAd : NSObject @end
@@ -37,24 +38,25 @@ static ZXHTData *adData = nil;
 @interface KSInterstitialAd : NSObject @end
 @interface KSAdInterstitialViewController : UIViewController @end
 @interface BaiduMobAdInterstitial : NSObject @end
-
 @interface RewardVideoAd : NSObject @end
 @interface xPopupAd : NSObject @end
 @interface MarketingDialog : UIViewController @end
-
 @interface UIWebView : UIView @end
 @interface WKWebView : UIView @end
+
+// AdMob classes
+@interface GADBannerView : UIView @end
+@interface GADRewardedAd : NSObject @end
+@interface GADUnifiedInterstitialAd : NSObject @end
+@interface GADAdLoader : NSObject @end
 
 %ctor {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         adData = [[ZXHTData alloc] init];
     });
-    TWEAK_STARTUP_LOG(@"[!!!] Tweak 注入成功");
+    TWEAK_STARTUP_LOG(@"[!!!] Tweak injected");
 }
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
 
 %group CommonAdHacks
 %hook UIWindow
@@ -90,7 +92,7 @@ static ZXHTData *adData = nil;
 %hook UIApplication
 - (void)applicationDidFinishLaunching:(UIApplication *)application {
     %orig;
-    NSLog(@"[!!!] Tweak 注入成功");
+    NSLog(@"[!!!] Tweak injected");
 }
 %end
 
@@ -98,11 +100,13 @@ static ZXHTData *adData = nil;
 %hook GDTSplashAd
 - (BOOL)loadAd { return NO; }
 - (void)showAdInWindow:(UIWindow *)window {}
+- (void)presentFullScreenAdFromViewController:(UIViewController *)viewController {}
 %end
 
 %hook CSJSplashAd
 - (BOOL)loadAd { return NO; }
 - (void)showAdInWindow:(UIWindow *)window {}
+- (void)presentFullScreenAdFromViewController:(UIViewController *)viewController {}
 %end
 
 %hook BUMNativeSplash
@@ -184,6 +188,7 @@ static ZXHTData *adData = nil;
 
 %hook MarketingDialog
 - (void)show {}
+- (void)presentFromRootViewController:(UIViewController *)rootViewController {}
 %end
 %end
 
@@ -218,5 +223,24 @@ static ZXHTData *adData = nil;
 
 %hook WKWebView
 - (void)loadRequest:(NSURLRequest *)request {}
+%end
+%end
+
+%group AdMobHooks
+%hook GADBannerView
+- (void)loadRequest:(id)request {}
+- (void)setAdUnitID:(NSString *)adUnitID {}
+%end
+
+%hook GADRewardedAd
+- (void)loadWithRequest:(id)request completionHandler:(void(^)(NSError *))completionHandler {}
+%end
+
+%hook GADUnifiedInterstitialAd
+- (void)presentFromRootViewController:(UIViewController *)rootViewController {}
+%end
+
+%hook GADAdLoader
+- (void)loadRequest:(id)request {}
 %end
 %end
