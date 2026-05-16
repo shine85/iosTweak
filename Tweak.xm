@@ -1,9 +1,8 @@
-//  Tweak.xm
+// Tweak.xm
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <substrate.h>
 
-// ====================== Helpers ======================
 static void forceRestoreSubViews(UIView *view) {
     if (!view) return;
     for (UIView *sub in view.subviews) {
@@ -13,7 +12,6 @@ static void forceRestoreSubViews(UIView *view) {
     }
 }
 
-// ====================== Forward Declarations ======================
 @interface UIWindow : UIView @end
 @interface UIApplication : UIResponder @end
 @interface UIViewController : UIResponder @end
@@ -22,7 +20,6 @@ static void forceRestoreSubViews(UIView *view) {
 @interface ZXHTData : NSObject @end
 static ZXHTData *adData = nil;
 
-// Mainstream SDKs
 @interface GDTSplashAd : NSObject @end
 @interface CSJSplashAd : NSObject @end
 @interface BUMNativeSplash : NSObject @end
@@ -48,19 +45,6 @@ static ZXHTData *adData = nil;
 @interface UIWebView : UIView @end
 @interface WKWebView : UIView @end
 
-// AdMob
-@interface GADBannerView : UIView @end
-@interface GADInterstitialAd : NSObject @end
-@interface GADRewardedAd : NSObject @end
-@interface GADUnifiedInterstitialAd : NSObject @end
-@interface GADNativeAdView : UIView @end
-@interface GADVideoAd : NSObject @end
-
-// Other SDKs
-@interface MBRewardedInterstitialAd : NSObject @end
-@interface TappxAd : NSObject @end
-
-// ====================== Tweak Startup ======================
 %ctor {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -185,33 +169,6 @@ static ZXHTData *adData = nil;
 
 %hook BaiduMobAdInterstitial
 - (void)showInterstitialAdWithRootViewController:(UIViewController *)viewController {}
-%end
-
-%hook GADInterstitialAd
-- (instancetype)initWithAdUnitID:(NSString *)adUnitID { return Nil; }
-- (void)loadRequest:(GADRequest *)request {}
-- (void)presentFromRootViewController:(UIViewController *)rootViewController {}
-%end
-
-%hook GADRewardedAd
-- (instancetype)initWithAdUnitID:(NSString *)adUnitID { return Nil; }
-- (void)loadRequest:(GADRequest *)request {}
-- (void)presentFromRootViewController:(UIViewController *)rootViewController delegate:(id)delegate {}
-%end
-
-%hook GADBannerView
-- (instancetype)initWithAdSize:(GADAdSize)adSize { return Nil; }
-- (void)loadRequest:(GADRequest *)request {}
-%end
-
-%hook MBRewardedInterstitialAd
-- (BOOL)loadAd { return NO; }
-- (void)presentFromViewController:(UIViewController *)viewController {}
-%end
-
-%hook TappxAd
-- (BOOL)loadAd { return NO; }
-- (void)show {}
 %end
 %end
 
