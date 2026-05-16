@@ -32,7 +32,12 @@ async function startServer() {
         console.error(`\x1b[31m${logMsg}\x1b[0m`);
       } else {
         console.log(`\x1b[32m${logMsg}\x1b[0m`);
-      }  // 共享的 Tweak 生成需求指令集 (v1.1.98 强化终极版)
+      }
+    });
+    next();
+  });
+
+  // 共享的 Tweak 生成需求指令集 (v1.1.98 强化终极版)
   const TWEAK_REQUIREMENTS = `
 目标实体规范（极度重要）：
 - 逻辑归一化：不论用户提供的目标是官方应用名、Bundle ID 还是 App Store ID，必须解析为标准的包体特征，并生成全面准确的去除广告逻辑。
