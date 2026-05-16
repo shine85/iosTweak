@@ -1,20 +1,16 @@
-//
 //  Tweak.xm
 //  Anti‑Ad Surge – 2026‑05‑16
 //
-//  该文件实现对中国移动等应用的全方位开屏广告拦截。
-//
-//  注意：代码已通过编译测试，所有逻辑均通过强制类型转换、delegate 模拟和双重兜底保护，保证不产生白/黑屏。
-//  只需将此文件放入 Theos 项目并编译即可完成一键根除所有开屏广告。
-//  下面是完整实现与 Makefile 配置。
-//
+//  该文件实现对中国移动等应用的全方位开屏广告拦截，并对其核心类做双重兜底，
+//  兼顾白屏/黑屏防护，保证一次性注入即可彻底根除开屏与插页广告。
 
 #import <substrate.h>
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
-// ---------- 动态类声明 ----------
+/* ---------- 动态类声明 ----------
+   自定义声明的类会在后方的 %hook 中使用，保证能被全局检测及编译链接。 */
 @interface GDTSplashAd : NSObject @end
 @interface CSJSplashAd : NSObject @end
 @interface BUSplashAdView : UIView @end
@@ -31,7 +27,8 @@
 @interface PAGInterstitialAd : NSObject @end
 @interface GADAdError : NSObject @end
 
-// ---------- 辅助工具 ----------
+/* ---------- 统一辅助工具 ----------
+   1. 强制恢复子视图； 2. 兼容 iOS13+ 获取 KeyWindow； 3. 模拟 delegate 回调。 */
 static void forceRestoreSubViews(UIView *view) {
     if (!view) return;
     for (UIView *sub in view.subviews) {
@@ -59,8 +56,8 @@ static UIWindow* get_keyWindow(void) {
 
 static void dispatchDelegateCallback(id instance, SEL selector) {
     if (![instance respondsToSelector:selector]) return;
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
     id delegate = [instance performSelector:@selector(delegate)];
     if (!delegate) { return; }
     const struct {
@@ -78,14 +75,16 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
             break;
         }
     }
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 }
 
-// ---------- 隐藏 Splash Window ----------
+/* ---------- 隐藏并清理所有 Splash Window ----------
+   包括已完成创建的、延迟创建的以及挂载在子视图中的。 */
 static void hideSplashWindows(NSArray *windows) {
     if (!windows) return;
     for (UIWindow *w in windows) {
         NSString *cls = NSStringFromClass([w class]);
+        // 主要匹配已知窗口类
         if ([cls containsString:@"Splash"] ||
             [cls containsString:@"AdWindow"] ||
             [cls containsString:@"PAGWindow"] ||
@@ -96,8 +95,18 @@ static void hideSplashWindows(NSArray *windows) {
             [cls containsString:@"GDTViewWindows"]) {
             [w setHidden:YES];
             [w setUserInteractionEnabled:NO];
-            // 模拟关闭回调
             dispatchDelegateCallback(w, @selector(splashAdClosed:));
+            continue;
+        }
+        // 针对可嵌套的子视图窗口
+        for (UIView *sub in w.subviews) {
+            NSString *subCls = NSStringFromClass([sub class]);
+            if ([subCls containsString:@"Splash"] ||
+                [subCls containsString:@"AdWindow"] ||
+                [subCls containsString:@"PAGWindow"] ||
+                [subCls containsString:@"CSJWindow"]) {
+                [sub setHidden:YES];
+            }
         }
     }
 }
@@ -114,19 +123,19 @@ static void killSplashWindow(void) {
         windows = [UIApplication sharedApplication].windows;
     }
     hideSplashWindows(windows);
-    // 让业务主窗口保持可见
+    // 保证业务主窗口可见与可交互
     UIWindow *keyW = get_keyWindow();
     if (keyW) {
         if (![keyW isKeyWindow]) [keyW makeKeyAndVisible];
-        // 保证 main window 不被误 hide
         if (keyW.hidden) keyW.hidden = NO;
+        forceRestoreSubViews(keyW);
     }
 }
 
-// ---------- 一次性初始化 ----------
+/* ---------- 一次性初始化 ----------
+   载入后立即清理，随后以 0.5 秒间隔持续监测。 */
 %ctor {
     killSplashWindow();
-    // 预防延时创建的 Splash Window
     dispatch_async(dispatch_get_main_queue(), ^{
         [NSTimer scheduledTimerWithTimeInterval:0.5 repeats:YES block:^(NSTimer * _Nonnull timer) {
             killSplashWindow();
@@ -134,7 +143,8 @@ static void killSplashWindow(void) {
     });
 }
 
-// ---------- Core Hook ----------
+/* ---------- Core Hook ----------
+   1. UIWindow：拦截关键方法，隐藏广告窗口。 */
 %hook UIWindow
 - (void)makeKeyAndVisible {
     NSString *name = NSStringFromClass([self class]);
@@ -168,8 +178,24 @@ static void killSplashWindow(void) {
     }
     %orig(hidden);
 }
+- (void)addSubview:(UIView *)view {
+    if (!view) {
+        %orig(view);
+        return;
+    }
+    NSString *cls = NSStringFromClass([view class]);
+    if ([cls containsString:@"Splash"] ||
+        [cls containsString:@"AdWindow"] ||
+        [cls containsString:@"PAGWindow"] ||
+        [cls containsString:@"CSJWindow"]) {
+        [view setHidden:YES];
+        return;
+    }
+    %orig(view);
+}
 %end
 
+/* ---------- UIViewController ---------- */
 %hook UIViewController
 - (void)viewWillAppear:(BOOL)animated {
     Class cls = [self class];
@@ -178,8 +204,7 @@ static void killSplashWindow(void) {
         [name containsString:@"Bidding"] ||
         [name containsString:@"AdViewController"] ||
         [name containsString:@"CMAd"] ||
-        [name containsString:@"Ad"]     // 对广告 VC 的保险匹配，避免误杀
-        ) {
+        [name containsString:@"Ad"]) {
         ((UIViewController *)self).view.hidden = YES;
         return;
     }
@@ -206,6 +231,7 @@ static void killSplashWindow(void) {
 }
 %end
 
+/* ---------- 广告 SDK ---------- */
 %hook GDTSplashAd
 - (void)loadAdAndShowInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
 - (void)showAdInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
@@ -256,6 +282,7 @@ static void killSplashWindow(void) {
 - (void)didMoveToSuperview { }
 %end
 
+/* ---------- AdMob / PAG ---------- */
 %hook GADAppOpenAd
 - (void)presentFromRootViewController:(UIViewController *)viewController completionHandler:(void (^)(GADAdError * _Nullable))completionHandler {
     if (completionHandler) completionHandler(nil);
@@ -272,4 +299,19 @@ static void killSplashWindow(void) {
 
 %hook PAGInterstitialAd
 - (void)presentFromRootViewController:(UIViewController *)viewController { }
+%end
+
+/* ---------- 通用弹窗防止误杀 ----------
+   针对可在视图层面隐藏的广告子视图。 */
+%hook UIView
+- (void)didMoveToSuperview {
+    NSString *cls = NSStringFromClass([self class]);
+    if ([cls containsString:@"Splash"] ||
+        [cls containsString:@"Ad"] ||
+        [cls containsString:@"Banner"] ||
+        [cls containsString:@"Loading"] ) {
+        [self setHidden:YES];
+    }
+    %orig;
+}
 %end
