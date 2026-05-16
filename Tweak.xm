@@ -22,6 +22,7 @@ static void forceRestoreSubViews(UIView *view) {
 @interface ZXHTData : NSObject @end
 static ZXHTData *adData = nil;
 
+// 广告 SDK 相关类声明
 @interface GDTSplashAd : NSObject @end
 @interface CSJSplashAd : NSObject @end
 @interface BUMNativeSplash : NSObject @end
@@ -44,7 +45,7 @@ static ZXHTData *adData = nil;
 @interface UIWebView : UIView @end
 @interface WKWebView : UIView @end
 
-// AdMob classes
+// AdMob
 @interface GADBannerView : UIView @end
 @interface GADRewardedAd : NSObject @end
 @interface GADUnifiedInterstitialAd : NSObject @end
@@ -55,23 +56,29 @@ static ZXHTData *adData = nil;
     dispatch_once(&onceToken, ^{
         adData = [[ZXHTData alloc] init];
     });
-    TWEAK_STARTUP_LOG(@"[!!!] Tweak injected");
+    NSLog(@"[!!!] Tweak injected");
 }
 
-%group CommonAdHacks
+#pragma clang diagnostic pop
+
+// ----------------- Common Ad Hacks -----------------
 %hook UIWindow
 - (void)makeKeyAndVisible {
-    if ([self isKindOfClass:NSClassFromString(@"AdWindow")] ||
-        [self isKindOfClass:NSClassFromString(@"SplashWindow")] ||
-        [self isKindOfClass:NSClassFromString(@"PAGWindow")]) {
+    if ([NSStringFromClass([self class]) containsString:@"AdWindow"] ||
+        [NSStringFromClass([self class]) containsString:@"SplashWindow"] ||
+        [NSStringFromClass([self class]) containsString:@"PAGWindow"]) {
+        [self resignKeyWindow];
+        self.hidden = YES;
         return;
     }
     %orig;
 }
 - (void)becomeKeyWindow {
-    if ([self isKindOfClass:NSClassFromString(@"AdWindow")] ||
-        [self isKindOfClass:NSClassFromString(@"SplashWindow")] ||
-        [self isKindOfClass:NSClassFromString(@"PAGWindow")]) {
+    if ([NSStringFromClass([self class]) containsString:@"AdWindow"] ||
+        [NSStringFromClass([self class]) containsString:@"SplashWindow"] ||
+        [NSStringFromClass([self class]) containsString:@"PAGWindow"]) {
+        [self resignKeyWindow];
+        self.hidden = YES;
         return;
     }
     %orig;
@@ -86,17 +93,15 @@ static ZXHTData *adData = nil;
     %orig;
 }
 %end
-#pragma clang diagnostic pop
 
-%group FlowControl
 %hook UIApplication
 - (void)applicationDidFinishLaunching:(UIApplication *)application {
     %orig;
-    NSLog(@"[!!!] Tweak injected");
+    NSLog(@"[!!!] Tweak 注入成功");
 }
 %end
 
-%group SplashAds
+// ----------------- Splash Ads -----------------
 %hook GDTSplashAd
 - (BOOL)loadAd { return NO; }
 - (void)showAdInWindow:(UIWindow *)window {}
@@ -139,9 +144,8 @@ static ZXHTData *adData = nil;
 - (void)loadAd {}
 - (void)showAdInWindow:(UIWindow *)window {}
 %end
-%end
 
-%group InterstitialAds
+// ----------------- Interstitial Ads -----------------
 %hook GDTUnifiedInterstitialAd
 - (BOOL)loadAd { return NO; }
 - (void)presentFromViewController:(UIViewController *)viewController {}
@@ -174,9 +178,8 @@ static ZXHTData *adData = nil;
 %hook BaiduMobAdInterstitial
 - (void)showInterstitialAdWithRootViewController:(UIViewController *)viewController {}
 %end
-%end
 
-%group PopupAndReward
+// ----------------- Popup & Reward -----------------
 %hook RewardVideoAd
 - (BOOL)loadAd { return NO; }
 - (void)presentFromRootViewController:(UIViewController *)rootViewController {}
@@ -190,16 +193,16 @@ static ZXHTData *adData = nil;
 - (void)show {}
 - (void)presentFromRootViewController:(UIViewController *)rootViewController {}
 %end
-%end
 
-%group ViewHijack
+// ----------------- View Hijack -----------------
 %hook UIViewController
 - (void)viewWillAppear:(BOOL)animated {
     %orig(animated);
-    if ([self isKindOfClass:NSClassFromString(@"AdvertisingViewController")] ||
-        [NSStringFromClass([self class]) containsString:@"Interstitial"] ||
+    if ([NSStringFromClass([self class]) containsString:@"Interstitial"] ||
         [NSStringFromClass([self class]) containsString:@"AdView"] ||
-        [NSStringFromClass([self class]) containsString:@"Popup"]) {
+        [NSStringFromClass([self class]) containsString:@"Popup"] ||
+        [NSStringFromClass([self class]) containsString:@"Reward"] ||
+        [NSStringFromClass([self class]) containsString:@"Marketing"]) {
         [(UIViewController *)self dismissViewControllerAnimated:NO completion:nil];
     }
 }
@@ -214,9 +217,8 @@ static ZXHTData *adData = nil;
     }
 }
 %end
-%end
 
-%group WebAds
+// ----------------- Web Ads -----------------
 %hook UIWebView
 - (void)loadRequest:(NSURLRequest *)request {}
 %end
@@ -224,9 +226,8 @@ static ZXHTData *adData = nil;
 %hook WKWebView
 - (void)loadRequest:(NSURLRequest *)request {}
 %end
-%end
 
-%group AdMobHooks
+// ----------------- AdMob Hooks -----------------
 %hook GADBannerView
 - (void)loadRequest:(id)request {}
 - (void)setAdUnitID:(NSString *)adUnitID {}
@@ -242,5 +243,4 @@ static ZXHTData *adData = nil;
 
 %hook GADAdLoader
 - (void)loadRequest:(id)request {}
-%end
 %end
