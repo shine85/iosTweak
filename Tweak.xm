@@ -1,3 +1,4 @@
+// Tweak.xm
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <substrate.h>
@@ -16,8 +17,7 @@ static void forceRestoreSubViews(UIView *view) {
 @interface UIViewController : UIResponder @end
 @interface NSObject : UIResponder @end
 
-@interface ZXHTData : NSObject @end   // 用于记录已被拦截的广告实例
-
+@interface ZXHTData : NSObject @end
 static ZXHTData *adData = nil;
 
 @interface GDTSplashAd : NSObject @end
@@ -50,21 +50,24 @@ static ZXHTData *adData = nil;
     dispatch_once(&onceToken, ^{
         adData = [[ZXHTData alloc] init];
     });
+    // Inject version marker
+    TWEAK_STARTUP_LOG(@"[!!!] Tweak 注入成功");
 }
 
-%group CommonAdHacks
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
 
+%group CommonAdHacks
 %hook UIWindow
 - (void)makeKeyAndVisible {
-    // 切换主窗口，避免广告窗口抢占
     if ([self isKindOfClass:NSClassFromString(@"AdWindow")] ||
         [self isKindOfClass:NSClassFromString(@"SplashWindow")] ||
         [self isKindOfClass:NSClassFromString(@"PAGWindow")]) {
+        // Prevent ad windows from becoming key
         return;
     }
     %orig;
 }
-
 - (void)becomeKeyWindow {
     if ([self isKindOfClass:NSClassFromString(@"AdWindow")] ||
         [self isKindOfClass:NSClassFromString(@"SplashWindow")] ||
@@ -73,7 +76,6 @@ static ZXHTData *adData = nil;
     }
     %orig;
 }
-
 - (void)setHidden:(BOOL)hidden {
     if ([NSStringFromClass([self class]) containsString:@"AdWindow"] ||
         [NSStringFromClass([self class]) containsString:@"SplashWindow"] ||
@@ -84,9 +86,9 @@ static ZXHTData *adData = nil;
     %orig;
 }
 %end
+#pragma clang diagnostic pop
 
 %group FlowControl
-
 %hook UIApplication
 - (void)applicationDidFinishLaunching:(UIApplication *)application {
     %orig;
@@ -95,147 +97,99 @@ static ZXHTData *adData = nil;
 %end
 
 %group SplashAds
-
 %hook GDTSplashAd
-- (BOOL)loadAd {
-    return NO;
-}
-- (void)showAdInWindow:(UIWindow *)window {
-}
+- (BOOL)loadAd { return NO; }
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 
 %hook CSJSplashAd
-- (BOOL)loadAd {
-    return NO;
-}
-- (void)showAdInWindow:(UIWindow *)window {
-}
+- (BOOL)loadAd { return NO; }
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 
 %hook BUMNativeSplash
-- (BOOL)loadAd {
-    return NO;
-}
-- (void)showAdInWindow:(UIWindow *)window {
-}
+- (BOOL)loadAd { return NO; }
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 
 %hook BUSplashAdView
-- (void)loadAd {
-}
+- (void)loadAd {}
 %end
 
 %hook BUSplashZoomOutView
-- (void)loadAd {
-}
+- (void)loadAd {}
 %end
 
 %hook BaiduMobAdSplash
-- (void)requestAdWithView:(UIView *)view {
-}
+- (void)requestAdWithView:(UIView *)view {}
 %end
 
 %hook KSAdSplashViewController
-- (instancetype)initWithFrame:(CGRect)frame {
-    return Nil;
-}
+- (instancetype)initWithFrame:(CGRect)frame { return Nil; }
 %end
 
 %hook PAGLAppOpenAd
-- (void)loadAd {
-}
-- (void)presentWithRootViewController:(UIViewController *)rootViewController {
-}
+- (void)loadAd {}
+- (void)presentWithRootViewController:(UIViewController *)rootViewController {}
 %end
 
 %hook ABUSplashAd
-- (void)loadAd {
-}
-- (void)showAdInWindow:(UIWindow *)window {
-}
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
+%end
 %end
 
-%end   // SplashAds
-
 %group InterstitialAds
-
 %hook GDTUnifiedInterstitialAd
-- (BOOL)loadAd {
-    return NO;
-}
-- (void)presentFromViewController:(UIViewController *)viewController {
-}
+- (BOOL)loadAd { return NO; }
+- (void)presentFromViewController:(UIViewController *)viewController {}
 %end
 
 %hook BUInterstitialAd
-- (BOOL)loadAd {
-    return NO;
-}
-- (void)presentFromViewController:(UIViewController *)viewController {
-}
+- (BOOL)loadAd { return NO; }
+- (void)presentFromViewController:(UIViewController *)viewController {}
 %end
 
 %hook BUNativeExpressInterstitialAd
-- (BOOL)loadAd {
-    return NO;
-}
-- (void)presentFromViewController:(UIViewController *)viewController {
-}
+- (BOOL)loadAd { return NO; }
+- (void)presentFromViewController:(UIViewController *)viewController {}
 %end
 
 %hook CSJInterstitialAd
-- (BOOL)loadAd {
-    return NO;
-}
-- (void)presentFromViewController:(UIViewController *)viewController {
-}
+- (BOOL)loadAd { return NO; }
+- (void)presentFromViewController:(UIViewController *)viewController {}
 %end
 
 %hook KSInterstitialAd
-- (BOOL)loadAd {
-    return NO;
-}
-- (void)presentFromViewController:(UIViewController *)viewController {
-}
+- (BOOL)loadAd { return NO; }
+- (void)presentFromViewController:(UIViewController *)viewController {}
 %end
 
 %hook KSAdInterstitialViewController
-- (instancetype)initWithFrame:(CGRect)frame {
-    return Nil;
-}
+- (instancetype)initWithFrame:(CGRect)frame { return Nil; }
 %end
 
 %hook BaiduMobAdInterstitial
-- (void)showInterstitialAdWithRootViewController:(UIViewController *)viewController {
-}
+- (void)showInterstitialAdWithRootViewController:(UIViewController *)viewController {}
+%end
 %end
 
-%end   // InterstitialAds
-
 %group PopupAndReward
-
 %hook RewardVideoAd
-- (BOOL)loadAd {
-    return NO;
-}
-- (void)presentFromRootViewController:(UIViewController *)rootViewController {
-}
+- (BOOL)loadAd { return NO; }
+- (void)presentFromRootViewController:(UIViewController *)rootViewController {}
 %end
 
 %hook xPopupAd
-- (void)show {
-}
+- (void)show {}
 %end
 
 %hook MarketingDialog
-- (void)show {
-}
+- (void)show {}
+%end
 %end
 
-%end   // PopupAndReward
-
 %group ViewHijack
-
 %hook UIViewController
 - (void)viewWillAppear:(BOOL)animated {
     %orig(animated);
@@ -257,19 +211,14 @@ static ZXHTData *adData = nil;
     }
 }
 %end
-
-%end   // ViewHijack
+%end
 
 %group WebAds
-
 %hook UIWebView
-- (void)loadRequest:(NSURLRequest *)request {
-}
+- (void)loadRequest:(NSURLRequest *)request {}
 %end
 
 %hook WKWebView
-- (void)loadRequest:(NSURLRequest *)request {
-}
+- (void)loadRequest:(NSURLRequest *)request {}
 %end
-
-%end   // WebAds
+%end
