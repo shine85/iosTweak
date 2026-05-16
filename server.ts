@@ -32,59 +32,53 @@ async function startServer() {
         console.error(`\x1b[31m${logMsg}\x1b[0m`);
       } else {
         console.log(`\x1b[32m${logMsg}\x1b[0m`);
-      }
-    });
-    next();
-  });
-
-  // 共享的 Tweak 生成需求指令集 (v1.1.53 强化版)
+      }  // 共享的 Tweak 生成需求指令集 (v1.1.98 强化终极版)
   const TWEAK_REQUIREMENTS = `
 目标实体规范（极度重要）：
-- 逻辑归一化：不论用户提供的目标是官方应用名（如“中国移动”）、AppStore副标题名称（如“中国移动(手机营业厅)”）、Bundle ID 还是 App Store ID，你必须首先在内部推理阶段将其归一化解析为同一对象的标准包体特征，并生成对应的、准确度高的去除广告逻辑。
-- 产物一致性：最终的注入策略与生成产物必须 100% 完全一致。
+- 逻辑归一化：不论用户提供的目标是官方应用名、Bundle ID 还是 App Store ID，必须解析为标准的包体特征，并生成全面准确的去除广告逻辑。
+- 绝不半吊子 (NO HALF-BAKED CODE & NO LAZINESS)：你的目标是【一次对话，彻底终结所有广告】！绝对不允许给出一个“骨架代码”，或是仅仅给一两个方法然后说“如果还有请自行添加”。你必须把自己当作顶尖逆向安全专家，把你能想到的该 App 可能用到的主流及变种广告 SDK、内部全量弹窗框架全部写出代码。
 
-深度去广告与开屏拦截策略（极其关键）：
-- **一键全包裹绝杀（零容忍用户反复调试） (CRITICAL)**：当用户请求去除某 App 的广告时，你**绝对不能只给出一段简单的提示或残缺代码要求用户去验证和抓包**。你必须在首次回答时直接提供“无死角终极全家桶”：包含中国区与海外所有主流广告 SDK (CSJ, GDT, BU, KSAd, BaiduMobAd, AdMob, PAG 等)的开屏满屏与插屏拦截宏、特定 App 及相关变种的猜测式全覆盖、外加基于生命周期 (UIWindow/UIViewController) 的全局双重兜底杀软，以及必须配套完善的delegate伪造回调来解决极大概率导致的卡白屏问题。你的目标是保证用户编译一次即可 100% 根除所有开屏及应用内扰人广告。
-- **防止白屏、黑屏零容忍 (CRITICAL 规则)**：在满足“一键绝杀”的同时，**任何拦截行为都绝不能导致业务界面出现白屏、黑屏、卡死或编译出错！** 这意味着：1. 强杀开屏 UIWindow 时，务必确保底层主业务 Window 不被牵连，并且能正常获得焦点（如有必要使其 makeKeyAndVisible）。2. 如果拦截的是带有delegate的控制器，极其可能导致主路径被卡住，必须伪造如splashAdClosed:, splashAdDidDismiss:等回调通知委托方继续进入主页。3. 拦截 UIViewController 展示时不能只是简单把view.hidden=YES，对模态视图必须还要执行dismiss（同样要注意前置强转防编译错）。4. **编译红线**：严禁在推断未知的 id 类型作用域内使用点语法（如self.view, self.delegate），这是大量编译崩溃的根源，必须强制用((UIViewController *)self).view或者performSelector:。
-- 开屏广告 (Splash Ads) 必须根除：中国区应用广泛使用穿山甲 (CSJ / BUAdSDK)、广点通 (GDT)、百度 (BaiduMobAd) 及快手 (KSAd) SDK。你必须强制生成通用的 Hook 逻辑，拦截这些基类的初始化和展示方法。
-  - 例如 Hook \`GDTSplashAd\`, \`CSJSplashAd\`, \`BUSplashAdView\`, \`BaiduMobAdSplash\`, \`KSAdSplashViewController\` 等类的 \`loadAdAndShowInWindow:\`, \`showAdInWindow:\`, \`loadAd\` 等方法，并直接阻断（无需调用 %orig）。
-- **视图层强杀与防白屏**：当拦截 \`UIViewController\` 展示广告的方法时，**必须显式强转** \`((UIViewController *)self)\`。例如 \`if (((UIViewController *)self).presentingViewController) { [((UIViewController *)self) dismissViewControllerAnimated:NO completion:nil]; }\`。或者尝试将其从 \`((UIViewController *)self).view.superview\` 移除。严禁未强转直接调用 \`self.presentingViewController\`。
-- **自动化跳过与防白屏 (CRITICAL)**：若拦截了开屏广告展示且未调用 \`%orig\`，应用极大概率卡白屏！你**必须**向其 \`delegate\` 发送广告已关闭的回调消息。另外对于 \`%ctor\`，你应该尽早触发拦截，例如在 \`%ctor\` 中立即准备并调用类似 \`killSplashWindow()\` 的函数清理残余，强制触发 \`splashAdClosed:\` 回调等。
-- 针对特有应用（例如“中国移动”）：强烈关注内部专用广告类（如 \`CMSplashManager\`, \`CMSplashViewController\`, \`CMSplashAd\`, \`BiddingSplashAd\`, \`CMAdSplashView\`）。**强制拦截这些类的 \`init\`, \`initWithFrame:\`, \`loadAd\` 并直接返回 nil 或阻断**。这比稍后移除视图更有效。
-- **终极大杀器（通用开屏防白屏兜底）**：双重保险拦截：第一重兜底：直接全局 Hook \`UIWindow\` 的 \`makeKeyAndVisible\`、\`becomeKeyWindow\` 和 \`setHidden:\`，如果 \`NSStringFromClass([self class])\` 包含 \`SplashWindow\`, \`AdWindow\`, \`PAGWindow\`, \`CSJWindow\` 等广告 SDK 私有 Window，直接调用 \`%orig(YES)\` 隐藏并阻断。第二重兜底：全局 Hook \`UIViewController\` 的 \`viewWillAppear:\` 和 \`viewDidAppear:\`，判断 \`NSStringFromClass([self class])\` 包含 \`Splash\`, \`Bidding\`, \`SplashAd\`, \`AdViewController\`, \`CMAd\` 等字眼，直接 \`((UIViewController *)self).view.hidden = YES;\`并处理 dismiss。
-- **视图查杀绝对防误伤约束 (CRITICAL)**：**绝对禁止**拦截或遍历带 \`CM\`、\`ChinaMobile\` 或 \`Home\` 等中立/短前缀的普通视图，如果这么做你会引发应用页面级白屏误杀异常。只精确匹配完整的 SDK 类或带有 \`Splash\`, \`AdView\` 的明确类！
+深度去广告与各类广告满级拦截策略（极其关键 & 核心任务）：
+- **全方位大满贯绝杀（用户痛点极高，零容忍需反复催促）(CRITICAL)**：当用户要求“去广告”、“去开屏及进入后的广告”时，你必须在首次回答时直接砸出“无死角终极全家桶”。
+  这必须立刻涵盖：1. 开屏(Splash)；2. 各种插屏、弹窗(Interstitial/Popup)；3. Banner/信息流/横幅。你要预判式地把 CSJ/BU (穿山甲), GDT (广点通), KSAd (快手), BaiduMobAd (百度), AdMob, PAG, Sigmob, Mintegral 等全家桶的绝杀 Hook 全部垒进代码！
+- **开屏广告 (Splash Ads) 必须根除**：通用防漏网 Hook \`GDTSplashAd\`, \`CSJSplashAd\`, \`BUMNativeSplash\`, \`BUSplashAdView\`, \`BUSplashZoomOutView\`, \`BaiduMobAdSplash\`, \`KSAdSplashViewController\`, \`PAGLAppOpenAd\`, \`ABUSplashAd\` 的展示与请求方法 (\`loadAd\`, \`showAdInWindow:\`等) 并直接 nil / 阻断。
+- **弹窗与插屏广告 (Interstitial/Popup Ads) 必须根除**：必须显式拦截各类插屏广告基类，如 \`GDTUnifiedInterstitialAd\`, \`BUInterstitialAd\`, \`BUNativeExpressInterstitialAd\`, \`CSJInterstitialAd\`, \`KSInterstitialAd\`, \`KSAdInterstitialViewController\`, \`BaiduMobAdInterstitial\` 的展示方法，以及应用内各类的 \`RewardVideoAd\` 或 \`xPopupAd\` 或动态生成的 \`MarketingDialog\`。
+- **全局浮窗拦截与大杀器兜底**：必须双重兜底。全局 Hook \`UIWindow\` 的 \`makeKeyAndVisible\`、\`becomeKeyWindow\` 和 \`setHidden:\`，发现 \`SplashWindow\`, \`AdWindow\`, \`PAGWindow\` 或包含 \`Ad\` 的可疑弹窗直接调用 \`%orig(YES)\` 或 \`%orig(NO)\` 阻断。全局 Hook \`UIViewController\` 的 \`viewWillAppear:\` 判断带 \`Interstitial\`, \`Bidding\`, \`Reward\`, \`Popup\` 的广告类强制 \`dismiss\` 并隐藏 view。
+- **防止白屏、黑屏零容忍 (CRITICAL 防死锁规则)**：干掉广告不是结束，干掉广告却让用户黑屏是你的罪过！1. 杀开屏 Window 时务必让主 Window 抢占 KeyWindow；2. 拦截带有 delegate 的广告展示时，必须必须伪造 \`splashAdClosed:\`, \`splashAdDidDismiss:\`, \`nativeExpressInterstitialAdDidClose:\`, \`interstitialAdDidClose:\` 抛回给发帖人。
+- **视图层强杀与编译红线**：拦截 \`UIViewController\` 或 \`UIView\` 时，“点语法”是编译死敌。严禁写 \`self.view\`，必须强转为 \`((UIViewController *)self).view\` 或使用 \`performSelector:\`。
+- **误伤绝对防护**：使用 \`NSStringFromClass([self class])\` 匹配时，只能拦带 \`SplashAd\`, \`PAGL\`, \`AdView\` 等后缀的广告类，绝对禁止拦截 \`Home\`、\`CM\`、\`Main\` 等短词防止应用白屏！
 
 应用特定逻辑参考：
 - **TikTok/抖音**：Hook \`AWEFeedAdModel\`, \`BDASplashManager\`。
 - **WeChat/微信**：Hook \`WCBizMainViewController\`, \`MMUIViewController\` 的相关显示逻辑。
-- **Instagram/X (Twitter)/Snapchat 等国外热门应用**：生成明确的代码去除信息流及视频中插广告。
-- **通用防护**：识别 \`PAGSplashRequest\`。
+- **国内核心应用（移动联通电信、大型平台等）**：拦截特定的 \`SplashManager\`, \`AdSplashView\`，以及极喜欢用的 \`PopupManager\`, \`AdPopup\`, \`MarketingPopup\`。
 
 代码实现 (Logos)：
-- **单次 Hook 初始化约束**：在同一个 %group (或未命名默认组) 中，绝对不允许出现超过一次的 \`%init\` 操作。若需动态解析尚未加载的类，必须使用带赋值的语法，例如 \`%init(ClassA=objc_getClass("ClassA"), ClassB=objc_getClass("ClassB"));\`。**绝对严禁**使用 \`%init(ClassName);\` 这种只传名字不赋值的写法，因为这会被 Logos 误解析为初始化一个名叫 ClassName 的 \`%group\`，从而引发 \`%init for an undefined %group\` 致命错误！
-- **未知类初始化防崩约束**：对于每一个你在 \`%init\` 中初始化的未知类，必须提供对应的 \`%hook\` 并在文件上方硬性声明其 \`@interface ClassName : UIViewController @end\` 或 \`UIView\`，这是防止 \`forward declaration\` 编译失败的关键！
-- **成员属性与 @interface 编译约束 (CRITICAL)**：即使是已知框架未被直接包含头文件，或者任何动态 hook 类对象，如果你用了 \`self.presentingViewController\` 或 \`self.view\`，必须将其强转：\`((UIViewController *)self)\` 或者用 \`[self performSelector:]\`，并在顶部为每一个可能用到的类编写 \`@interface\` 且必须指定父类如 \`UIView\`/\`UIViewController\`。绝对不要只写一个 \`@class\`！
-- **%init 位置约束**：所有的 \`%init\` 宏指令必须且只能放置在 \`%ctor { ... }\` 构造块内部！绝对不要在外部全局直接调用 \`%init;\`，否则会引发 \`%init does not make sense outside a block\` 致命编译错误。
-- **Hook 语法约束**：在 Hook 带有参数的 Objective-C 方法时，**绝对禁止**在参数名称后面添加多余的右括号 \`)\`。例如正确写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window { ... }\`，错误写法是 \`-(void)loadAdAndShowInWindow:(UIWindow *)window) { ... }\`（这会引发 \`expected function body after function declarator\` 编译错误）。
-- **C 函数规范约束**：严禁在 \`%ctor { ... }\` 块内部、或者其他任何函数体/Block 内部直接定义 C/C++ 辅助函数（例如 \`static inline void hookIfExists(...)\`）。局部嵌套定义函数会引发 \`function definition is not allowed here\` 致命错误！任何辅助函数的定义必须放置在文件顶层全局作用域（所有 \`%hook\` 或 \`%ctor\` 的外围）。
+- **单次 Hook 初始化约束**：在同一个 %group 中，绝不允许出现超过一次的 \`%init\`。如果是未知类必须用带赋值的语法，如 \`%init(ClassA=objc_getClass("ClassA"));\`。严禁 \`%init(ClassName);\` 防止致命报错。
+- **未知类初始化防崩约束**：你所 hook 的每一个类（甚至是全局兜底的类），必须在顶部使用 \`@interface ClassName : UIView @end\`(或 \`UIViewController\`/ \`NSObject\`) 声明，防止因为 forward declaration 导致编译爆炸！千万不要只写一个 \`@class\`！
+- **%init 位置约束**：所有的 \`%init\` 必须放在 \`%ctor\` 构造块内部！绝对不要在外部全局调用 \`%init;\`。
+- **Hook 语法约束**：在 Hook 带有参数的 Objective-C 方法时，**绝对禁止**在参数名称后面添加多余的右括号 \`)\`。
+- **C 函数规范约束**：严禁在 \`%ctor\` 等函数体/Block 内部直接定义 C/C++ 辅助函数。辅助函数必须放在文件顶层全局作用域。
 - **常用辅助函数库 (Common Helpers)**：
-  - 如果你需要遍历恢复视图，**必须且只能**使用以下标准实现（放在文件顶部）：
+  - 如果你需要遍历恢复视图，**必须**使用以下标准实现（放在文件顶部）：
     \`static void forceRestoreSubViews(UIView *view) { if(!view) return; for(UIView *sub in view.subviews) { sub.hidden = NO; sub.alpha = 1.0; if(sub.subviews.count > 0) forceRestoreSubViews(sub); } }\`
-  - 获取 KeyWindow 的现代适配方法：
-    \`static UIWindow* get_keyWindow() { UIWindow *foundWindow = nil; if (@available(iOS 13.0, *)) { for (UIWindowScene* windowScene in [UIApplication sharedApplication].connectedScenes) { if (windowScene.activationState == UISceneActivationStateForegroundActive) { for (UIWindow *window in windowScene.windows) { if (window.isKeyWindow) { foundWindow = window; break; } } } if (foundWindow) break; } } if (!foundWindow) { foundWindow = [[UIApplication sharedApplication] valueForKey:@"keyWindow"]; } return foundWindow; }\`
-- **对象属性点语法崩溃约束**：在被推断为 \`id const\` 的作用域内，**绝对禁止使用点语法**读取属性（如 \`self.presentingViewController\` 会导致各种找不到的问题）。你**必须强制进行显式前置接口转换**，例如写为 \`((UIViewController *)self).presentingViewController\` 或是 \`((UIViewController *)self).view.hidden = YES;\`。
-- **类名传参安全防范**：在往自定义 C/C++ 辅助函数（如 \`hookIfExists(...)\`）传递目标类名时，如果参数是字符串，**必须带上双引号**写成 \`"ClassName"\`；如果参数是 Class，必须写成 \`objc_getClass("ClassName")\`。绝对禁止把裸的类名（如 \`GDTSplashAd\`）当作变量直接传参，这会导致 \`unexpected interface name: expected expression\` 报错阻断编译！
-- **强制早期执行**：必须在 \`%ctor\` 中尽早执行动态初始化以确保拦截生效。
-- **安全拦截与防白屏 (CRITICAL)**：严禁直接调用可能不存在的方法引发崩溃。如果阻断了广告的展示逻辑 \`%orig\`，必须处理 \`delegate\`。如果有 \`delegate\`，**绝对禁止直接写 \`self.delegate\` 或 \`self.hidden\`**（会引发 \`property not found on object of type '__unsafe_unretained id const'\` 致命编译错误！）对于 \`delegate\` 你**必须**使用 \`[self performSelector:@selector(delegate)]\` 提取。对于 \`hidden\`，必须强转：\`[(UIView*)self setHidden:YES];\`。最安全的做法是：
+- **对象属性点语法崩溃约束**：在作用域内，**绝对禁止使用点语法**读取属性。必须写为 \`((UIViewController *)self).presentingViewController\` 或是 \`((UIViewController *)self).view.hidden = YES;\`。
+- **类名传参安全防范**：往 C 函数传类名参数时，若是字符串用双引号，若是 Class 用 \`objc_getClass("ClassName")\`。绝对禁止裸传类名。
+- **安全拦截与防白屏 (CRITICAL)**：代理回调的正确操作（提取 delegate 用 performSelector，千万别用 \`self.delegate\`）：
     \`#pragma clang diagnostic push\`
     \`#pragma clang diagnostic ignored "-Warc-performSelector-leaks"\`
-    \`if ([self respondsToSelector:@selector(delegate)]) { id delegate = [self performSelector:@selector(delegate)]; if ([delegate respondsToSelector:@selector(splashAdClosed:)]) { [delegate performSelector:@selector(splashAdClosed:) withObject:self]; } else if ([delegate respondsToSelector:@selector(splashAdDidDismissFullScreenContent:)]) { [delegate performSelector:@selector(splashAdDidDismissFullScreenContent:) withObject:self]; } else if ([delegate respondsToSelector:@selector(splashAdDidClose:)]) { [delegate performSelector:@selector(splashAdDidClose:) withObject:self]; } else if ([delegate respondsToSelector:@selector(splashDidDismissScreen:)]) { [delegate performSelector:@selector(splashDidDismissScreen:) withObject:self]; } }\`
+    \`if ([self respondsToSelector:@selector(delegate)]) { id delegate = [self performSelector:@selector(delegate)]; if ([delegate respondsToSelector:@selector(splashAdClosed:)]) { [delegate performSelector:@selector(splashAdClosed:) withObject:self]; } else if ([delegate respondsToSelector:@selector(splashAdDidDismissFullScreenContent:)]) { [delegate performSelector:@selector(splashAdDidDismissFullScreenContent:) withObject:self]; } else if ([delegate respondsToSelector:@selector(interstitialAdDidClose:)]) { [delegate performSelector:@selector(interstitialAdDidClose:) withObject:self]; } else if ([delegate respondsToSelector:@selector(splashDidDismissScreen:)]) { [delegate performSelector:@selector(splashDidDismissScreen:) withObject:self]; } }\`
     \`#pragma clang diagnostic pop\`
-    \`if ([self isKindOfClass:[UIView class]]) { [(UIView *)self setHidden:YES]; }\`
-    \`else if ([self isKindOfClass:[UIViewController class]]) { [((UIViewController *)self).view setHidden:YES]; }\`
-    如果没有 \`delegate\` 或无效，将其所在的整个界面大 Window 强杀（提取 \`self.window\` 或遍历），将根视图设为空并注销，强制底层大窗体获取焦点。
+    \`if ([self isKindOfClass:[UIView class]]) { [(UIView *)self setHidden:YES]; [((UIView *)self) removeFromSuperview]; }\`
+    \`else if ([self isKindOfClass:[UIViewController class]]) { [((UIViewController *)self) dismissViewControllerAnimated:NO completion:nil]; }\`
 - **架构与版本注入支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。同时**必须配置版本号注入**，即在 Makefile 中加入 \`$(TWEAK_NAME)_LDFLAGS += -Wl,-current_version,1.0.0\`（1.0.0 可以替换为你设定的版本或宏）。这非常重要，否则 TrollFools 无法识别注入版本！
 - **基石依赖**：所有 Hook 必须确保引入相应的 Foundation 框架类型定义，使用 \`MSHookMessageEx\` 必须 \`#import <substrate.h>\`。
+- **注入生命周期证明**：在 Tweak.xm 文件中，全局 Hook \`UIApplication\` 的 \`-[UIApplication applicationDidFinishLaunching:]\` 或 \`application:didFinishLaunchingWithOptions:\` 方法，添加一个日志输出 \`NSLog(@"[!!!] Tweak 注入成功");\`，表明插件已成功注入。
+- **模板化广告拦截**：必须为常见的广告 SDK（如穿山甲 CSJ, 广点通 GDT 的各类开屏及插屏类如 \`BUSplashAdView\`, \`GDTSplashAd\` 等）编写一个通用的 Logos Hook 模板，拦截其加载和显示方法，并返回 nil 或 nil-equivalent 防止展示。
+- **配置与依赖完整性**：
+  1. 需要给出 \`control\` 文件的配置示例（Name, Version, Author, Maintainer 字段），Version 字段必须是合理的版本号且与 Makefile 或构建体系的版本号保持一致。
+  2. 根据目标 App 的 Bundle ID，提供正确的 \`Filter.plist\` 内容示例，例如 \`Filter = { Bundles = ( "com.target.bundleId" ); };\`。
+  3. Makefile 中**必须添加基础框架依赖**：确保包含 \`$(TWEAK_NAME)_FRAMEWORKS = Foundation UIKit\`。
 
 防御对抗：
 - 必须为所有可能用到的类提供声明 \`@interface\` 或 \`@class\`，防止编译器报 \`no known instance method\`。
