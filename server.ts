@@ -48,7 +48,7 @@ async function startServer() {
   这必须立刻涵盖：1. 开屏(Splash)；2. 各种插屏、弹窗(Interstitial/Popup)；3. Banner/信息流/横幅。你要预判式地把 CSJ/BU (穿山甲), GDT (广点通), KSAd (快手), BaiduMobAd (百度), AdMob, PAG, Sigmob, Mintegral 等全家桶的绝杀 Hook 全部垒进代码！
 - **开屏广告 (Splash Ads) 必须根除**：通用防漏网 Hook \`GDTSplashAd\`, \`CSJSplashAd\`, \`BUMNativeSplash\`, \`BUSplashAdView\`, \`BUSplashZoomOutView\`, \`BaiduMobAdSplash\`, \`KSAdSplashViewController\`, \`PAGLAppOpenAd\`, \`ABUSplashAd\` 的展示与请求方法 (\`loadAd\`, \`showAdInWindow:\`等) 并直接 nil / 阻断。
 - **弹窗与插屏广告 (Interstitial/Popup Ads) 必须根除**：必须显式拦截各类插屏广告基类，如 \`GDTUnifiedInterstitialAd\`, \`BUInterstitialAd\`, \`BUNativeExpressInterstitialAd\`, \`CSJInterstitialAd\`, \`KSInterstitialAd\`, \`KSAdInterstitialViewController\`, \`BaiduMobAdInterstitial\` 的展示方法，以及应用内各类的 \`RewardVideoAd\` 或 \`xPopupAd\` 或动态生成的 \`MarketingDialog\`。
-- **全局浮窗拦截与大杀器兜底**：必须双重兜底。全局 Hook \`UIWindow\` 的 \`makeKeyAndVisible\`、\`becomeKeyWindow\` 和 \`setHidden:\`，发现 \`SplashWindow\`, \`AdWindow\`, \`PAGWindow\` 或包含 \`Ad\` 的可疑弹窗直接调用 \`%orig(YES)\` 或 \`%orig(NO)\` 阻断。全局 Hook \`UIViewController\` 的 \`viewWillAppear:\` 判断带 \`Interstitial\`, \`Bidding\`, \`Reward\`, \`Popup\` 的广告类强制 \`dismiss\` 并隐藏 view。
+- **全局浮窗拦截与大杀器兜底**：必须双重兜底。全局 Hook \`UIWindow\` 的 \`makeKeyAndVisible\`、\`becomeKeyWindow\` 和 \`setHidden:\`，当检测到是开屏广告的 UIWindow 时，自动将其 \`hidden\` 属性设置为 \`YES\`，并调用 \`[(UIWindow *)self resignKeyWindow];\` 确保主界面能够正确显示。全局 Hook \`UIViewController\` 的 \`viewWillAppear:\` 判断带 \`Interstitial\`, \`Bidding\`, \`Reward\`, \`Popup\` 的广告类强制 \`dismiss\` 并隐藏 view。
 - **防止白屏、黑屏零容忍 (CRITICAL 防死锁规则)**：干掉广告不是结束，干掉广告却让用户黑屏是你的罪过！1. 杀开屏 Window 时务必让主 Window 抢占 KeyWindow；2. 拦截带有 delegate 的广告展示时，必须必须伪造 \`splashAdClosed:\`, \`splashAdDidDismiss:\`, \`nativeExpressInterstitialAdDidClose:\`, \`interstitialAdDidClose:\` 抛回给发帖人。
 - **视图层强杀与编译红线**：拦截 \`UIViewController\` 或 \`UIView\` 时，“点语法”是编译死敌。严禁写 \`self.view\`，必须强转为 \`((UIViewController *)self).view\` 或使用 \`performSelector:\`。
 - **误伤绝对防护**：使用 \`NSStringFromClass([self class])\` 匹配时，只能拦带 \`SplashAd\`, \`PAGL\`, \`AdView\` 等后缀的广告类，绝对禁止拦截 \`Home\`、\`CM\`、\`Main\` 等短词防止应用白屏！
@@ -59,8 +59,9 @@ async function startServer() {
 - **国内核心应用（移动联通电信、大型平台等）**：拦截特定的 \`SplashManager\`, \`AdSplashView\`，以及极喜欢用的 \`PopupManager\`, \`AdPopup\`, \`MarketingPopup\`。
 
 代码实现 (Logos)：
+- **%group 与 %end 的严格配对 (CRITICAL 规则)**：绝对禁止 \`%group\` 嵌套（即发生 \`%group inside a %group\` 致命错误）！每一个 \`%group GroupName\` 开始后，必须在开启下一个组件或组之前使用一个单独的 \`%end\` 将其完全闭合！务必极其注意代码层级：\`%group\` 里面包含的每一个 \`%hook\` 自己需要一个 \`%end\` 闭合，最后外层的 \`%group\` 还需要一个额外的 \`%end\` 来宣告组别结束！少写一个 \`%end\` 都会导致接下来的解析乱套从而直接报错。
 - **单次 Hook 初始化约束**：在同一个 %group 中，绝不允许出现超过一次的 \`%init\`。如果是未知类必须用带赋值的语法，如 \`%init(ClassA=objc_getClass("ClassA"));\`。严禁 \`%init(ClassName);\` 防止致命报错。
-- **未知类初始化防崩约束**：你所 hook 的每一个类（甚至是全局兜底的类），必须在顶部使用 \`@interface ClassName : UIView @end\`(或 \`UIViewController\`/ \`NSObject\`) 声明，防止因为 forward declaration 导致编译爆炸！千万不要只写一个 \`@class\`！
+- **未知类初始化防崩约束**：你所 hook 的每一个类（甚至是全局兜底的类），必须在顶部强制使用 \`>>> 编译安全约束 <<< 强化@interface ClassName : NSObject @end\` 声明（或继承自 UIView/UIViewController），防止因为 forward declaration 导致编译爆炸！千万不要只写一个 \`@class\`！
 - **%init 位置约束**：所有的 \`%init\` 必须放在 \`%ctor\` 构造块内部！绝对不要在外部全局调用 \`%init;\`。
 - **Hook 语法约束**：在 Hook 带有参数的 Objective-C 方法时，**绝对禁止**在参数名称后面添加多余的右括号 \`)\`。
 - **C 函数规范约束**：严禁在 \`%ctor\` 等函数体/Block 内部直接定义 C/C++ 辅助函数。辅助函数必须放在文件顶层全局作用域。
@@ -79,7 +80,7 @@ async function startServer() {
 - **架构与版本注入支持**：生成的 Makefile 必须包含 \`ARCHS = arm64 arm64e\`。同时**必须配置版本号注入**，即在 Makefile 中加入 \`$(TWEAK_NAME)_LDFLAGS += -Wl,-current_version,1.0.0\`（1.0.0 可以替换为你设定的版本或宏）。这非常重要，否则 TrollFools 无法识别注入版本！
 - **基石依赖**：所有 Hook 必须确保引入相应的 Foundation 框架类型定义，使用 \`MSHookMessageEx\` 必须 \`#import <substrate.h>\`。
 - **注入生命周期证明**：在 Tweak.xm 文件中，全局 Hook \`UIApplication\` 的 \`-[UIApplication applicationDidFinishLaunching:]\` 或 \`application:didFinishLaunchingWithOptions:\` 方法，添加一个日志输出 \`NSLog(@"[!!!] Tweak 注入成功");\`，表明插件已成功注入。
-- **模板化广告拦截**：必须为常见的广告 SDK（如穿山甲 CSJ, 广点通 GDT 的各类开屏及插屏类如 \`BUSplashAdView\`, \`GDTSplashAd\` 等）编写一个通用的 Logos Hook 模板，拦截其加载和显示方法，并返回 nil 或 nil-equivalent 防止展示。
+- **模板化广告拦截**：为 iOS 插件工坊的 Tweak.xm 文件编写一个针对穿山甲 SDK (CSJ) 和广点通 SDK (GDT) 开屏广告的 Logos Hook。拦截其 \`-[BUSplashAdView loadAd]\` 和 \`-[GDTSplashAd showAdInWindow:]\` 等方法，并返回 nil，以阻止广告加载和展示。
 - **配置与依赖完整性**：
   1. 需要给出 \`control\` 文件的配置示例（Name, Version, Author, Maintainer 字段），Version 字段必须是合理的版本号且与 Makefile 或构建体系的版本号保持一致。
   2. 根据目标 App 的 Bundle ID，提供正确的 \`Filter.plist\` 内容示例，例如 \`Filter = { Bundles = ( "com.target.bundleId" ); };\`。
