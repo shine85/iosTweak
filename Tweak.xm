@@ -4,7 +4,7 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
-/* ---------------- 动态类声明 ---------------- */
+/* Dynamic class declarations */
 @interface GDTSplashAd : NSObject @end
 @interface CSJSplashAd : NSObject @end
 @interface BUSplashAdView : UIView @end
@@ -20,17 +20,8 @@
 @interface PAGAppOpenAd : NSObject @end
 @interface PAGInterstitialAd : NSObject @end
 @interface GADAdError : NSObject @end
-/* ------------ 其他 SDK 类 ------------ */
-@interface GDTUnifiedInterstitialAd : NSObject @end
-@interface BUInterstitialAd : NSObject @end
-@interface BUNativeExpressInterstitialAd : NSObject @end
-@interface CSJInterstitialAd : NSObject @end
-@interface KSInterstitialAd : NSObject @end
-@interface KSAdInterstitialViewController : UIViewController @end
-@interface BaiduMobAdInterstitial : NSObject @end
-@interface RewardVideoAd : NSObject @end
 
-/* ---------------- 辅助工具 ---------------- */
+/* Helper utilities */
 static void forceRestoreSubViews(UIView *view) {
     if (!view) return;
     for (UIView *sub in view.subviews) {
@@ -61,7 +52,14 @@ static void dispatchDelegateCallback(id instance, SEL selector) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
     id delegate = [instance performSelector:@selector(delegate)];
-    if (!delegate) return;
+    if (!delegate) {
+        [instance setHidden:YES];
+        if ([instance isKindOfClass:[UIView class]])
+            [(UIView *)instance removeFromSuperview];
+        else if ([instance isKindOfClass:[UIViewController class]])
+            [(UIViewController *)instance dismissViewControllerAnimated:NO completion:nil];
+        return;
+    }
     const struct {
         SEL sel;
         const char *name;
@@ -132,7 +130,7 @@ static void killSplashWindow(void) {
     }
 }
 
-/* ------------ 注入成功日志 ------------ */
+/* Log when injection succeeds */
 %hook UIApplication
 - (BOOL)applicationDidFinishLaunching:(UIApplication *)application {
     BOOL ret = %orig;
@@ -141,7 +139,7 @@ static void killSplashWindow(void) {
 }
 %end
 
-/* ---------------- 初始化 ---------------- */
+/* Initializer */
 %ctor {
     killSplashWindow();
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -151,7 +149,7 @@ static void killSplashWindow(void) {
     });
 }
 
-/* ---------------- UIWindow Hook ---------------- */
+/* UIWindow hooks */
 %hook UIWindow
 - (void)makeKeyAndVisible {
     NSString *name = NSStringFromClass([self class]);
@@ -195,7 +193,7 @@ static void killSplashWindow(void) {
 }
 %end
 
-/* ---------------- UIViewController Hook ---------------- */
+/* UIViewController hooks */
 %hook UIViewController
 - (void)viewWillAppear:(BOOL)animated {
     Class cls = [self class];
@@ -205,7 +203,7 @@ static void killSplashWindow(void) {
         [name containsString:@"Ad"] || [name containsString:@"Interstitial"] ||
         [name containsString:@"Reward"] || [name containsString:@"Popup"])
     {
-        [((UIViewController *)self) setViewHidden:YES];
+        [(UIView *)[(UIViewController *)self view] setHidden:YES];
         return;
     }
     %orig(animated);
@@ -219,10 +217,10 @@ static void killSplashWindow(void) {
         [name containsString:@"Reward"] || [name containsString:@"Popup"])
     {
         UIViewController *vc = (UIViewController *)self;
-        if (vc.presentingViewController) {
-            [((UIViewController *)self) dismissViewControllerAnimated:NO completion:nil];
+        if ([(UIViewController *)vc presentingViewController]) {
+            [(UIViewController *)self dismissViewControllerAnimated:NO completion:nil];
         } else {
-            [((UIViewController *)self) setViewHidden:YES];
+            [(UIView *)[(UIViewController *)self view] setHidden:YES];
         }
         dispatchDelegateCallback(self, @selector(splashAdClosed:));
         return;
@@ -231,9 +229,9 @@ static void killSplashWindow(void) {
 }
 %end
 
-/* ------------ SDK Hooks -------------- */
+/* SDK hooks */
 
-/* 开屏 */
+/* Splash ads */
 %hook GDTSplashAd
 - (void)loadAdAndShowInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
 - (void)showAdInWindow:(UIWindow *)window { dispatchDelegateCallback(self,@selector(splashAdClosed:)); }
@@ -284,7 +282,7 @@ static void killSplashWindow(void) {
 - (void)didMoveToSuperview { }
 %end
 
-/* 插屏 / 弹窗 */
+/* Interstitial / Popup */
 %hook GDTUnifiedInterstitialAd
 - (void)loadAd { }
 - (void)presentFromRootViewController:(UIViewController *)viewController { }
@@ -325,7 +323,7 @@ static void killSplashWindow(void) {
 - (void)showFromRootViewController:(UIViewController *)rootViewController { }
 %end
 
-/* 广告 SDK */
+/* AdMob / PAG */
 %hook GADAppOpenAd
 - (void)presentFromRootViewController:(UIViewController *)viewController
                completionHandler:(void (^)(GADAdError * _Nullable))completionHandler {
@@ -345,7 +343,7 @@ static void killSplashWindow(void) {
 - (void)presentFromRootViewController:(UIViewController *)viewController { }
 %end
 
-/* 视图层防误杀 */
+/* View layer safety */
 %hook UIView
 - (void)didMoveToSuperview {
     NSString *cls = NSStringFromClass([self class]);
