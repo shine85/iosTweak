@@ -1,5 +1,5 @@
-Package: com.yourcompany.zhongguoyidongshoujiyingyeting
-Name: 中国移动（手机营业厅）
+Package: com.yourcompany.zhixinghuochepiao12306guanwangchupiao
+Name: 智行火车票-12306官网出票
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm
