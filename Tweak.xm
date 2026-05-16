@@ -50,7 +50,6 @@ static ZXHTData *adData = nil;
     dispatch_once(&onceToken, ^{
         adData = [[ZXHTData alloc] init];
     });
-    // Inject version marker
     TWEAK_STARTUP_LOG(@"[!!!] Tweak 注入成功");
 }
 
@@ -63,7 +62,6 @@ static ZXHTData *adData = nil;
     if ([self isKindOfClass:NSClassFromString(@"AdWindow")] ||
         [self isKindOfClass:NSClassFromString(@"SplashWindow")] ||
         [self isKindOfClass:NSClassFromString(@"PAGWindow")]) {
-        // Prevent ad windows from becoming key
         return;
     }
     %orig;
