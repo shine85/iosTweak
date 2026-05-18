@@ -3,12 +3,12 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 
-/* ---------- 全部类声明 ---------- */
+/* ---------- 预先声明所有可能出现的广告类 ---------- */
 @interface GDTSplashAd : NSObject @end
 @interface CSJSplashAd : NSObject @end
 @interface BUMNativeSplash : NSObject @end
-@interface BUSplashAdView : NSObject @end
-@interface BUSplashZoomOutView : NSObject @end
+@interface BUSplashAdView : UIView @end
+@interface BUSplashZoomOutView : UIView @end
 @interface BaiduMobAdSplash : NSObject @end
 @interface KSAdSplashViewController : UIViewController @end
 @interface PAGLAppOpenAd : NSObject @end
@@ -23,15 +23,6 @@
 @interface RewardVideoAd : NSObject @end
 @interface xPopupAd : NSObject @end
 @interface MarketingDialog : UIViewController @end
-@interface GDTBannerView : UIView @end
-@interface CSJBannerView : UIView @end
-@interface BUNativeExpressBannerView : UIView @end
-@interface KSBannerAdView : UIView @end
-@interface BaiduMobAdBanner : UIView @end
-@interface AdMobBannerView : UIView @end
-@interface PAGLRewardedAd : NSObject @end
-@interface SigmobBanner : UIView @end
-/* ---------- 其它可能出现的弹窗类 ---------- */
 @interface AdsPopupWindow : UIWindow @end
 @interface AdsDialogViewController : UIViewController @end
 /* ---------- 工具方法 ---------- */
@@ -43,7 +34,10 @@ static void forceRestoreSubViews(UIView *view) {
         if (sub.subviews.count > 0) forceRestoreSubViews(sub);
     }
 }
-/* ---------- 全局窗口拦截 ---------- */
+
+/* ---------- 关键窗口的非侵入式拦截 ---------- */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 %group GlobalWindowHook
 %hook UIWindow
 - (void)makeKeyAndVisible {
@@ -89,8 +83,10 @@ static void forceRestoreSubViews(UIView *view) {
     %orig(hidden);
 }
 %end
+#pragma clang diagnostic pop
 %end
-/* ---------- 全局 VC 拦截 ---------- */
+
+/* ---------- 全局 VC 的弹窗拦截 ---------- */
 %group GlobalVCHook
 %hook UIViewController
 - (void)viewWillAppear:(BOOL)animated {
@@ -108,46 +104,47 @@ static void forceRestoreSubViews(UIView *view) {
 }
 %end
 %end
-/* ---------- 插屏/弹窗广告拦截 ---------- */
+
+/* ---------- 插屏 / 弹窗广告拦截 ---------- */
 %group InterstitialHook
 %hook GDTUnifiedInterstitialAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %hook BUInterstitialAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %hook BUNativeExpressInterstitialAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %hook CSJInterstitialAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %hook KSInterstitialAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %hook KSAdInterstitialViewController
-- (void)presentFromRootViewController:(UIViewController *)rootVC completion:(void (^)(void))completion {}
-- (void)showInWindow:(UIWindow *)window {}
+- (void)presentFromRootViewController:(UIViewController *)rootVC completion:(void (^)(void))completion { return; }
+- (void)showInWindow:(UIWindow *)window { return; }
 %end
 %hook BaiduMobAdInterstitial
-- (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showInWindow:(UIWindow *)window { return; }
 %end
 %hook RewardVideoAd
-- (void)loadAd {}
-- (void)presentFromViewController:(UIViewController *)vc completion:(void (^)(void))completion {}
+- (void)loadAd { return; }
+- (void)presentFromViewController:(UIViewController *)vc completion:(void (^)(void))completion { return; }
 %end
 %hook xPopupAd
-- (void)loadAd {}
-- (void)presentFromViewController:(UIViewController *)vc completion:(void (^)(void))completion {}
+- (void)loadAd { return; }
+- (void)presentFromViewController:(UIViewController *)vc completion:(void (^)(void))completion { return; }
 %end
 %hook MarketingDialog
-- (void)showInView:(UIView *)view {}
+- (void)showInView:(UIView *)view { return; }
 %end
 %hook AdsPopupWindow
 - (void)makeKeyAndVisible { return; }
@@ -159,83 +156,85 @@ static void forceRestoreSubViews(UIView *view) {
 - (void)viewDidAppear:(BOOL)animated { return; }
 %end
 %end
+
 /* ---------- 开屏广告拦截 ---------- */
 %group SplashHook
 %hook GDTSplashAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
-- (void)loadAdWithCompletion:(void (^)(void))completion {}
 - (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
+- (void)loadAdWithCompletion:(void (^)(void))completion { return; }
 %end
 %hook CSJSplashAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %hook BUMNativeSplash
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %hook BUSplashAdView
-- (void)requestAd {}
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)requestAd { return; }
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %hook BUSplashZoomOutView
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %hook BaiduMobAdSplash
-- (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showInWindow:(UIWindow *)window { return; }
 %end
 %hook KSAdSplashViewController
-- (void)presentFromRootViewController:(UIViewController *)rootVC completion:(void (^)(void))completion {}
-- (void)showInWindow:(UIWindow *)window {}
+- (void)presentFromRootViewController:(UIViewController *)rootVC completion:(void (^)(void))completion { return; }
+- (void)showInWindow:(UIWindow *)window { return; }
 %end
 %hook PAGLAppOpenAd
-- (void)loadAd {}
-- (void)presentFromRootViewController:(UIViewController *)rootVC animated:(BOOL)animated completion:(void (^)(void))completion {}
+- (void)loadAd { return; }
+- (void)presentFromRootViewController:(UIViewController *)rootVC animated:(BOOL)animated completion:(void (^)(void))completion { return; }
 %end
 %hook ABUSplashAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
+- (void)loadAd { return; }
+- (void)showAdInWindow:(UIWindow *)window { return; }
 %end
 %end
+
 /* ---------- 横幅广告拦截 ---------- */
 %group BannerHook
 %hook GDTBannerView
-- (void)loadAd {}
-- (void)layoutAdView {}
+- (void)loadAd { return; }
+- (void)layoutAdView { return; }
 %end
 %hook CSJBannerView
-- (void)loadAd {}
-- (void)layoutAdView {}
+- (void)loadAd { return; }
+- (void)layoutAdView { return; }
 %end
 %hook BUNativeExpressBannerView
-- (void)loadAd {}
-- (void)layoutAdView {}
+- (void)loadAd { return; }
+- (void)layoutAdView { return; }
 %end
 %hook KSBannerAdView
-- (void)loadAd {}
-- (void)layoutAdView {}
+- (void)loadAd { return; }
+- (void)layoutAdView { return; }
 %end
 %hook BaiduMobAdBanner
-- (void)loadAd {}
-- (void)layoutAdView {}
+- (void)loadAd { return; }
+- (void)layoutAdView { return; }
 %end
 %hook AdMobBannerView
-- (void)loadAd {}
-- (void)layoutAdView {}
+- (void)loadAd { return; }
+- (void)layoutAdView { return; }
 %end
 %hook PAGLRewardedAd
-- (void)loadAd {}
-- (void)presentFromRootViewController:(UIViewController *)rootVC animated:(BOOL)animated completion:(void (^)(void))completion {}
+- (void)loadAd { return; }
+- (void)presentFromRootViewController:(UIViewController *)rootVC animated:(BOOL)animated completion:(void (^)(void))completion { return; }
 %end
 %hook SigmobBanner
-- (void)loadAd {}
-- (void)layoutAdView {}
+- (void)loadAd { return; }
+- (void)layoutAdView { return; }
 %end
 %end
+
 /* ---------- 应用启动日志 ---------- */
 %group AppLaunchHook
 %hook UIApplication
@@ -245,19 +244,14 @@ static void forceRestoreSubViews(UIView *view) {
 }
 %end
 %end
+
 /* ---------- 构造器 ---------- */
 %ctor {
-    /* win hook */
+    /* 注册所有组 */
     %init(GlobalWindowHook);
-    /* vc hook */
     %init(GlobalVCHook);
-    /* interstitial & popup hook */
     %init(InterstitialHook);
-    /* splash ad hook */
     %init(SplashHook);
-    /* banner/adview hook */
     %init(BannerHook);
-    /* launch hook */
     %init(AppLaunchHook);
 }
-#pragma clang diagnostic pop
