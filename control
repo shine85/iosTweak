@@ -1,5 +1,5 @@
-Package: com.yourcompany.zhongguoyidongshoujiyingyeting
-Name: 中国移动（手机营业厅）
+Package: com.yourcompany.zhongguodianxinquanguotongyiguanfangfuwupingtai
+Name: 中国电信-全国统一官方服务平台
 Depends: mobilesubstrate
 Version: 0.0.1
 Architecture: iphoneos-arm
