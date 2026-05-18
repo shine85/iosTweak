@@ -3,6 +3,9 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+
 /* ---------- 全部类声明 ---------- */
 @interface GDTSplashAd : NSObject @end
 @interface CSJSplashAd : NSObject @end
@@ -53,6 +56,9 @@ static void forceRestoreSubViews(UIView *view) {
         if (!self.hidden) {
             [self setHidden:YES];
             [self resignKeyWindow];
+            // 恢复主窗口显示
+            UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+            if (keyWindow && keyWindow.hidden) [keyWindow setHidden:NO];
         }
         return;
     }
@@ -64,6 +70,8 @@ static void forceRestoreSubViews(UIView *view) {
         if (!self.hidden) {
             [self setHidden:YES];
             [self resignKeyWindow];
+            UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+            if (keyWindow && keyWindow.hidden) [keyWindow setHidden:NO];
         }
         return;
     }
@@ -248,7 +256,6 @@ static void forceRestoreSubViews(UIView *view) {
 %end
 %end
 
-/* ---------- 构造器 ---------- */
 %ctor {
     %init(GlobalWindowHook);
     %init(GlobalVCHook);
@@ -257,3 +264,4 @@ static void forceRestoreSubViews(UIView *view) {
     %init(BannerHook);
     %init(AppLaunchHook);
 }
+#pragma clang diagnostic pop
