@@ -3,6 +3,9 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-arc"
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
 /* ---------- 预先声明所有可能出现的广告类 ---------- */
 @interface GDTSplashAd : NSObject @end
 @interface CSJSplashAd : NSObject @end
@@ -25,30 +28,32 @@
 @interface MarketingDialog : UIViewController @end
 @interface AdsPopupWindow : UIWindow @end
 @interface AdsDialogViewController : UIViewController @end
-/* ---------- Mintegral SDK ---------- */
+
 @interface MTGNativeAd : NSObject @end
 @interface MTGAdManager : NSObject @end
 @interface MTGVideoView : UIView @end
-/* ---------- AdColony SDK ---------- */
+
 @interface NAAAdVideoPlayerController : NSObject @end
 @interface NAAMediationPrivateAdLoader : NSObject @end
-/* ---------- Unity Ads SDK ---------- */
+
 @interface UADisplayAdsAdapter : NSObject @end
 @interface UnityAdsPlugin : NSObject @end
-/* ---------- Google Mobile Ads ---------- */
+
 @interface GADInterstitialAd : NSObject @end
 @interface GADBannerView : UIView @end
-/* ---------- Banner SDK ---------- */
-@interface GDTBannerView : NSObject @end
-@interface CSJBannerView : NSObject @end
-@interface BUNativeExpressBannerView : NSObject @end
-@interface KSBannerAdView : NSObject @end
-@interface BaiduMobAdBanner : NSObject @end
-@interface AdMobBannerView : NSObject @end
-@interface PAGLRewardedAd : NSObject @end
-@interface SigmobBanner : NSObject @end
-/* ---------- 第三方弹窗 SDK ---------- */
+
+@interface GDTBannerView : UIView @end
+@interface CSJBannerView : UIView @end
+@interface BUNativeExpressBannerView : UIView @end
+@interface KSBannerAdView : UIView @end
+@interface BaiduMobAdBanner : UIView @end
+@interface AdMobBannerView : UIView @end
+@interface PAGLRewardedAd : UIView @end
+@interface SigmobBanner : UIView @end
+
 @interface APPBanners : NSObject @end
+#pragma clang diagnostic pop
+
 /* ---------- 工具方法 ---------- */
 static void forceRestoreSubViews(UIView *view) {
     if (!view) return;
@@ -59,9 +64,7 @@ static void forceRestoreSubViews(UIView *view) {
     }
 }
 
-/* ---------- 关键窗口的非侵入式拦截 ---------- */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+/* ---------- 全局窗口的非侵入式拦截 ---------- */
 %group GlobalWindowHook
 %hook UIWindow
 - (void)makeKeyAndVisible {
@@ -107,7 +110,6 @@ static void forceRestoreSubViews(UIView *view) {
     %orig(hidden);
 }
 %end
-#pragma clang diagnostic pop
 %end
 
 /* ---------- 全局 VC 的弹窗拦截 ---------- */
@@ -179,7 +181,6 @@ static void forceRestoreSubViews(UIView *view) {
 - (void)viewWillAppear:(BOOL)animated { return; }
 - (void)viewDidAppear:(BOOL)animated { return; }
 %end
-/* ---------- Mintegral SDK 插屏 ---------- */
 %hook MTGAdManager
 - (void)loadAd { return; }
 - (void)presentAdIfAvailable { return; }
@@ -188,7 +189,6 @@ static void forceRestoreSubViews(UIView *view) {
 - (void)loadAd { return; }
 - (void)presentAd { return; }
 %end
-/* ---------- AdColony ---------- */
 %hook NAAMediationPrivateAdLoader
 - (void)loadAd { return; }
 - (void)presentAd { return; }
@@ -197,7 +197,6 @@ static void forceRestoreSubViews(UIView *view) {
 - (void)loadAd { return; }
 - (void)presentAd { return; }
 %end
-/* ---------- Unity Ads ---------- */
 %hook UADisplayAdsAdapter
 - (void)loadAd { return; }
 - (void)presentAd { return; }
@@ -206,7 +205,6 @@ static void forceRestoreSubViews(UIView *view) {
 - (void)loadAd { return; }
 - (void)presentAd { return; }
 %end
-/* ---------- Google Mobile Ads 插屏 ---------- */
 %hook GADInterstitialAd
 - (void)loadRequest:(id)request { return; }
 - (void)presentFromRootViewController:(UIViewController *)rootViewController completionHandler:(void (^)(id))handler { return; }
@@ -253,54 +251,28 @@ static void forceRestoreSubViews(UIView *view) {
 - (void)loadAd { return; }
 - (void)showAdInWindow:(UIWindow *)window { return; }
 %end
-/* ---------- Mintegral 开屏 ---------- */
 %hook MTGAdManager
 - (void)presentAd { return; }
 %end
 %hook MTGVideoView
 - (void)presentAd { return; }
 %end
-/* ---------- AdColony 开屏 ---------- */
 %hook NAAMediationPrivateAdLoader
 - (void)presentAd { return; }
 %end
 %hook NAAAdVideoPlayerController
 - (void)presentAd { return; }
 %end
-/* ---------- Unity Ads 开屏 ---------- */
 %hook UADisplayAdsAdapter
 - (void)presentAd { return; }
 %end
 %hook UnityAdsPlugin
 - (void)presentAd { return; }
 %end
-/* ---------- Google Mobile Ads 开屏 ---------- */
 %hook GADInterstitialAd
 - (void)presentFromRootViewController:(UIViewController *)rootViewController completionHandler:(void (^)(id))handler { return; }
 %end
-/* ---------- 兼容第三方 Banner 代理回调 ---------- */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-/* 强制回调广告关闭，防止弹窗悬挂 */
-static void notifyAdClosed(id adInstance) {
-    if ([adInstance respondsToSelector:@selector(delegate)]) {
-        id delegate = [adInstance performSelector:@selector(delegate)];
-        if ([delegate respondsToSelector:@selector(splashAdClosed:)]) {
-            [delegate performSelector:@selector(splashAdClosed:) withObject:adInstance];
-        } else if ([delegate respondsToSelector:@selector(interstitialAdDidClose:)]) {
-            [delegate performSelector:@selector(interstitialAdDidClose:) withObject:adInstance];
-        } else if ([delegate respondsToSelector:@selector(splashAdDidDismissFullScreenContent:)]) {
-            [delegate performSelector:@selector(splashAdDidDismissFullScreenContent:) withObject:adInstance];
-        }
-    }
-    if ([adInstance isKindOfClass:[UIView class]]) {
-        [(UIView *)adInstance setHidden:YES];
-        [(UIView *)adInstance removeFromSuperview];
-    } else if ([adInstance isKindOfClass:[UIViewController class]]) {
-        [(UIViewController *)adInstance dismissViewControllerAnimated:NO completion:nil];
-    }
-}
-#pragma clang diagnostic pop
+%end
 
 /* ---------- 横幅广告拦截 ---------- */
 %group BannerHook
@@ -336,12 +308,34 @@ static void notifyAdClosed(id adInstance) {
 - (void)loadAd { return; }
 - (void)layoutAdView { return; }
 %end
-/* ---------- 第三方 Banner ---------- */
 %hook APPBanners
 - (void)loadAd { return; }
 - (void)presentAd { return; }
 %end
 %end
+
+/* ---------- 通知广告关闭的通用实现 ---------- */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+static void notifyAdClosed(id adInstance) {
+    if ([adInstance respondsToSelector:@selector(delegate)]) {
+        id delegate = [adInstance performSelector:@selector(delegate)];
+        if ([delegate respondsToSelector:@selector(splashAdClosed:)]) {
+            [delegate performSelector:@selector(splashAdClosed:) withObject:adInstance];
+        } else if ([delegate respondsToSelector:@selector(interstitialAdDidClose:)]) {
+            [delegate performSelector:@selector(interstitialAdDidClose:) withObject:adInstance];
+        } else if ([delegate respondsToSelector:@selector(splashAdDidDismissFullScreenContent:)]) {
+            [delegate performSelector:@selector(splashAdDidDismissFullScreenContent:) withObject:adInstance];
+        }
+    }
+    if ([adInstance isKindOfClass:[UIView class]]) {
+        [(UIView *)adInstance setHidden:YES];
+        [(UIView *)adInstance removeFromSuperview];
+    } else if ([adInstance isKindOfClass:[UIViewController class]]) {
+        [(UIViewController *)adInstance dismissViewControllerAnimated:NO completion:nil];
+    }
+}
+#pragma clang diagnostic pop
 
 /* ---------- 应用启动日志 ---------- */
 %group AppLaunchHook
@@ -355,7 +349,6 @@ static void notifyAdClosed(id adInstance) {
 
 /* ---------- 构造器 ---------- */
 %ctor {
-    /* 注册所有组 */
     %init(GlobalWindowHook);
     %init(GlobalVCHook);
     %init(InterstitialHook);
