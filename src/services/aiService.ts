@@ -7,6 +7,7 @@ export interface AIConfig {
   modelName: string;
   githubToken?: string;
   githubRepo?: string;
+  remoteAdRules?: string;
 }
 
 export interface GenerationResult {
@@ -31,12 +32,12 @@ export async function modifyHookScript(appName: string, currentCode: string, use
   }
 }
 
-export async function generateHookScript(appName: string, config: AIConfig): Promise<GenerationResult> {
+export async function generateHookScript(appName: string, customPrompt: string | undefined, config: AIConfig): Promise<GenerationResult> {
   try {
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ appName, config })
+      body: JSON.stringify({ appName, customPrompt, config })
     });
     const data = await response.json();
     if (data.error) throw new Error(data.error);

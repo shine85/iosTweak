@@ -62,6 +62,7 @@ export default function App() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('builder');
   const [appName, setAppName] = useState('Hippo Cinema');
+  const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedResult, setGeneratedResult] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -176,7 +177,7 @@ export default function App() {
     // Add user message to chat
     const userMsg: Message = {
       role: 'user',
-      content: `生成针对 ${appName} 的去广告代码`,
+      content: customPrompt ? `【目标：${appName}】\n${customPrompt}` : `生成针对 ${appName} 的去广告代码`,
       timestamp: Date.now()
     };
     setMessages(prev => [...prev, userMsg]);
@@ -202,7 +203,7 @@ export default function App() {
        target = `${currentDetails.trackName || appName} / Bundle ID: ${currentDetails.bundleId} / App Store URL: ${currentDetails.url}`;
     }
     
-    const result = await generateHookScript(target, aiConfig);
+    const result = await generateHookScript(target, customPrompt, aiConfig);
     
     if (result.error) {
        const errorMsg: Message = {
@@ -539,7 +540,7 @@ export default function App() {
             >
               <header className="mb-12 border-b border-[#141414] pb-6">
                 <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">{t('builder.module')}</span>
-                <h2 className="text-6xl font-bold tracking-tighter">{t('builder.title')}</h2>
+                <h2 className="text-4xl font-bold tracking-tight">{t('builder.title')}</h2>
                 <p className="mt-4 text-lg opacity-70 max-w-2xl font-serif italic">
                   {t('builder.subtitle')}
                 </p>
@@ -614,9 +615,19 @@ export default function App() {
                     </p>
                   </div>
 
+                  <section className="space-y-4">
+                    <label className="text-[11px] font-mono font-bold opacity-50 uppercase tracking-widest block">自定义对话 / 附加要求 (可选)</label>
+                    <textarea 
+                      value={customPrompt}
+                      onChange={(e) => setCustomPrompt(e.target.value)}
+                      placeholder='例如："帮我生成小红书的去广告 Tweak，并且隐藏发布按钮"'
+                      className="w-full bg-transparent border-2 border-[#141414] min-h-[150px] p-4 text-[12px] font-mono focus:outline-none focus:border-opacity-50 transition-all"
+                    />
+                  </section>
+
                   <button 
                     onClick={handleGenerate}
-                    disabled={isGenerating}
+                    disabled={isGenerating || !appName}
                     className="w-full h-16 bg-[#141414] text-[#E4E3E0] font-bold text-lg flex items-center justify-center gap-3 hover:translate-y-[-2px] hover:shadow-[0_4px_0_0_#000] active:translate-y-[0] transition-all disabled:opacity-50"
                   >
                     {isGenerating ? (
@@ -786,7 +797,7 @@ export default function App() {
             >
               <header className="mb-12 border-b border-[#141414] pb-6">
                 <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">{t('researcher.module')}</span>
-                <h2 className="text-6xl font-bold tracking-tighter">{t('researcher.title')}</h2>
+                <h2 className="text-4xl font-bold tracking-tight">{t('researcher.title')}</h2>
                 <p className="mt-4 text-lg opacity-70 max-w-2xl font-serif italic">
                   {t('researcher.subtitle')}
                 </p>
@@ -858,7 +869,7 @@ export default function App() {
             >
               <header className="mb-12 border-b border-[#141414] pb-6">
                 <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">{t('guides.module')}</span>
-                <h2 className="text-6xl font-bold tracking-tighter">{t('guides.title')}</h2>
+                <h2 className="text-4xl font-bold tracking-tight">{t('guides.title')}</h2>
               </header>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -1010,7 +1021,7 @@ jobs:
             >
               <header className="mb-12 border-b border-[#141414] pb-6">
                 <span className="text-[11px] font-serif italic opacity-50 uppercase tracking-wider mb-2 block">{t('settings.module')}</span>
-                <h2 className="text-6xl font-bold tracking-tighter">{t('settings.title')}</h2>
+                <h2 className="text-4xl font-bold tracking-tight">{t('settings.title')}</h2>
                 <p className="mt-4 text-lg opacity-70 font-serif italic">
                   {t('settings.subtitle')}
                 </p>
@@ -1119,6 +1130,22 @@ jobs:
                         className="w-full bg-transparent border-2 border-[#141414] h-12 px-4 font-mono focus:outline-none"
                       />
                     </section>
+                  </div>
+                </div>
+
+                <div className="pt-8 mt-8 border-t-2 border-[#141414] space-y-8">
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    远程去广告规则地址 (换行分割)
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <textarea 
+                      value={aiConfig.remoteAdRules || ''}
+                      onChange={(e) => setAiConfig({...aiConfig, remoteAdRules: e.target.value})}
+                      placeholder={"https://raw.github.../ad1.sgmodule\nhttps://raw.github.../ad2.plugin"}
+                      className="w-full bg-transparent border-2 border-[#141414] min-h-[150px] p-4 font-mono focus:outline-none"
+                    />
                   </div>
                 </div>
 
