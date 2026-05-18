@@ -59,9 +59,9 @@ async function startServer() {
 - **国内核心应用（移动联通电信、大型平台等）**：拦截特定的 \`SplashManager\`, \`AdSplashView\`，以及极喜欢用的 \`PopupManager\`, \`AdPopup\`, \`MarketingPopup\`。
 
 代码实现 (Logos)：
-- **%group 与 %end 的严格配对 (CRITICAL 规则)**：绝对禁止 \`%group\` 嵌套（即发生 \`%group inside a %group\` 致命错误）！每一个 \`%group GroupName\` 开始后，必须在开启下一个组件或组之前使用一个单独的 \`%end\` 将其完全闭合！务必极其注意代码层级：\`%group\` 里面包含的每一个 \`%hook\` 自己需要一个 \`%end\` 闭合，最后外层的 \`%group\` 还需要一个额外的 \`%end\` 来宣告组别结束！少写一个 \`%end\` 都会导致接下来的解析乱套从而直接报错。
+- **%group 与 %end 的严格配对 (FATAL ERROR 预防)**：绝对禁止 \`%group\` 嵌套（即 \`%group inside a %group\` 致命错误）！如果你开启了一个 \`%group GroupName\`，在你写下一个 \`%group\` 或者 \`%ctor\` 之前，你**必须**先用一个单独的 \`%end\` 闭合当前组！由于每一个 \`%hook\` 自身也要一个 \`%end\`，所以当你完成一个组时，末尾通常会有连续的两个 \`%end\`（一个结 hook，一个结 group）。这是 Theos 编译通过的生死线，少写一个 \`%end\` 编译直接坠毁。
 - **单次 Hook 初始化约束**：在同一个 %group 中，绝不允许出现超过一次的 \`%init\`。如果是未知类必须用带赋值的语法，如 \`%init(ClassA=objc_getClass("ClassA"));\`。严禁 \`%init(ClassName);\` 防止致命报错。
-- **未知类初始化防崩约束**：你所 hook 的每一个类（甚至是全局兜底的类），必须在顶部强制使用 \`>>> 编译安全约束 <<< 强化@interface ClassName : NSObject @end\` 声明（或继承自 UIView/UIViewController），防止因为 forward declaration 导致编译爆炸！千万不要只写一个 \`@class\`！
+- **未知类初始化防崩约束**：你所 hook 的每一个类（甚至是全局兜底的类），必须在顶部强制声明完整的 \`@interface ClassName : NSObject @end\`（或其他正确的父类如 UIView/UIViewController），防止因为 forward declaration 导致编译爆炸！千万不要只写一个 \`@class\`！【严禁在代码中写出如“>>> 编译安全约束 <<<”这类非法的 ObjC 语法或特殊符号，这会导致 Logos 预处理器死锁卡死！】
 - **%init 位置约束**：所有的 \`%init\` 必须放在 \`%ctor\` 构造块内部！绝对不要在外部全局调用 \`%init;\`。
 - **Hook 语法约束**：在 Hook 带有参数的 Objective-C 方法时，**绝对禁止**在参数名称后面添加多余的右括号 \`)\`。
 - **C 函数规范约束**：严禁在 \`%ctor\` 等函数体/Block 内部直接定义 C/C++ 辅助函数。辅助函数必须放在文件顶层全局作用域。
