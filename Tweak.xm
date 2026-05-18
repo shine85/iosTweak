@@ -43,7 +43,7 @@ static void forceRestoreSubViews(UIView *view) {
     for (UIView *sub in view.subviews) {
         sub.hidden = NO;
         sub.alpha = 1.0;
-        if (sub.subviews.count > 0) forceRestoreSubViews(sub);
+        if (sub.subviews.count) forceRestoreSubViews(sub);
     }
 }
 
@@ -56,7 +56,6 @@ static void forceRestoreSubViews(UIView *view) {
         if (!self.hidden) {
             [self setHidden:YES];
             [self resignKeyWindow];
-            // 恢复主窗口显示
             UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
             if (keyWindow && keyWindow.hidden) [keyWindow setHidden:NO];
         }
@@ -103,54 +102,6 @@ static void forceRestoreSubViews(UIView *view) {
 %end
 %end
 
-/* ---------- 开屏广告拦截 ---------- */
-%group SplashAdHook
-%hook GDTSplashAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
-%end
-
-%hook CSJSplashAd
-- (void)loadAd {}
-- (void)showAdInWindow:(UIWindow *)window {}
-%end
-
-%hook BUMNativeSplash
-- (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
-%end
-
-%hook BUSplashAdView
-- (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
-%end
-
-%hook BUSplashZoomOutView
-- (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
-%end
-
-%hook BaiduMobAdSplash
-- (void)loadAd {}
-- (void)showInWindow:(UIWindow *)offsetWindow {}
-%end
-
-%hook KSAdSplashViewController
-- (void)presentFromRootViewController:(UIViewController *)rootVC completion:(void (^)(void))completion {}
-- (void)showInWindow:(UIWindow *)window {}
-%end
-
-%hook PAGLAppOpenAd
-- (void)loadAd {}
-- (void)presentFromRootViewController:(UIViewController *)rootVC animated:(BOOL)animated completion:(void (^)(void))completion {}
-%end
-
-%hook ABUSplashAd
-- (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
-%end
-%end
-
 /* ---------- 插屏/弹窗广告拦截 ---------- */
 %group InterstitialHook
 %hook GDTUnifiedInterstitialAd
@@ -160,22 +111,22 @@ static void forceRestoreSubViews(UIView *view) {
 
 %hook BUInterstitialAd
 - (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 
 %hook BUNativeExpressInterstitialAd
 - (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 
 %hook CSJInterstitialAd
 - (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 
 %hook KSInterstitialAd
 - (void)loadAd {}
-- (void)showInWindow:(UIWindow *)window {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 
 %hook KSAdInterstitialViewController
@@ -259,7 +210,6 @@ static void forceRestoreSubViews(UIView *view) {
 %ctor {
     %init(GlobalWindowHook);
     %init(GlobalVCHook);
-    %init(SplashAdHook);
     %init(InterstitialHook);
     %init(BannerHook);
     %init(AppLaunchHook);
