@@ -1,406 +1,303 @@
-#import <substrate.h>
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
+#import <substrate.h>
+#import <objc/runtime.h>
+#import <WebKit/WebKit.h>
 
-/* ---------------- Helpers ---------------- */
+#pragma mark - Class Declarations
+@interface GDTSplashAd : NSObject @end
+@interface CSJSplashAd : NSObject @end
+@interface BUSplashAdView : NSObject @end
+@interface BUZNativeSplash : NSObject @end
+@interface BUNativeAdSplash : NSObject @end
+@interface BaiduMobAdSplash : NSObject @end
+@interface KSAdSplashViewController : NSObject @end
+@interface PAGLAppOpenAd : NSObject @end
+@interface ABUSplashAd : NSObject @end
+@interface GDTUnifiedInterstitialAd : NSObject @end
+@interface GDTRewardVideoAd : NSObject @end
+@interface GDTNativeExpressInterstitialAd : NSObject @end
+@interface BUInterstitialAd : NSObject @end
+@interface BUNativeExpressInterstitialAd : NSObject @end
+@interface CSJInterstitialAd : NSObject @end
+@interface KSInterstitialAd : NSObject @end
+@interface US_IOS_Ad : NSObject @end
 
+#pragma mark - Globals
+static NSMutableSet *adHostMutableSet = nil;
+static NSSet *adHostSet = nil;
+
+#pragma mark - Helper Functions
 static void forceRestoreSubViews(UIView *view) {
     if (!view) return;
     for (UIView *sub in view.subviews) {
         sub.hidden = NO;
         sub.alpha = 1.0;
-        if (sub.subviews.count) forceRestoreSubViews(sub);
+        if (sub.subviews.count > 0) forceRestoreSubViews(sub);
     }
 }
 
-/* ---------------- Network Blocker ---------------- */
-
-static NSSet *_blockedHosts = nil;
-static void loadRuleSet(void) {
-    NSString *path = [[[[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches"] stringByAppendingPathComponent:@"ad_rules.plist"] copy];
-    NSArray *arr = [NSArray arrayWithContentsOfFile:path];
-    if (arr) _blockedHosts = [NSSet setWithArray:arr];
-}
-static BOOL shouldBlockRequest(NSURLRequest *request) {
-    if (!_blockedHosts) loadRuleSet();
-    NSString *host = request.URL.host.lowercaseString;
-    for (NSString *pattern in _blockedHosts) {
-        if ([host containsString:pattern]) return YES;
+static BOOL shouldBlockURL(NSURL *url) {
+    if (!url) return NO;
+    NSString *host = url.host;
+    if (!host) return NO;
+    if ([adHostSet containsObject:host]) return YES;
+    for (NSString *prefix in @[@"http://", @"https://"]) {
+        if ([host hasPrefix:prefix]) {
+            NSString *clean = [host stringByReplacingOccurrencesOfString:prefix withString:@""];
+            if ([adHostSet containsObject:clean]) return YES;
+        }
     }
     return NO;
 }
-static void downloadRemoteRules(NSArray *urls) {
-    for (NSString *urlStr in urls) {
-        NSURL *url = [NSURL URLWithString:urlStr];
-        if (!url) continue;
-        NSURLRequest *req = [NSURLRequest requestWithURL:url];
-        [[[NSURLSession sharedSession] dataTaskWithRequest:req completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-            if (data) {
-                NSString *path = [[[[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches"] stringByAppendingPathComponent:@"ad_rules.plist"] copy];
-                [data writeToFile:path atomically:YES];
-                _blockedHosts = nil;
+
+static void downloadRemoteRules(NSArray<NSString *> *urls, void (^completion)(void)) {
+    if (!urls || urls.count == 0) { completion(); return; }
+    __block NSInteger remaining = urls.count;
+    for (NSString *urlString in urls) {
+        NSURL *url = [NSURL URLWithString:urlString];
+        NSURLSessionDataTask *task = [[NSURLSession sharedSession]
+            dataTaskWithURL:url
+          completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+            if (!error && data) {
+                NSString *content = [[NSString alloc] initWithData:data
+                                                          encoding:NSUTF8StringEncoding];
+                NSArray *lines = [content componentsSeparatedByCharactersInSet:
+                                   [NSCharacterSet newlineCharacterSet]];
+                for (NSString *line in lines) {
+                    NSString *trim =
+                        [line stringByTrimmingCharactersInSet:
+                         [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                    if (trim.length > 0 && ![trim hasPrefix:@"#"]) {
+                        if (!adHostMutableSet) adHostMutableSet = [NSMutableSet set];
+                        [adHostMutableSet addObject:trim];
+                    }
+                }
             }
-        }] resume];
+            remaining--;
+            if (remaining == 0) {
+                adHostSet = [adHostMutableSet copy];
+                dispatch_async(dispatch_get_main_queue(), completion);
+            }
+        }];
+        [task resume];
     }
 }
 
-/* ---------------- Default Remote Rule URLs ---------------- */
-
-static NSArray *defaultRemoteURLs(void) {
-    return @[
-        @"https://raw.githubusercontent.com/QingRex/LoonKissSurge/refs/heads/main/Surge/Beta/广告平台拦截器.beta.sgmodule",
-        @"https://raw.githubusercontent.com/QingRex/LoonKissSurge/refs/heads/main/Surge/Beta/HTTPDNS拦截器.beta.sgmodule",
-        @"https://yfamilys.com/plugin/adultraplus.plugin"
-    ];
-}
-
-/* ---------------- Global Injection Log ---------------- */
-
-%group InjectionLog
-%hook UIApplication
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    NSLog(@"[!!!] Tweak 注入成功");
-    return %orig;
-}
-%end
-%end
-
-/* ---------------- Splash Ad – GDT ---------------- */
-
-%group SplashGDT
-%init(GDTSplashAd=objc_getClass("GDTSplashAd"));
+#pragma mark - UI Hook: Splash Ads
 %hook GDTSplashAd
-- (BOOL)loadAd { return NO; }
-- (void)showAdInWindow:(UIWindow *)window { }
-%end
-%end
-
-/* ---------------- Splash Ad – CSJ ---------------- */
-
-%group SplashCSJ
-%init(BUSplashAdView=objc_getClass("BUSplashAdView"));
-%hook BUSplashAdView
-- (BOOL)loadAd { return NO; }
-- (void)showAdInWindow:(UIWindow *)window { }
-%end
+- (void)showAdInWindow:(UIWindow *)window {
+    NSLog(@"[AdRemoval] GDTSplashAd blocked");
+}
 %end
 
-%group SplashCSJ2
-%init(CSJSplashAd=objc_getClass("CSJSplashAd"));
 %hook CSJSplashAd
-- (void)loadAd { }
-- (void)showAdInWindow:(UIWindow *)window { }
-- (void)showAd { }
-%end
-%end
-
-/* ---------------- Splash Ad – BUM ---------------- */
-
-%group SplashBUM
-%init(BUMNativeSplash=objc_getClass("BUMNativeSplash"));
-%hook BUMNativeSplash
-- (void)loadAd{ }
-- (void)presentFromRootViewController:(UIViewController *)controller animated:(BOOL)animated completion:(void (^)(void))completion { }
-%end
+- (void)showAdInWindow:(UIWindow *)window {
+    NSLog(@"[AdRemoval] CSJSplashAd blocked");
+}
 %end
 
-/* ---------------- Splash Ad – Baidu ---------------- */
+%hook BUSplashAdView
+- (void)loadAd {
+    NSLog(@"[AdRemoval] BUSplashAdView blocked");
+}
+%end
 
-%group SplashBaidu
-%init(BaiduMobAdSplash=objc_getClass("BaiduMobAdSplash"));
+%hook BUZNativeSplash
+- (void)loadAd {
+    NSLog(@"[AdRemoval] BUZNativeSplash blocked");
+}
+%end
+
+%hook BUNativeAdSplash
+- (void)loadAd {
+    NSLog(@"[AdRemoval] BUNativeAdSplash blocked");
+}
+%end
+
 %hook BaiduMobAdSplash
-- (id)init { return nil; }
-- (void)loadAd { }
-%end
+- (void)showAd {
+    NSLog(@"[AdRemoval] BaiduMobAdSplash blocked");
+}
 %end
 
-/* ---------------- Splash Ad – KS ---------------- */
-
-%group SplashKS
-%init(KSAdSplashViewController=objc_getClass("KSAdSplashViewController"));
 %hook KSAdSplashViewController
-- (void)loadAd { }
-- (void)showAd { }
-%end
+- (void)presentFromViewController:(UIViewController *)vc {
+    NSLog(@"[AdRemoval] KSAdSplashViewController blocked");
+}
 %end
 
-%group SplashPAG
-%init(PAGLAppOpenAd=objc_getClass("PAGLAppOpenAd"));
 %hook PAGLAppOpenAd
-- (BOOL)loadAd { return NO; }
-- (void)showAdInWindow:(UIWindow *)window { }
-%end
+- (void)presentFromRootViewController:(UIViewController *)vc {
+    NSLog(@"[AdRemoval] PAGLAppOpenAd blocked");
+}
 %end
 
-%group SplashABU
-%init(ABUSplashAd=objc_getClass("ABUSplashAd"));
 %hook ABUSplashAd
-- (void)loadAd { }
-- (void)showAd { }
-- (void)viewDidLoad { }
-%end
+- (void)loadAd {
+    NSLog(@"[AdRemoval] ABUSplashAd blocked");
+}
 %end
 
-/* ---------------- Interstitial Ad – GDT ---------------- */
-
-%group InterstitialGDT
-%init(GDTUnifiedInterstitialAd=objc_getClass("GDTUnifiedInterstitialAd"));
+#pragma mark - UI Hook: Interstitial & Popup Ads
 %hook GDTUnifiedInterstitialAd
-- (void)loadAd { }
-- (void)showAdInViewController:(UIViewController *)controller { }
-%end
-%end
-
-/* ---------------- Interstitial Ad – CSJ ---------------- */
-
-%group InterstitialCSJ
-%init(USnapInterstitial=objc_getClass("USnapInterstitial"));
-%hook USnapInterstitial
-- (void)load { }
-- (void)show { }
-%end
+- (void)loadAd {
+    NSLog(@"[AdRemoval] GDTUnifiedInterstitialAd blocked");
+}
+- (void)presentFromRootViewController:(UIViewController *)vc {
+    NSLog(@"[AdRemoval] GDTUnifiedInterstitialAd blocked");
+}
 %end
 
-%group InterstitialCSJ2
-%init(CSJInterstitialAd=objc_getClass("CSJInterstitialAd"));
-%hook CSJInterstitialAd
-- (void)loadAd { }
-- (void)showAd { }
-- (void)showAdFromRootViewController:(UIViewController *)controller options:(NSDictionary *)options { }
-%end
+%hook GDTRewardVideoAd
+- (void)loadAd {
+    NSLog(@"[AdRemoval] GDTRewardVideoAd blocked");
+}
+- (void)presentFromRootViewController:(UIViewController *)vc {
+    NSLog(@"[AdRemoval] GDTRewardVideoAd blocked");
+}
 %end
 
-/* ---------------- Interstitial Ad – BU ---------------- */
+%hook GDTNativeExpressInterstitialAd
+- (void)loadAd {
+    NSLog(@"[AdRemoval] GDTNativeExpressInterstitialAd blocked");
+}
+- (void)showInView:(UIView *)view {
+    NSLog(@"[AdRemoval] GDTNativeExpressInterstitialAd blocked");
+}
+%end
 
-%group InterstitialBU
-%init(BUInterstitialAd=objc_getClass("BUInterstitialAd"));
 %hook BUInterstitialAd
-- (void)loadAd{ }
-- (void)showAd { }
-%end
+- (void)loadAd {
+    NSLog(@"[AdRemoval] BUInterstitialAd blocked");
+}
+- (void)presentFromRootViewController:(UIViewController *)vc {
+    NSLog(@"[AdRemoval] BUInterstitialAd blocked");
+}
 %end
 
-%group InterstitialBU2
-%init(BUNativeExpressInterstitialAd=objc_getClass("BUNativeExpressInterstitialAd"));
 %hook BUNativeExpressInterstitialAd
-- (void)loadAd { }
-- (void)showAd { }
-%end
-%end
-
-/* ---------------- Interstitial Ad – Baidu ---------------- */
-
-%group InterstitialBaidu
-%init(BaiduMobAdInterstitial=objc_getClass("BaiduMobAdInterstitial"));
-%hook BaiduMobAdInterstitial
-- (void)loadAd { }
-- (void)showAd { }
-%end
+- (void)loadAd {
+    NSLog(@"[AdRemoval] BUNativeExpressInterstitialAd blocked");
+}
+- (void)showInView:(UIView *)view {
+    NSLog(@"[AdRemoval] BUNativeExpressInterstitialAd blocked");
+}
 %end
 
-/* ---------------- Interstitial Ad – KS ---------------- */
+%hook CSJInterstitialAd
+- (void)loadAd {
+    NSLog(@"[AdRemoval] CSJInterstitialAd blocked");
+}
+- (void)presentFromViewController:(UIViewController *)vc {
+    NSLog(@"[AdRemoval] CSJInterstitialAd blocked");
+}
+%end
 
-%group InterstitialKS
-%init(KSInterstitialAd=objc_getClass("KSInterstitialAd"));
 %hook KSInterstitialAd
-- (void)loadAd { }
-- (void)showAd { }
-%end
-%end
-
-%group InterstitialKS2
-%init(KSAdInterstitialViewController=objc_getClass("KSAdInterstitialViewController"));
-%hook KSAdInterstitialViewController
-- (void)loadAd { }
-- (void)showAd { }
-%end
+- (void)loadAd {
+    NSLog(@"[AdRemoval] KSInterstitialAd blocked");
+}
+- (void)presentFromRootViewController:(UIViewController *)vc {
+    NSLog(@"[AdRemoval] KSInterstitialAd blocked");
+}
 %end
 
-/* ---------------- Popup Ad – Generic ---------------- */
-
-%group PopupCSJ
-%init(CSJPopupAd=objc_getClass("CSJPopupAd"));
-%hook CSJPopupAd
-- (void)loadAd { }
-- (void)presentFromViewController:(UIViewController *)vc { }
-%end
+%hook US_IOS_Ad
+- (void)presentFromViewController:(UIViewController *)vc {
+    NSLog(@"[AdRemoval] US_IOS_Ad blocked");
+}
 %end
 
-%group PopupBU
-%init(BUPopupAd=objc_getClass("BUPopupAd"));
-%hook BUPopupAd
-- (void)loadAd { }
-- (void)presentFromRootViewController:(UIViewController *)vc { }
-%end
-%end
-
-%group PopupBaidu
-%init(BaiduMobAdPopup=objc_getClass("BaiduMobAdPopup"));
-%hook BaiduMobAdPopup
-- (void)showAd { }
-%end
-%end
-
-%group PopupKS
-%init(KSAdPopup=objc_getClass("KSAdPopup"));
-%hook KSAdPopup
-- (void)show { }
-%end
-%end
-
-/* ---------------- PopupManager / MarketingDialog ---------------- */
-
-%group Dialogs
-%init(MarketingDialog=objc_getClass("MarketingDialog"));
-%hook MarketingDialog
-- (void)show { }
-- (void)dismiss { }
-%end
-%end
-
-%group PopupMan
-%init(PopupManager=objc_getClass("PopupManager"));
-%hook PopupManager
-- (void)showPopup { }
-- (void)dismissPopup { }
-%end
-%end
-
-/* ---------------- Global Window Hook ---------------- */
-
-%group WindowHook
+#pragma mark - Global UI Cleanup
 %hook UIWindow
 - (void)makeKeyAndVisible {
+    %orig;
     NSString *cls = NSStringFromClass([self class]);
     if ([cls containsString:@"Ad"] || [cls containsString:@"Splash"]) {
         [self setHidden:YES];
         [self resignKeyWindow];
-    } else {
-        %orig;
     }
 }
 - (void)becomeKeyWindow {
+    %orig;
     NSString *cls = NSStringFromClass([self class]);
     if ([cls containsString:@"Ad"] || [cls containsString:@"Splash"]) {
         [self setHidden:YES];
         [self resignKeyWindow];
-    } else {
-        %orig;
     }
 }
 - (void)setHidden:(BOOL)hidden {
     NSString *cls = NSStringFromClass([self class]);
-    if ([cls containsString:@"Ad"]) hidden = YES;
+    if ([cls containsString:@"Ad"] || [cls containsString:@"Splash"]) hidden = YES;
     %orig(hidden);
 }
 %end
-%end
 
-/* ---------------- ViewController Hook ---------------- */
-
-%group ViewControllerHook
 %hook UIViewController
 - (void)viewWillAppear:(BOOL)animated {
+    %orig;
     NSString *cls = NSStringFromClass([self class]);
-    if ([cls containsString:@"Ad"] || [cls containsString:@"Interstitial"] || [cls containsString:@"Popup"]) {
-        // Dismiss or hide
-        if ([self isKindOfClass:[UIViewController class]]) {
-            [(UIViewController *)self dismissViewControllerAnimated:NO completion:nil];
-        }
-        if ([self isKindOfClass:[UIView class]]) {
-            [((UIView *)self) removeFromSuperview];
-        }
-    } else {
-        %orig;
+    if ([cls containsString:@"Interstitial"] || [cls containsString:@"Popup"] || [cls containsString:@"Reward"] || [cls containsString:@"Ad"]) {
+        [[self performingSelector:@selector(presentingViewController)] performSelector:@selector(dismissViewControllerAnimated:completion:) withObject:@NO withObject:nil];
+        forceRestoreSubViews(((UIViewController *)self).view);
     }
 }
 %end
-%end
 
-/* ---------------- Network Session Hook ---------------- */
-
-%group NetworkHook
+#pragma mark - Network Filter
 %hook NSURLSession
-- (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request completionHandler:(void (^)(NSData * __nullable, NSURLResponse * __nullable, NSError * __nullable))completionHandler {
-    if (shouldBlockRequest(request)) {
-        if (completionHandler) {
-            completionHandler(nil, nil, [NSError errorWithDomain:@"com.adblock" code:-999 userInfo:nil]);
-        }
-        return nil;
+- (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request {
+    if (shouldBlockURL(request.URL)) {
+        NSLog(@"[AdRemoval] Blocking NSURLSession request to %@", request.URL);
+        return [NSURLSessionDataTask new];
     }
-    return %orig(request, completionHandler);
+    return %orig;
 }
-- (NSURLSessionDataTask *)dataTaskWithURL:(NSURL *)url completionHandler:(void (^)(NSData * __nullable, NSURLResponse * __nullable, NSError * __nullable))completionHandler {
-    if (shouldBlockRequest([NSURLRequest requestWithURL:url])) {
-        if (completionHandler) {
-            completionHandler(nil, nil, [NSError errorWithDomain:@"com.adblock" code:-999 userInfo:nil]);
-        }
-        return nil;
+- (NSURLSessionDataTask *)dataTaskWithURL:(NSURL *)url {
+    if (shouldBlockURL(url)) {
+        NSLog(@"[AdRemoval] Blocking NSURLSession URL to %@", url);
+        return [NSURLSessionDataTask new];
     }
-    return %orig(url, completionHandler);
+    return %orig;
 }
 %end
-%end
 
-/* ---------------- Console Instruction Hook ---------------- */
-
-%group ConsoleHook
-%hook NSLog
-- (void)logv:(NSString *)format, ... {
-    // Suppress logs that mention ad
-    va_list argv;
-    va_start(argv, format);
-    NSString *msg = [[NSString alloc] initWithFormat:format arguments:argv];
-    va_end(argv);
-    if (![msg containsString:@"Ad"] && ![msg containsString:@"Ad"]) {
-        %orig(msg);
+%hook WKWebView
+- (void)loadRequest:(NSURLRequest *)request {
+    if (shouldBlockURL(request.URL)) {
+        NSLog(@"[AdRemoval] Blocking WKWebView request to %@", request.URL);
+        return;
     }
+    %orig;
 }
 %end
-%end
 
-/* ---------------- Transparent Creator for Remote Rules ---------------- */
-
-%group RemoteRuleInitializer
-%hook NSObject (RemoteRuleInit)
-+ (void)load {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSArray *userURLs = [[NSUserDefaults standardUserDefaults] objectForKey:@"ad_remote_urls"];
-        if (!userURLs || userURLs.count==0) userURLs = defaultRemoteURLs();
-        downloadRemoteRules(userURLs);
-    });
-}
-%end
-%end
-
-/* ---------------- ctor to register all groups ---------------- */
-
+#pragma mark - Injection Log
 %ctor {
-    // Initialize all groups explicitly
-    %init(SplashGDT);
-    %init(SplashCSJ);
-    %init(SplashCSJ2);
-    %init(SplashBUM);
-    %init(SplashBaidu);
-    %init(SplashKS);
-    %init(SplashPAG);
-    %init(SplashABU);
-    %init(InterstitialGDT);
-    %init(InterstitialCSJ);
-    %init(InterstitialCSJ2);
-    %init(InterstitialBU);
-    %init(InterstitialBU2);
-    %init(InterstitialBaidu);
-    %init(InterstitialKS);
-    %init(InterstitialKS2);
-    %init(PopupCSJ);
-    %init(PopupBU);
-    %init(PopupBaidu);
-    %init(PopupKS);
-    %init(Diagrams); // MarketingDialog & PopupManager
-    %init(WindowHook);
-    %init(ViewControllerHook);
-    %init(NetworkHook);
-    %init(ConsoleHook);
-    %init(RemoteRuleInitializer);
+    NSLog(@"[!!!] CtClient Tweak 注入成功");
+    adHostMutableSet = [NSMutableSet setWithArray:@[
+        @"ads.baidu.com",
+        @"cpm.m.doubleclick.net",
+        @"api.ad.intelliflow.com"
+    ]];
+    adHostSet = [adHostMutableSet copy];
+
+    NSArray *defaultURLs = @[
+        @"https://raw.githubusercontent.com/QingRex/LoonKissSurge/refs/heads/main/Surge/Beta/%E5%B9%BF%E5%91%8A%E5%B9%B3%E5%8F%B0%E6%8B%A6%E6%88%AA%E5%99%A8.beta.sgmodule",
+        @"https://raw.githubusercontent.com/QingRex/LoonKissSurge/refs/heads/main/Surge/Beta/HTTPDNS%E6%8B%A6%E6%88%AA%E5%99%A8.beta.sgmodule",
+        @"https://yfamilys.com/plugin/adultraplus.plugin"
+    ];
+    NSUserDefaults *defs = [NSUserDefaults standardUserDefaults];
+    NSArray *saved = [defs objectForKey:@"AdRemovalRuleURLs"];
+    if (!saved) {
+        [defs setObject:defaultURLs forKey:@"AdRemovalRuleURLs"];
+        [defs synchronize];
+    } else {
+        defaultURLs = saved;
+    }
+    downloadRemoteRules(defaultURLs, ^{
+        NSLog(@"[AdRemoval] Remote rules loaded");
+        adHostSet = [adHostMutableSet copy];
+    });
 }
