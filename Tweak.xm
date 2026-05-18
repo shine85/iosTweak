@@ -1,60 +1,8 @@
-/* ======== Tweak.xm ======== */
 #import <substrate.h>
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wobjc-arc"
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-/* ---------- 预先声明所有可能出现的广告类 ---------- */
-@interface GDTSplashAd : NSObject @end
-@interface CSJSplashAd : NSObject @end
-@interface BUMNativeSplash : NSObject @end
-@interface BUSplashAdView : UIView @end
-@interface BUSplashZoomOutView : UIView @end
-@interface BaiduMobAdSplash : NSObject @end
-@interface KSAdSplashViewController : UIViewController @end
-@interface PAGLAppOpenAd : NSObject @end
-@interface ABUSplashAd : NSObject @end
-@interface GDTUnifiedInterstitialAd : NSObject @end
-@interface BUInterstitialAd : NSObject @end
-@interface BUNativeExpressInterstitialAd : NSObject @end
-@interface CSJInterstitialAd : NSObject @end
-@interface KSInterstitialAd : NSObject @end
-@interface KSAdInterstitialViewController : UIViewController @end
-@interface BaiduMobAdInterstitial : NSObject @end
-@interface RewardVideoAd : NSObject @end
-@interface xPopupAd : NSObject @end
-@interface MarketingDialog : UIViewController @end
-@interface AdsPopupWindow : UIWindow @end
-@interface AdsDialogViewController : UIViewController @end
-
-@interface MTGNativeAd : NSObject @end
-@interface MTGAdManager : NSObject @end
-@interface MTGVideoView : UIView @end
-
-@interface NAAAdVideoPlayerController : NSObject @end
-@interface NAAMediationPrivateAdLoader : NSObject @end
-
-@interface UADisplayAdsAdapter : NSObject @end
-@interface UnityAdsPlugin : NSObject @end
-
-@interface GADInterstitialAd : NSObject @end
-@interface GADBannerView : UIView @end
-
-@interface GDTBannerView : UIView @end
-@interface CSJBannerView : UIView @end
-@interface BUNativeExpressBannerView : UIView @end
-@interface KSBannerAdView : UIView @end
-@interface BaiduMobAdBanner : UIView @end
-@interface AdMobBannerView : UIView @end
-@interface PAGLRewardedAd : UIView @end
-@interface SigmobBanner : UIView @end
-
-@interface APPBanners : NSObject @end
-#pragma clang diagnostic pop
-
-/* ---------- 工具方法 ---------- */
+/* Auxiliary function – restores hidden subviews that might be suppressed */
 static void forceRestoreSubViews(UIView *view) {
     if (!view) return;
     for (UIView *sub in view.subviews) {
@@ -64,295 +12,187 @@ static void forceRestoreSubViews(UIView *view) {
     }
 }
 
-/* ---------- 全局窗口的非侵入式拦截 ---------- */
-%group GlobalWindowHook
-%hook UIWindow
-- (void)makeKeyAndVisible {
-    NSString *cls = NSStringFromClass([self class]);
-    if ([cls containsString:@"Splash"] ||
-        [cls containsString:@"Ad"] ||
-        [cls containsString:@"Ads"] ||
-        [cls containsString:@"Popup"]) {
-        if (!self.hidden) {
-            [self setHidden:YES];
-            [self resignKeyWindow];
-            UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-            if (keyWindow && keyWindow.hidden) [keyWindow setHidden:NO];
-        }
-        return;
-    }
-    %orig;
-}
-- (void)becomeKeyWindow {
-    NSString *cls = NSStringFromClass([self class]);
-    if ([cls containsString:@"Splash"] ||
-        [cls containsString:@"Ad"] ||
-        [cls containsString:@"Ads"] ||
-        [cls containsString:@"Popup"]) {
-        if (!self.hidden) {
-            [self setHidden:YES];
-            [self resignKeyWindow];
-            UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-            if (keyWindow && keyWindow.hidden) [keyWindow setHidden:NO];
-        }
-        return;
-    }
-    %orig;
-}
-- (void)setHidden:(BOOL)hidden {
-    NSString *cls = NSStringFromClass([self class]);
-    if ([cls containsString:@"Splash"] ||
-        [cls containsString:@"Ad"] ||
-        [cls containsString:@"Ads"] ||
-        [cls containsString:@"Popup"]) {
-        return;
-    }
-    %orig(hidden);
-}
-%end
-%end
+/* ────────────────────────────────────────────────────────────────────────*/
+/*   1.  Class declarations – avoid “no known instance method” errors         */
+/* ────────────────────────────────────────────────────────────────────────*/
+@interface GDTSplashAd : NSObject @end
+@interface GDTUnifiedInterstitialAd : NSObject @end
+@interface CSJSplashAd : NSObject @end
+@interface CSJInterstitialAd : NSObject @end
+@interface BUSplashAdView : NSObject @end
+@interface BUInterstitialAd : NSObject @end
+@interface BaiduMobAdSplash : NSObject @end
+@interface BaiduMobAdInterstitial : NSObject @end
+@interface KSAdSplashViewController : NSObject @end
+@interface KSInterstitialAd : NSObject @end
+@interface KSAdInterstitialViewController : NSObject @end
+@interface GADBannerView : NSObject @end
+@interface GADInterstitialAd : NSObject @end
+@interface GADFullScreenContent : NSObject @end
+@interface PAGSplashAd : NSObject @end
+@interface SigmobSplashAd : NSObject @end
+@interface MintegralSplashAd : NSObject @end
 
-/* ---------- 全局 VC 的弹窗拦截 ---------- */
-%group GlobalVCHook
-%hook UIViewController
-- (void)viewWillAppear:(BOOL)animated {
-    NSString *cls = NSStringFromClass([self class]);
-    if ([cls containsString:@"Interstitial"] ||
-        [cls containsString:@"Reward"] ||
-        [cls containsString:@"Popup"] ||
-        [cls containsString:@"Ads"] ||
-        [cls containsString:@"Banner"]) {
-        if ([self respondsToSelector:@selector(dismissViewControllerAnimated:completion:)]) {
-            [(UIViewController *)self dismissViewControllerAnimated:NO completion:nil];
-        }
-    }
-    %orig(animated);
-}
-%end
-%end
-
-/* ---------- 插屏 / 弹窗广告拦截 ---------- */
-%group InterstitialHook
-%hook GDTUnifiedInterstitialAd
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
-%end
-%hook BUInterstitialAd
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
-%end
-%hook BUNativeExpressInterstitialAd
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
-%end
-%hook CSJInterstitialAd
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
-%end
-%hook KSInterstitialAd
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
-%end
-%hook KSAdInterstitialViewController
-- (void)presentFromRootViewController:(UIViewController *)rootVC completion:(void (^)(void))completion { return; }
-- (void)showInWindow:(UIWindow *)window { return; }
-%end
-%hook BaiduMobAdInterstitial
-- (void)loadAd { return; }
-- (void)showInWindow:(UIWindow *)window { return; }
-%end
-%hook RewardVideoAd
-- (void)loadAd { return; }
-- (void)presentFromViewController:(UIViewController *)vc completion:(void (^)(void))completion { return; }
-%end
-%hook xPopupAd
-- (void)loadAd { return; }
-- (void)presentFromViewController:(UIViewController *)vc completion:(void (^)(void))completion { return; }
-%end
-%hook MarketingDialog
-- (void)showInView:(UIView *)view { return; }
-%end
-%hook AdsPopupWindow
-- (void)makeKeyAndVisible { return; }
-- (void)becomeKeyWindow { return; }
-- (void)setHidden:(BOOL)hidden { return; }
-%end
-%hook AdsDialogViewController
-- (void)viewWillAppear:(BOOL)animated { return; }
-- (void)viewDidAppear:(BOOL)animated { return; }
-%end
-%hook MTGAdManager
-- (void)loadAd { return; }
-- (void)presentAdIfAvailable { return; }
-%end
-%hook MTGVideoView
-- (void)loadAd { return; }
-- (void)presentAd { return; }
-%end
-%hook NAAMediationPrivateAdLoader
-- (void)loadAd { return; }
-- (void)presentAd { return; }
-%end
-%hook NAAAdVideoPlayerController
-- (void)loadAd { return; }
-- (void)presentAd { return; }
-%end
-%hook UADisplayAdsAdapter
-- (void)loadAd { return; }
-- (void)presentAd { return; }
-%end
-%hook UnityAdsPlugin
-- (void)loadAd { return; }
-- (void)presentAd { return; }
-%end
-%hook GADInterstitialAd
-- (void)loadRequest:(id)request { return; }
-- (void)presentFromRootViewController:(UIViewController *)rootViewController completionHandler:(void (^)(id))handler { return; }
-%end
-%end
-
-/* ---------- 开屏广告拦截 ---------- */
-%group SplashHook
+/* ────────────────────────────────────────────────────────────────────────*/
+/*   2.  Splash ad hooks                                                    */
+/* ────────────────────────────────────────────────────────────────────────*/
+%group AdBlockSplash
 %hook GDTSplashAd
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
-- (void)loadAdWithCompletion:(void (^)(void))completion { return; }
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 %hook CSJSplashAd
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
-%end
-%hook BUMNativeSplash
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 %hook BUSplashAdView
-- (void)requestAd { return; }
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
-%end
-%hook BUSplashZoomOutView
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 %hook BaiduMobAdSplash
-- (void)loadAd { return; }
-- (void)showInWindow:(UIWindow *)window { return; }
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
 %hook KSAdSplashViewController
-- (void)presentFromRootViewController:(UIViewController *)rootVC completion:(void (^)(void))completion { return; }
-- (void)showInWindow:(UIWindow *)window { return; }
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
-%hook PAGLAppOpenAd
-- (void)loadAd { return; }
-- (void)presentFromRootViewController:(UIViewController *)rootVC animated:(BOOL)animated completion:(void (^)(void))completion { return; }
+%hook PAGSplashAd
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
-%hook ABUSplashAd
-- (void)loadAd { return; }
-- (void)showAdInWindow:(UIWindow *)window { return; }
+%hook SigmobSplashAd
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
-%hook MTGAdManager
-- (void)presentAd { return; }
+%hook MintegralSplashAd
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
 %end
-%hook MTGVideoView
-- (void)presentAd { return; }
 %end
-%hook NAAMediationPrivateAdLoader
-- (void)presentAd { return; }
+
+/* ────────────────────────────────────────────────────────────────────────*/
+/*   3.  Interstitial / Popup hooks                                         */
+/* ────────────────────────────────────────────────────────────────────────*/
+%group AdBlockInterstitial
+%hook GDTUnifiedInterstitialAd
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
+- (void)presentFromViewController:(UIViewController *)vc animated:(BOOL)animated completion:(void (^)(void))completion {}
 %end
-%hook NAAAdVideoPlayerController
-- (void)presentAd { return; }
+%hook CSJInterstitialAd
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
+- (void)presentFromViewController:(UIViewController *)vc animated:(BOOL)animated completion:(void (^)(void))completion {}
 %end
-%hook UADisplayAdsAdapter
-- (void)presentAd { return; }
+%hook BUInterstitialAd
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
+- (void)presentFromViewController:(UIViewController *)vc animated:(BOOL)animated completion:(void (^)(void))completion {}
 %end
-%hook UnityAdsPlugin
-- (void)presentAd { return; }
+%hook BaiduMobAdInterstitial
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
+- (void)presentFromViewController:(UIViewController *)vc animated:(BOOL)animated completion:(void (^)(void))completion {}
+%end
+%hook KSInterstitialAd
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
+- (void)presentFromViewController:(UIViewController *)vc animated:(BOOL)animated completion:(void (^)(void))completion {}
+%end
+%hook KSAdInterstitialViewController
+- (void)loadAd {}
+- (void)showAdInWindow:(UIWindow *)window {}
+- (void)presentFromViewController:(UIViewController *)vc animated:(BOOL)animated completion:(void (^)(void))completion {}
 %end
 %hook GADInterstitialAd
-- (void)presentFromRootViewController:(UIViewController *)rootViewController completionHandler:(void (^)(id))handler { return; }
+- (void)load {}
+- (void)presentFromRootViewController:(UIViewController *)rootViewController {}
+%end
+%hook GADFullScreenContent
+- (void)presentFromRootViewController:(UIViewController *)rootViewController {}
+%end
+%hook PAGInterstitialAd {}
+%end
+%hook SigmobInterstitialAd {}
+%end
+%hook MintegralInterstitialAd {}
 %end
 %end
 
-/* ---------- 横幅广告拦截 ---------- */
-%group BannerHook
-%hook GDTBannerView
-- (void)loadAd { return; }
-- (void)layoutAdView { return; }
-%end
-%hook CSJBannerView
-- (void)loadAd { return; }
-- (void)layoutAdView { return; }
-%end
-%hook BUNativeExpressBannerView
-- (void)loadAd { return; }
-- (void)layoutAdView { return; }
-%end
-%hook KSBannerAdView
-- (void)loadAd { return; }
-- (void)layoutAdView { return; }
-%end
-%hook BaiduMobAdBanner
-- (void)loadAd { return; }
-- (void)layoutAdView { return; }
-%end
-%hook AdMobBannerView
-- (void)loadAd { return; }
-- (void)layoutAdView { return; }
-%end
-%hook PAGLRewardedAd
-- (void)loadAd { return; }
-- (void)presentFromRootViewController:(UIViewController *)rootVC animated:(BOOL)animated completion:(void (^)(void))completion { return; }
-%end
-%hook SigmobBanner
-- (void)loadAd { return; }
-- (void)layoutAdView { return; }
-%end
-%hook APPBanners
-- (void)loadAd { return; }
-- (void)presentAd { return; }
+/* ────────────────────────────────────────────────────────────────────────*/
+/*   4.  Global window control – hide ad windows                            */
+/* ────────────────────────────────────────────────────────────────────────*/
+%group AdBlockWindow
+%hook UIWindow
+- (void)makeKeyAndVisible {}
+- (void)becomeKeyWindow {}
+- (void)setHidden:(BOOL)hidden {
+    Class rootCls = [(UIViewController *)self rootViewController] ? [(UIViewController *)self rootViewController].class : nil;
+    NSString *rootName = rootCls ? NSStringFromClass(rootCls) : @"";
+    if ([rootName containsString:@"Splash"] ||
+        [rootName containsString:@"Interstitial"] ||
+        [rootName containsString:@"Ad"]) {
+        [super setHidden:YES];
+    } else {
+        [super setHidden:hidden];
+    }
+}
 %end
 %end
 
-/* ---------- 通知广告关闭的通用实现 ---------- */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-static void notifyAdClosed(id adInstance) {
-    if ([adInstance respondsToSelector:@selector(delegate)]) {
-        id delegate = [adInstance performSelector:@selector(delegate)];
-        if ([delegate respondsToSelector:@selector(splashAdClosed:)]) {
-            [delegate performSelector:@selector(splashAdClosed:) withObject:adInstance];
-        } else if ([delegate respondsToSelector:@selector(interstitialAdDidClose:)]) {
-            [delegate performSelector:@selector(interstitialAdDidClose:) withObject:adInstance];
-        } else if ([delegate respondsToSelector:@selector(splashAdDidDismissFullScreenContent:)]) {
-            [delegate performSelector:@selector(splashAdDidDismissFullScreenContent:) withObject:adInstance];
+/* ────────────────────────────────────────────────────────────────────────*/
+/*   5.  Global view controller – dismiss ad view controllers automatically */
+/* ────────────────────────────────────────────────────────────────────────*/
+%group AdBlockVC
+%hook UIViewController
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    Class c = [self class];
+    NSString *name = NSStringFromClass(c);
+    if ([name containsString:@"Interstitial"] ||
+        [name containsString:@"Popup"] ||
+        [name containsString:@"Ad"] ||
+        [name containsString:@"Splash"]) {
+        // Dismiss with completion
+        [self dismissViewControllerAnimated:NO completion:nil];
+    }
+}
+%end
+%hook UINavigationController
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    for (UIViewController *vc in self.viewControllers) {
+        if ([NSStringFromClass([vc class]) containsString:@"Interstitial"] ||
+            [NSStringFromClass([vc class]) containsString:@"Popup"] ||
+            [NSStringFromClass([vc class]) containsString:@"Ad"] ||
+            [NSStringFromClass([vc class]) containsString:@"Splash"]) {
+            [vc dismissViewControllerAnimated:NO completion:nil];
         }
     }
-    if ([adInstance isKindOfClass:[UIView class]]) {
-        [(UIView *)adInstance setHidden:YES];
-        [(UIView *)adInstance removeFromSuperview];
-    } else if ([adInstance isKindOfClass:[UIViewController class]]) {
-        [(UIViewController *)adInstance dismissViewControllerAnimated:NO completion:nil];
-    }
 }
-#pragma clang diagnostic pop
+%end
+%end
 
-/* ---------- 应用启动日志 ---------- */
-%group AppLaunchHook
+/* ────────────────────────────────────────────────────────────────────────*/
+/*   6.  Application launch – confirm injection                         */
+/* ────────────────────────────────────────────────────────────────────────*/
+%group AdBlockApplication
 %hook UIApplication
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+- (void)applicationDidFinishLaunching:(UIApplication *)application {
+    %orig;
     NSLog(@"[!!!] Tweak 注入成功");
-    return %orig;
 }
 %end
 %end
 
-/* ---------- 构造器 ---------- */
+/* ────────────────────────────────────────────────────────────────────────*/
+/*   7.  Constructor – initialise all groups                             */
+/* ────────────────────────────────────────────────────────────────────────*/
 %ctor {
-    %init(GlobalWindowHook);
-    %init(GlobalVCHook);
-    %init(InterstitialHook);
-    %init(SplashHook);
-    %init(BannerHook);
-    %init(AppLaunchHook);
+    %init(AdBlockSplash);
+    %init(AdBlockInterstitial);
+    %init(AdBlockWindow);
+    %init(AdBlockVC);
+    %init(AdBlockApplication);
 }
